@@ -22,6 +22,7 @@ embassy-net = { version = "0.7.0", features = [
   "medium-ethernet",
   "tcp",
   "udp",
+  "dns"
 ] }
 embedded-io = "0.6.1"
 embedded-io-async = "0.6.1"
@@ -43,6 +44,9 @@ esp-wifi = { version = "0.14.1", features = [
   "smoltcp",
   "wifi",
 ] }
+reqwless = { version = "0.13.0", default-features = false, features = [
+  "embedded-tls",
+] }
 smoltcp = { version = "0.12.0", default-features = false, features = [
   "log",
   "medium-ethernet",
@@ -55,6 +59,7 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
   "socket-raw",
   "socket-tcp",
   "socket-udp",
+  "dns-max-server-count-4"
 ] }
 static_cell = { version = "2.1.0", features = ["nightly"] }
 

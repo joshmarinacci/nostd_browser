@@ -8,10 +8,13 @@
 
 use core::net::Ipv4Addr;
 use embassy_executor::Spawner;
-use embassy_net::{Runner, StackResources};
+use embassy_net::{Runner, Stack, StackResources};
+use embassy_net::dns::DnsSocket;
+use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_net::tcp::TcpSocket;
 use embassy_time::{Duration, Timer};
 use esp_hal::clock::CpuClock;
+use esp_hal::rng::Rng;
 use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::timer::timg::TimerGroup;
 use esp_println::println;
@@ -21,6 +24,7 @@ use esp_wifi::{
 };
 use esp_wifi::wifi::{ClientConfiguration, Configuration, WifiController, WifiDevice, WifiEvent, WifiState};
 use log::info;
+use reqwless::client::{HttpClient, TlsConfig};
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
@@ -92,21 +96,9 @@ async fn main(spawner: Spawner) {
     let mut rx_buffer = [0; 4096];
     let mut tx_buffer = [0; 4096];
 
-    loop {
-        if stack.is_link_up() {
-            break;
-        }
-        Timer::after(Duration::from_millis(500)).await;
-    }
-    info!("Waiting to get IP address...");
-    loop {
-        if let Some(config) = stack.config_v4() {
-            info!("Got IP: {}", config.address);
-            break;
-        }
-        Timer::after(Duration::from_millis(500)).await;
-    }
+    wait_for_connection(stack).await;
 
+    info!("we are connected. on to the HTTP request");
     loop {
         Timer::after(Duration::from_millis(1_000)).await;
 
@@ -149,6 +141,24 @@ async fn main(spawner: Spawner) {
     }
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-beta.1/examples/src/bin
+}
+async fn wait_for_connection(stack: Stack<'_>) {
+    println!("Waiting for link to be up");
+    loop {
+        if stack.is_link_up() {
+            break;
+        }
+        Timer::after(Duration::from_millis(500)).await;
+    }
+
+    println!("Waiting to get IP address...");
+    loop {
+        if let Some(config) = stack.config_v4() {
+            println!("Got IP: {}", config.address);
+            break;
+        }
+        Timer::after(Duration::from_millis(500)).await;
+    }
 }
 
 
