@@ -57,7 +57,8 @@ async fn main(spawner: Spawner) {
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
 
-    esp_alloc::heap_allocator!(size: 64 * 1024);
+    esp_alloc::heap_allocator!(size: 128 * 1024);
+    info!("heap is {}", esp_alloc::HEAP.stats());
 
     let mut rng = esp_hal::rng::Rng::new(peripherals.RNG);
     let timg0 = TimerGroup::new(peripherals.TIMG0);
@@ -100,26 +101,31 @@ async fn main(spawner: Spawner) {
 
     info!("we are connected. on to the HTTP request");
 
-    let mut rx_buffer = [0; 4096];
-    let mut tx_buffer = [0; 4096];
+    let mut rx_buffer = [0; 4096*2];
+    let mut tx_buffer = [0; 4096*2];
     let dns = DnsSocket::new(stack);
     let tcp_state = TcpClientState::<1, 4096, 4096>::new();
     let tcp = TcpClient::new(stack, &tcp_state);
 
-    // let tls = TlsConfig::new(
-    //     tls_seed,
-    //     &mut rx_buffer,
-    //     &mut tx_buffer,
-    //     reqwless::client::TlsVerify::None,
-    // );
-    //
-    // let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
-    let mut client = HttpClient::new(&tcp, &dns);
-    let mut buffer = [0u8; 4096];
+    let tls = TlsConfig::new(
+        tls_seed,
+        &mut rx_buffer,
+        &mut tx_buffer,
+        reqwless::client::TlsVerify::None,
+    );
+
+    let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
+    // let mut client = HttpClient::new(&tcp, &dns);
+    let mut buffer = [0u8; 4096*5];
+    info!("making the actual request");
+    info!("heap is {}", esp_alloc::HEAP.stats());
     let mut http_req = client
         .request(
             reqwless::request::Method::GET,
-            "http://joshondesign.com/",
+            "https://joshondesign.com/2023/07/12/css_text_style_builder",
+            // "https://jsonplaceholder.typicode.com/posts/1",
+            // "https://apps.josh.earth/",
+
         )
         .await
         .unwrap();
@@ -130,6 +136,7 @@ async fn main(spawner: Spawner) {
 
     let content = core::str::from_utf8(res).unwrap();
     info!("{}", content);
+    info!("heap is {}", esp_alloc::HEAP.stats());
 
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-beta.1/examples/src/bin
