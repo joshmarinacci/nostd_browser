@@ -17,7 +17,6 @@ use esp_hal::clock::CpuClock;
 use esp_hal::rng::Rng;
 use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::timer::timg::TimerGroup;
-use esp_println::println;
 use esp_wifi::{
     EspWifiController,
     init,
@@ -76,7 +75,10 @@ async fn main(spawner: Spawner) {
     let timg1 = TimerGroup::new(peripherals.TIMG1);
     esp_hal_embassy::init(timg1.timer0);
     let config = embassy_net::Config::dhcpv4(Default::default());
-    let seed = (rng.random() as u64) << 32 | rng.random() as u64;
+    let net_seed = (rng.random() as u64) << 32 | rng.random() as u64;
+    info!("made net seed {}", net_seed);
+    let tls_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
+    info!("made tls seed {}", tls_seed);
 
     info!("init-ing the network stack");
     // Init network stack
@@ -84,7 +86,7 @@ async fn main(spawner: Spawner) {
         wifi_interface,
         config,
         mk_static!(StackResources<3>, StackResources::<3>::new()),
-        seed,
+        net_seed,
     );
 
 
@@ -93,57 +95,47 @@ async fn main(spawner: Spawner) {
     info!("spawning net task");
     spawner.spawn(net_task(runner)).ok();
 
-    let mut rx_buffer = [0; 4096];
-    let mut tx_buffer = [0; 4096];
 
     wait_for_connection(stack).await;
 
     info!("we are connected. on to the HTTP request");
-    loop {
-        Timer::after(Duration::from_millis(1_000)).await;
 
-        let mut socket = TcpSocket::new(stack, &mut rx_buffer, &mut tx_buffer);
+    let mut rx_buffer = [0; 4096];
+    let mut tx_buffer = [0; 4096];
+    let dns = DnsSocket::new(stack);
+    let tcp_state = TcpClientState::<1, 4096, 4096>::new();
+    let tcp = TcpClient::new(stack, &tcp_state);
 
-        socket.set_timeout(Some(embassy_time::Duration::from_secs(10)));
+    // let tls = TlsConfig::new(
+    //     tls_seed,
+    //     &mut rx_buffer,
+    //     &mut tx_buffer,
+    //     reqwless::client::TlsVerify::None,
+    // );
+    //
+    // let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
+    let mut client = HttpClient::new(&tcp, &dns);
+    let mut buffer = [0u8; 4096];
+    let mut http_req = client
+        .request(
+            reqwless::request::Method::GET,
+            "http://joshondesign.com/",
+        )
+        .await
+        .unwrap();
+    let response = http_req.send(&mut buffer).await.unwrap();
 
-        let remote_endpoint = (Ipv4Addr::new(142, 250, 185, 115), 80);
-        info!("connecting...");
-        let r = socket.connect(remote_endpoint).await;
-        if let Err(e) = r {
-            info!("connect error: {:?}", e);
-            continue;
-        }
-        info!("connected!");
-        let mut buf = [0; 1024];
-        loop {
-            use embedded_io_async::Write;
-            let r = socket
-                .write_all(b"GET / HTTP/1.0\r\nHost: www.mobile-j.de\r\n\r\n")
-                .await;
-            if let Err(e) = r {
-                info!("write error: {:?}", e);
-                break;
-            }
-            let n = match socket.read(&mut buf).await {
-                Ok(0) => {
-                    info!("read EOF");
-                    break;
-                }
-                Ok(n) => n,
-                Err(e) => {
-                    info!("read error: {:?}", e);
-                    break;
-                }
-            };
-            info!("{}", core::str::from_utf8(&buf[..n]).unwrap());
-        }
-        Timer::after(Duration::from_millis(3000)).await;
-    }
+    info!("Got response");
+    let res = response.body().read_to_end().await.unwrap();
+
+    let content = core::str::from_utf8(res).unwrap();
+    info!("{}", content);
+
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-beta.1/examples/src/bin
 }
 async fn wait_for_connection(stack: Stack<'_>) {
-    println!("Waiting for link to be up");
+    info!("Waiting for link to be up");
     loop {
         if stack.is_link_up() {
             break;
@@ -151,10 +143,10 @@ async fn wait_for_connection(stack: Stack<'_>) {
         Timer::after(Duration::from_millis(500)).await;
     }
 
-    println!("Waiting to get IP address...");
+    info!("Waiting to get IP address...");
     loop {
         if let Some(config) = stack.config_v4() {
-            println!("Got IP: {}", config.address);
+            info!("Got IP: {}", config.address);
             break;
         }
         Timer::after(Duration::from_millis(500)).await;
