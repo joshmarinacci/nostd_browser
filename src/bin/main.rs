@@ -5,15 +5,13 @@
     reason = "mem::forget is generally not safe to do with esp_hal types, especially those \
     holding buffers for the duration of a data transfer."
 )]
-
+use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec;
-use core::net::Ipv4Addr;
 use embassy_executor::Spawner;
 use embassy_net::{Runner, Stack, StackResources};
 use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
-use embassy_net::tcp::TcpSocket;
 use embassy_time::{Duration, Timer};
 use embedded_graphics::{
     pixelcolor::Rgb565,
@@ -30,7 +28,6 @@ use esp_hal::gpio::{Input, InputConfig, Output, OutputConfig, Pull};
 use esp_hal::i2c::master::{BusTimeout, Config, I2c};
 use esp_hal::rng::Rng;
 use esp_hal::time::Rate;
-use esp_hal::timer::systimer::SystemTimer;
 use esp_hal::spi::{ master::{Spi, Config as SpiConfig } };
 use esp_hal::timer::timg::TimerGroup;
 use esp_wifi::{
@@ -45,6 +42,8 @@ use mipidsi::{models::ST7789, Builder, Display, NoResetPin};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use static_cell::StaticCell;
+use nostd_browser::common::TDeckDisplay;
+use nostd_browser::gui::{CompoundMenu, MenuView};
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
@@ -96,6 +95,16 @@ async fn main(spawner: Spawner) {
     board_power.set_high();
     delay.delay_millis(1000);
 
+    // set up the keyboard
+    let i2c = I2c::new(
+        peripherals.I2C0,
+        Config::default().with_frequency(Rate::from_khz(100)).with_timeout(BusTimeout::Disabled),
+    )
+        .unwrap()
+        .with_sda(peripherals.GPIO18)
+        .with_scl(peripherals.GPIO8);
+    info!("initialized I2C keyboard");
+    let ic2_ref = I2C.init(i2c);
 
     // set up the display
     {
@@ -135,27 +144,70 @@ async fn main(spawner: Spawner) {
             .orientation(Orientation::new().rotate(Rotation::Deg90))
             // .display_size(320,240)
             .init(&mut delay).unwrap();
-        static DISPLAY:StaticCell<Display<SpiInterface<'static,    ExclusiveDevice<Spi<Blocking>,Output,Delay>,  Output>,ST7789,NoResetPin>> = StaticCell::new();
+        static DISPLAY:StaticCell<TDeckDisplay> = StaticCell::new();
         let display_ref = DISPLAY.init(display);
-        spawner.spawn(update_display(display_ref)).ok();
         info!("initialized display");
+
+        let main_menu = MenuView {
+            id:"main",
+            dirty: true,
+            items: vec!["Theme","Font","Wifi","Bookmarks","close"],
+            position: Point::new(0,0),
+            highlighted_index: 0,
+            visible: true,
+            callback: None,
+        };
+        let theme_menu = MenuView {
+            id:"themes",
+            dirty:true,
+            items: vec!["Dark", "Light", "close"],
+            position: Point::new(20,20),
+            highlighted_index: 0,
+            visible: false,
+            callback: None,
+        };
+        let mut menu = CompoundMenu {
+            menus: vec![],
+            focused: "main",
+            callback: Some(Box::new(|comp, menu, cmd| {
+                info!("menu {} cmd {}",menu,cmd);
+                if menu == "main" {
+                    if cmd == "Theme" {
+                        comp.open_menu("themes");
+                                }
+                    if cmd == "Font" {
+                        comp.open_menu("fonts");
+                    }
+                    if cmd == "Wifi" {
+                        comp.open_menu("wifi");
+                                }
+                    if cmd == "Bookmarks" {
+                        comp.open_menu("bookmarks");
+                    }
+                    if cmd == "close" {
+                        comp.hide();
+                    }
+                }
+                if menu == "themes" {
+                    if cmd == "Dark" {
+                    }
+                    if cmd == "Light" {
+                    }
+                    if cmd == "close" {
+                        comp.hide_menu("themes");
+                    }
+                }
+            })),
+            dirty: true,
+        };
+        menu.add_menu(main_menu);
+        menu.add_menu(theme_menu);
+        spawner.spawn(update_display(display_ref, menu, ic2_ref)).ok();
+
     }
 
-    // set up the keyboard
-    {
-        let i2c = I2c::new(
-            peripherals.I2C0,
-            Config::default().with_frequency(Rate::from_khz(100)).with_timeout(BusTimeout::Disabled),
-        )
-            .unwrap()
-            .with_sda(peripherals.GPIO18)
-            .with_scl(peripherals.GPIO8);
-        info!("initialized I2C keyboard");
-        let ic2_ref = I2C.init(i2c);
-        spawner.spawn(watch_keyboard(ic2_ref)).ok();
-    }
 
-    let mut rng = esp_hal::rng::Rng::new(peripherals.RNG);
+    let mut rng = Rng::new(peripherals.RNG);
     let timg0 = TimerGroup::new(peripherals.TIMG0);
 
     info!("made timer");
@@ -301,33 +353,54 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
     runner.run().await
 }
 
+// #[embassy_executor::task]
+// async fn watch_keyboard(x: &'static mut I2c<'static, Blocking>) {
+//     loop {
+//         info!("checking keyboard");
+//         let mut data = [0u8; 1];
+//         let kb_res = (*x).read(LILYGO_KB_I2C_ADDRESS, &mut data);
+//         match kb_res {
+//             Ok(_) => {
+//                 if data[0] != 0x00 {
+//                     info!("kb_res = {:?}", String::from_utf8_lossy(&data));
+//                 }
+//             }
+//             Err(e) => {
+//                 // info!("kb_res = {}", e);
+//             }
+//         }
+//         Timer::after(Duration::from_millis(1000)).await;
+//     }
+// }
+
 #[embassy_executor::task]
-async fn watch_keyboard(x: &'static mut I2c<'static, Blocking>) {
+async fn update_display(display: &'static mut TDeckDisplay, mut menu: CompoundMenu<'static>, i2c:&'static mut I2c<'static, Blocking>) {
     loop {
-        info!("checking keyboard");
         let mut data = [0u8; 1];
-        let kb_res = (*x).read(LILYGO_KB_I2C_ADDRESS, &mut data);
+        let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
         match kb_res {
             Ok(_) => {
                 if data[0] != 0x00 {
                     info!("kb_res = {:?}", String::from_utf8_lossy(&data));
+                    // menu.handle_key_event(data[0]);
+                    if menu.is_menu_visible("main") {
+                        menu.handle_key_event(data[0]);
+                    } else {
+                        if data[0] == b' ' {
+                            menu.open_menu("main");
+                        }
+                    }
                 }
             }
             Err(e) => {
                 // info!("kb_res = {}", e);
             }
         }
-        Timer::after(Duration::from_millis(1000)).await;
-    }
-}
 
-#[embassy_executor::task]
-async fn update_display(display: &'static mut Display<SpiInterface<'static, ExclusiveDevice<Spi<'static, Blocking>, Output<'static>, Delay>,   Output<'static>>, ST7789, NoResetPin>) {
-    let colors = vec![Rgb565::RED, Rgb565::GREEN, Rgb565::BLUE];
-    let mut index = 0usize;
-    loop {
-        display.clear(colors[index]).unwrap();
-        index = (index + 1) % colors.len();
-        Timer::after(Duration::from_millis(1000)).await;
+        if menu.is_dirty() {
+            display.clear(Rgb565::WHITE).unwrap();
+            menu.draw(display);
+        }
+        Timer::after(Duration::from_millis(100)).await;
     }
 }
