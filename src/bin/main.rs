@@ -6,6 +6,8 @@
     holding buffers for the duration of a data transfer."
 )]
 
+use alloc::string::String;
+use alloc::vec;
 use core::net::Ipv4Addr;
 use embassy_executor::Spawner;
 use embassy_net::{Runner, Stack, StackResources};
@@ -13,9 +15,23 @@ use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_net::tcp::TcpSocket;
 use embassy_time::{Duration, Timer};
+use embedded_graphics::{
+    pixelcolor::Rgb565,
+    prelude::*,
+    text::Text,
+    mono_font::{ ascii::FONT_6X10, MonoTextStyle}
+};
+use embedded_hal_bus::spi::ExclusiveDevice;
+use esp_hal::Blocking;
 use esp_hal::clock::CpuClock;
+use esp_hal::delay::Delay;
+use esp_hal::gpio::Level::{High, Low};
+use esp_hal::gpio::{Input, InputConfig, Output, OutputConfig, Pull};
+use esp_hal::i2c::master::{BusTimeout, Config, I2c};
 use esp_hal::rng::Rng;
+use esp_hal::time::Rate;
 use esp_hal::timer::systimer::SystemTimer;
+use esp_hal::spi::{ master::{Spi, Config as SpiConfig } };
 use esp_hal::timer::timg::TimerGroup;
 use esp_wifi::{
     EspWifiController,
@@ -24,6 +40,11 @@ use esp_wifi::{
 use esp_wifi::wifi::{ClientConfiguration, Configuration, WifiController, WifiDevice, WifiEvent, WifiState};
 use log::info;
 use reqwless::client::{HttpClient, TlsConfig};
+
+use mipidsi::{models::ST7789, Builder, Display, NoResetPin};
+use mipidsi::interface::SpiInterface;
+use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
+use static_cell::StaticCell;
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
@@ -49,6 +70,10 @@ macro_rules! mk_static {
 const SSID: &str = env!("SSID");
 const PASSWORD: &str = env!("PASSWORD");
 
+pub const LILYGO_KB_I2C_ADDRESS: u8 =     0x55;
+
+static I2C:StaticCell<I2c<Blocking>> = StaticCell::new();
+
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
 
@@ -60,6 +85,76 @@ async fn main(spawner: Spawner) {
     esp_alloc::heap_allocator!(size: 128 * 1024);
     info!("heap is {}", esp_alloc::HEAP.stats());
 
+    info!("init-ting embassy");
+    let timg1 = TimerGroup::new(peripherals.TIMG1);
+    esp_hal_embassy::init(timg1.timer0);
+
+
+    let mut delay = Delay::new();
+    // have to turn on the board and wait 500ms before using the keyboard
+    let mut board_power = Output::new(peripherals.GPIO10, High, OutputConfig::default());
+    board_power.set_high();
+    delay.delay_millis(1000);
+
+
+    // set up the display
+    {
+        // set TFT CS to high
+        let mut tft_cs = Output::new(peripherals.GPIO12, High, OutputConfig::default());
+        tft_cs.set_high();
+        let tft_miso = Input::new(peripherals.GPIO38, InputConfig::default().with_pull(Pull::Up));
+        let tft_sck = peripherals.GPIO40;
+        let tft_mosi = peripherals.GPIO41;
+        let tft_dc = Output::new(peripherals.GPIO11, Low, OutputConfig::default());
+        let mut tft_enable = Output::new(peripherals.GPIO42, High, OutputConfig::default());
+        tft_enable.set_high();
+
+        info!("creating spi device");
+        info!("heap is {}", esp_alloc::HEAP.stats());
+        let spi = Spi::new(peripherals.SPI2, SpiConfig::default()
+            .with_frequency(Rate::from_mhz(40))
+                           // .with_mode(Mode::_0)
+        ).unwrap()
+            .with_sck(tft_sck)
+            .with_miso(tft_miso)
+            .with_mosi(tft_mosi)
+            ;
+        static DISPLAY_BUF:StaticCell<[u8;512]> = StaticCell::new();
+        let buffer = DISPLAY_BUF.init([0u8; 512]);
+
+        info!("setting up the display");
+        let spi_delay = Delay::new();
+        let spi_device = ExclusiveDevice::new(spi, tft_cs, spi_delay).unwrap();
+        let di = SpiInterface::new(spi_device, tft_dc, buffer);
+        info!("building");
+        let display = Builder::new(ST7789, di)
+            // .reset_pin(tft_enable)
+            .display_size(240,320)
+            .invert_colors(ColorInversion::Inverted)
+            .color_order(ColorOrder::Rgb)
+            .orientation(Orientation::new().rotate(Rotation::Deg90))
+            // .display_size(320,240)
+            .init(&mut delay).unwrap();
+        static DISPLAY:StaticCell<Display<SpiInterface<'static,    ExclusiveDevice<Spi<Blocking>,Output,Delay>,  Output>,ST7789,NoResetPin>> = StaticCell::new();
+        let display_ref = DISPLAY.init(display);
+        spawner.spawn(update_display(display_ref)).ok();
+        info!("initialized display");
+    }
+
+    // set up the keyboard
+    {
+        let i2c = I2c::new(
+            peripherals.I2C0,
+            Config::default().with_frequency(Rate::from_khz(100)).with_timeout(BusTimeout::Disabled),
+        )
+            .unwrap()
+            .with_sda(peripherals.GPIO18)
+            .with_scl(peripherals.GPIO8);
+        info!("initialized I2C keyboard");
+        let ic2_ref = I2C.init(i2c);
+        spawner.spawn(watch_keyboard(ic2_ref)).ok();
+    }
+
     let mut rng = esp_hal::rng::Rng::new(peripherals.RNG);
     let timg0 = TimerGroup::new(peripherals.TIMG0);
 
@@ -69,12 +164,9 @@ async fn main(spawner: Spawner) {
         init(timg0.timer0, rng.clone(), peripherals.RADIO_CLK).unwrap()
     );
     info!("making controller");
-    let (controller, interfaces) = esp_wifi::wifi::new(&esp_wifi_ctrl, peripherals.WIFI).unwrap();
+    let (wifi_controller, interfaces) = esp_wifi::wifi::new(&esp_wifi_ctrl, peripherals.WIFI).unwrap();
     let wifi_interface = interfaces.sta;
 
-    info!("initting embassy");
-    let timg1 = TimerGroup::new(peripherals.TIMG1);
-    esp_hal_embassy::init(timg1.timer0);
     let config = embassy_net::Config::dhcpv4(Default::default());
     let net_seed = (rng.random() as u64) << 32 | rng.random() as u64;
     info!("made net seed {}", net_seed);
@@ -83,7 +175,7 @@ async fn main(spawner: Spawner) {
 
     info!("init-ing the network stack");
     // Init network stack
-    let (stack, runner) = embassy_net::new(
+    let (network_stack, wifi_runner) = embassy_net::new(
         wifi_interface,
         config,
         mk_static!(StackResources<3>, StackResources::<3>::new()),
@@ -92,52 +184,53 @@ async fn main(spawner: Spawner) {
 
 
     info!("spawning connection");
-    spawner.spawn(connection(controller)).ok();
+    spawner.spawn(connection(wifi_controller)).ok();
     info!("spawning net task");
-    spawner.spawn(net_task(runner)).ok();
+    spawner.spawn(net_task(wifi_runner)).ok();
 
 
-    wait_for_connection(stack).await;
+
+    wait_for_connection(network_stack).await;
 
     info!("we are connected. on to the HTTP request");
+    {
+        let mut rx_buffer = [0; 4096 * 2];
+        let mut tx_buffer = [0; 4096 * 2];
+        let dns = DnsSocket::new(network_stack);
+        let tcp_state = TcpClientState::<1, 4096, 4096>::new();
+        let tcp = TcpClient::new(network_stack, &tcp_state);
 
-    let mut rx_buffer = [0; 4096*2];
-    let mut tx_buffer = [0; 4096*2];
-    let dns = DnsSocket::new(stack);
-    let tcp_state = TcpClientState::<1, 4096, 4096>::new();
-    let tcp = TcpClient::new(stack, &tcp_state);
+        let tls = TlsConfig::new(
+            tls_seed,
+            &mut rx_buffer,
+            &mut tx_buffer,
+            reqwless::client::TlsVerify::None,
+        );
 
-    let tls = TlsConfig::new(
-        tls_seed,
-        &mut rx_buffer,
-        &mut tx_buffer,
-        reqwless::client::TlsVerify::None,
-    );
+        let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
+        // let mut client = HttpClient::new(&tcp, &dns);
+        let mut buffer = [0u8; 4096 * 5];
+        info!("making the actual request");
+        info!("heap is {}", esp_alloc::HEAP.stats());
+        let mut http_req = client
+            .request(
+                reqwless::request::Method::GET,
+                "https://joshondesign.com/2023/07/12/css_text_style_builder",
+                // "https://jsonplaceholder.typicode.com/posts/1",
+                // "https://apps.josh.earth/",
 
-    let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
-    // let mut client = HttpClient::new(&tcp, &dns);
-    let mut buffer = [0u8; 4096*5];
-    info!("making the actual request");
-    info!("heap is {}", esp_alloc::HEAP.stats());
-    let mut http_req = client
-        .request(
-            reqwless::request::Method::GET,
-            "https://joshondesign.com/2023/07/12/css_text_style_builder",
-            // "https://jsonplaceholder.typicode.com/posts/1",
-            // "https://apps.josh.earth/",
+            )
+            .await
+            .unwrap();
+        let response = http_req.send(&mut buffer).await.unwrap();
 
-        )
-        .await
-        .unwrap();
-    let response = http_req.send(&mut buffer).await.unwrap();
+        info!("Got response");
+        let res = response.body().read_to_end().await.unwrap();
 
-    info!("Got response");
-    let res = response.body().read_to_end().await.unwrap();
-
-    let content = core::str::from_utf8(res).unwrap();
-    info!("{}", content);
-    info!("heap is {}", esp_alloc::HEAP.stats());
-
+        let content = core::str::from_utf8(res).unwrap();
+        info!("{}", content);
+        info!("heap is {}", esp_alloc::HEAP.stats());
+    }
 
     // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-beta.1/examples/src/bin
 }
@@ -206,4 +299,35 @@ async fn connection(mut controller: WifiController<'static>) {
 #[embassy_executor::task]
 async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
     runner.run().await
+}
+
+#[embassy_executor::task]
+async fn watch_keyboard(x: &'static mut I2c<'static, Blocking>) {
+    loop {
+        info!("checking keyboard");
+        let mut data = [0u8; 1];
+        let kb_res = (*x).read(LILYGO_KB_I2C_ADDRESS, &mut data);
+        match kb_res {
+            Ok(_) => {
+                if data[0] != 0x00 {
+                    info!("kb_res = {:?}", String::from_utf8_lossy(&data));
+                }
+            }
+            Err(e) => {
+                // info!("kb_res = {}", e);
+            }
+        }
+        Timer::after(Duration::from_millis(1000)).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn update_display(display: &'static mut Display<SpiInterface<'static, ExclusiveDevice<Spi<'static, Blocking>, Output<'static>, Delay>,   Output<'static>>, ST7789, NoResetPin>) {
+    let colors = vec![Rgb565::RED, Rgb565::GREEN, Rgb565::BLUE];
+    let mut index = 0usize;
+    loop {
+        display.clear(colors[index]).unwrap();
+        index = (index + 1) % colors.len();
+        Timer::after(Duration::from_millis(1000)).await;
+    }
 }
