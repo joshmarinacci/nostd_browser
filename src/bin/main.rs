@@ -7,7 +7,8 @@
 )]
 use alloc::boxed::Box;
 use alloc::string::String;
-use alloc::vec;
+use alloc::{format, vec};
+use alloc::vec::Vec;
 use embassy_executor::Spawner;
 use embassy_net::{Runner, Stack, StackResources};
 use embassy_net::dns::DnsSocket;
@@ -19,6 +20,7 @@ use embedded_graphics::{
     text::Text,
     mono_font::{ ascii::FONT_6X10, MonoTextStyle}
 };
+use embedded_graphics::mono_font::ascii::FONT_9X15;
 use embedded_hal_bus::spi::ExclusiveDevice;
 use esp_hal::Blocking;
 use esp_hal::clock::CpuClock;
@@ -41,9 +43,12 @@ use reqwless::client::{HttpClient, TlsConfig};
 use mipidsi::{models::ST7789, Builder, Display, NoResetPin};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
+use reqwless::client::HttpConnection::Plain;
 use static_cell::StaticCell;
 use nostd_browser::common::TDeckDisplay;
 use nostd_browser::gui::{CompoundMenu, MenuView};
+use nostd_browser::textview;
+use nostd_browser::textview::{break_lines, LineStyle, TextLine, TextRun, TextView};
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
@@ -105,6 +110,30 @@ async fn main(spawner: Spawner) {
         .with_scl(peripherals.GPIO8);
     info!("initialized I2C keyboard");
     let ic2_ref = I2C.init(i2c);
+
+
+    let max_chars = 30;
+    let mut lines:Vec<TextLine> = vec![];
+    lines.append(&mut break_lines("Thoughts on LLMs and the coming AI backlash", max_chars-4,LineStyle::Header));
+    lines.push(TextLine {
+        runs: vec![TextRun {
+            style:LineStyle::Plain,
+            text:"".into(),
+        }]
+    });
+    lines.append(&mut break_lines(r#"I find Large Language Models fascinating.
+    They are a very different approach to AI than most of the 60 years of
+    AI research and show great promise. At the same time they are just technology.
+    They aren't magic. They aren't even very good technology yet. LLM hype has vastly
+    outpaced reality and I think we are due for a correction, possibly even a bubble pop.
+    Furthermore, I think future AI progress is going to happen on the app / UX side,
+    not on the core models, which are already starting to show their scaling limits.
+    Let's dig in. Better pour a cup of coffee. This could be a long one."#, max_chars-4,LineStyle::Plain));
+
+    let textview = TextView {
+        dirty: true,
+        lines: lines,
+    };
 
     // set up the display
     {
@@ -202,7 +231,7 @@ async fn main(spawner: Spawner) {
         };
         menu.add_menu(main_menu);
         menu.add_menu(theme_menu);
-        spawner.spawn(update_display(display_ref, menu, ic2_ref)).ok();
+        spawner.spawn(update_display(display_ref, menu, ic2_ref, textview)).ok();
 
     }
 
@@ -374,7 +403,7 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
 // }
 
 #[embassy_executor::task]
-async fn update_display(display: &'static mut TDeckDisplay, mut menu: CompoundMenu<'static>, i2c:&'static mut I2c<'static, Blocking>) {
+async fn update_display(display: &'static mut TDeckDisplay, mut menu: CompoundMenu<'static>, i2c:&'static mut I2c<'static, Blocking>, mut textview: TextView) {
     loop {
         let mut data = [0u8; 1];
         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
@@ -397,8 +426,9 @@ async fn update_display(display: &'static mut TDeckDisplay, mut menu: CompoundMe
             }
         }
 
-        if menu.is_dirty() {
+        if textview.dirty  || menu.is_dirty() {
             display.clear(Rgb565::WHITE).unwrap();
+            textview.draw(display);
             menu.draw(display);
         }
         Timer::after(Duration::from_millis(100)).await;
