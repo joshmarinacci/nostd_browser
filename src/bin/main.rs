@@ -47,6 +47,7 @@ use reqwless::client::HttpConnection::Plain;
 use static_cell::StaticCell;
 use nostd_browser::common::TDeckDisplay;
 use nostd_browser::gui::{CompoundMenu, MenuView};
+use nostd_browser::tagparser::TagParser;
 use nostd_browser::textview;
 use nostd_browser::textview::{break_lines, LineStyle, TextLine, TextRun, TextView};
 
@@ -296,9 +297,9 @@ async fn main(spawner: Spawner) {
         let mut http_req = client
             .request(
                 reqwless::request::Method::GET,
-                "https://joshondesign.com/2023/07/12/css_text_style_builder",
+                // "https://joshondesign.com/2023/07/12/css_text_style_builder",
                 // "https://jsonplaceholder.typicode.com/posts/1",
-                // "https://apps.josh.earth/",
+                "https://apps.josh.earth/",
 
             )
             .await
@@ -308,8 +309,13 @@ async fn main(spawner: Spawner) {
         info!("Got response");
         let res = response.body().read_to_end().await.unwrap();
 
-        let content = core::str::from_utf8(res).unwrap();
-        info!("{}", content);
+        // let content = core::str::from_utf8(res).unwrap();
+        // info!("content {}", content);
+        let mut parser:TagParser = TagParser::with_debug(res, true);
+        info!("made a parser");
+        for tag in parser {
+            info!("tag {:?}", tag);
+        }
         info!("heap is {}", esp_alloc::HEAP.stats());
     }
 
@@ -381,26 +387,6 @@ async fn connection(mut controller: WifiController<'static>) {
 async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
     runner.run().await
 }
-
-// #[embassy_executor::task]
-// async fn watch_keyboard(x: &'static mut I2c<'static, Blocking>) {
-//     loop {
-//         info!("checking keyboard");
-//         let mut data = [0u8; 1];
-//         let kb_res = (*x).read(LILYGO_KB_I2C_ADDRESS, &mut data);
-//         match kb_res {
-//             Ok(_) => {
-//                 if data[0] != 0x00 {
-//                     info!("kb_res = {:?}", String::from_utf8_lossy(&data));
-//                 }
-//             }
-//             Err(e) => {
-//                 // info!("kb_res = {}", e);
-//             }
-//         }
-//         Timer::after(Duration::from_millis(1000)).await;
-//     }
-// }
 
 #[embassy_executor::task]
 async fn update_display(display: &'static mut TDeckDisplay, mut menu: CompoundMenu<'static>, i2c:&'static mut I2c<'static, Blocking>, mut textview: TextView) {
