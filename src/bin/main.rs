@@ -43,11 +43,12 @@ use reqwless::client::{HttpClient, TlsConfig};
 use mipidsi::{models::ST7789, Builder, Display, NoResetPin};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
+use nostd_html_parser::TagParser;
 use reqwless::client::HttpConnection::Plain;
 use static_cell::StaticCell;
 use nostd_browser::common::TDeckDisplay;
 use nostd_browser::gui::{CompoundMenu, MenuView};
-use nostd_browser::tagparser::TagParser;
+// use nostd_browser::tagparser::TagParser;
 use nostd_browser::textview;
 use nostd_browser::textview::{break_lines, LineStyle, TextLine, TextRun, TextView};
 

@@ -8,6 +8,7 @@ name = "nostd_browser"
 path = "./src/bin/main.rs"
 
 [dependencies]
+nostd_html_parser = {path = "../nostd_html_parser"}
 esp-bootloader-esp-idf = "0.1.0"
 esp-hal = { version = "=1.0.0-beta.1", features = [
   "esp32s3",
