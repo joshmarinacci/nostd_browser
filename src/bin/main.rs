@@ -41,7 +41,7 @@ use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use nostd_html_parser::{Tag, TagParser};
 use static_cell::StaticCell;
 use nostd_browser::common::TDeckDisplay;
-use nostd_browser::gui::{CompoundMenu, GuiEvent, MenuView, Scene, VButton, VLabel};
+use nostd_browser::gui::{ GuiEvent, MenuView, Scene, VButton, VLabel};
 use nostd_browser::textview::{break_lines, LineStyle, TextLine, TextRun, TextView};
 
 #[panic_handler]
@@ -171,9 +171,8 @@ async fn main(spawner: Spawner) {
         let display_ref = DISPLAY.init(display);
         info!("initialized display");
 
-        let menu:CompoundMenu = setup_menu();
         let scene = make_gui_scene();
-        spawner.spawn(update_display(display_ref, menu, ic2_ref, textview, scene)).ok();
+        spawner.spawn(update_display(display_ref, ic2_ref, textview, scene)).ok();
 
     }
 
@@ -339,24 +338,16 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
 }
 
 #[embassy_executor::task]
-async fn update_display(display: &'static mut TDeckDisplay, mut menu: CompoundMenu<'static>, i2c:&'static mut I2c<'static, Blocking>, mut textview: TextView, mut scene:Scene) {
+async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c<'static, Blocking>, mut textview: TextView, mut scene:Scene) {
     loop {
         let mut data = [0u8; 1];
         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
         match kb_res {
             Ok(_) => {
                 if data[0] != 0x00 {
-                    info!("kb_res = {:?}", String::from_utf8_lossy(&data));
+                    // info!("kb_res = {:?}", String::from_utf8_lossy(&data));
                     let evt:GuiEvent = GuiEvent::KeyEvent(data[0]);
-                    scene.handle_event(evt);
-                    // menu.handle_key_event(data[0]);
-                    // if menu.is_menu_visible("main") {
-                    //     menu.handle_key_event(data[0]);
-                    // } else {
-                    //     if data[0] == b' ' {
-                    //         menu.open_menu("main");
-                    //     }
-                    // }
+                    update_view_from_input(evt,&mut scene);
                 }
             }
             Err(_) => {
@@ -366,8 +357,6 @@ async fn update_display(display: &'static mut TDeckDisplay, mut menu: CompoundMe
 
          if scene.is_dirty() {
             display.clear(Rgb565::WHITE).unwrap();
-            // textview.draw(display);
-            // menu.draw(display);
             scene.draw(display);
         }
         Timer::after(Duration::from_millis(100)).await;
@@ -425,70 +414,56 @@ fn make_lines(parser:&mut TagParser) -> Vec<TextLine> {
     lines
 }
 
+fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
+    info!("update view from input {:?}", event);
+    let main_menu_id = 0 as usize;
+    let theme_menu_id = 1 as usize;
+    if scene.focused.is_none() {
+        scene.focused = Some(main_menu_id);
+    }
+    scene.handle_event(event);
+    if let Some(focused) = scene.focused {
+        if focused == main_menu_id {
+            match event {
+                GuiEvent::KeyEvent(key_event) => {
+                    match key_event {
+                        13 => {
+                            info!("main menu is focused and got an action event {}",key_event);
+                            // if menu == main
+                            // if selected item is theme
+                            //    get themes menu
+                            //    set visible to true
+                        },
+                        _ => {
 
-fn setup_menu<'a>() -> CompoundMenu<'a> {
-    let main_menu = MenuView {
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn make_gui_scene<'a>() -> Scene {
+    let mut scene = Scene::new();
+    let main_menu = Box::new(MenuView {
         id:"main",
         dirty: true,
         items: vec!["Theme","Font","Wifi","Bookmarks","close"],
         position: Point::new(0,0),
         highlighted_index: 0,
         visible: true,
-        callback: None,
-    };
-    let theme_menu = MenuView {
+    });
+    let theme_menu = Box::new(MenuView {
         id:"themes",
         dirty:true,
         items: vec!["Dark", "Light", "close"],
         position: Point::new(20,20),
         highlighted_index: 0,
         visible: false,
-        callback: None,
-    };
-    let mut menu = CompoundMenu {
-        menus: vec![],
-        focused: "main",
-        callback: Some(Box::new(|comp, menu, cmd| {
-            info!("menu {} cmd {}",menu,cmd);
-            if menu == "main" {
-                if cmd == "Theme" {
-                    comp.open_menu("themes");
-                }
-                if cmd == "Font" {
-                    comp.open_menu("fonts");
-                }
-                if cmd == "Wifi" {
-                    comp.open_menu("wifi");
-                }
-                if cmd == "Bookmarks" {
-                    comp.open_menu("bookmarks");
-                }
-                if cmd == "close" {
-                    comp.hide();
-                }
-            }
-            if menu == "themes" {
-                if cmd == "Dark" {
-                }
-                if cmd == "Light" {
-                }
-                if cmd == "close" {
-                    comp.hide_menu("themes");
-                }
-            }
-        })),
-        dirty: true,
-    };
-    menu.add_menu(main_menu);
-    menu.add_menu(theme_menu);
-    menu
-}
-
-fn make_gui_scene<'a>() -> Scene {
-    let mut scene = Scene::new();
-    scene.views.push(VLabel::new("foo"));
-    scene.views.push(VButton::new("bar"));
-    scene.set_focused(0);
+    });
+    scene.views.push(main_menu);
+    scene.views.push(theme_menu);
     scene
 }
 

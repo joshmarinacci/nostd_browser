@@ -20,12 +20,12 @@ pub struct MenuView<'a> {
     pub highlighted_index: usize,
     pub visible: bool,
     pub dirty: bool,
-    pub callback: Option<Box<dyn FnMut(&mut MenuView, &str) + 'a>>,
+    // pub callback: Option<Box<dyn FnMut(&mut MenuView, &str) + 'a>>,
 }
 
 impl<'a> MenuView<'a> {
     pub(crate) fn handle_key_event(&mut self, key: u8) {
-        info!("Handling key event: {}", key);
+        // info!("Handling key event: {}", key);
         match key {
             b'j' => self.nav_prev(),
             b'k' => self.nav_next(),
@@ -60,7 +60,7 @@ impl<'a> MenuView<'a> {
             highlighted_index: 0,
             visible: false,
             dirty: true,
-            callback: None,
+            // callback: None,
         }
     }
     fn draw(&mut self, display: &mut TDeckDisplay) {
@@ -112,77 +112,135 @@ impl<'a> MenuView<'a> {
         // self.dirty = false;
     }
 }
+impl View for MenuView<'_> {
+    fn draw(&mut self, display: &mut TDeckDisplay) {
+        if !self.visible { return; }
+        // info!("MenuView draw");
+        let font = FONT_9X15;
+        let lh = font.character_size.height as i32;
+        let pad = 5;
+        let rect = Rectangle::new(
+            self.position,
+            Size::new(100, (self.items.len() as i32 * lh + pad * 2) as u32),
+        );
+        rect.into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_GRAY))
+            .draw(display)
+            .unwrap();
+        // info!("Highlighted index {}", self.highlighted_index);
+        for (i, item) in self.items.iter().enumerate() {
+            let bg = if i == self.highlighted_index {
+                Rgb565::RED
+            } else {
+                Rgb565::WHITE
+            };
+            let fg = if i == self.highlighted_index {
+                Rgb565::WHITE
+            } else {
+                Rgb565::RED
+            };
+            let ly = (i as i32) * lh + pad;
+            Rectangle::new(
+                Point::new(pad, ly).add(self.position),
+                Size::new(100, lh as u32),
+            )
+                .into_styled(PrimitiveStyle::with_fill(bg))
+                .draw(display)
+                .unwrap();
+            let text_style = MonoTextStyle::new(&font, fg);
+            Text::new(
+                &item,
+                Point::new(pad, ly + lh - 2).add(self.position),
+                text_style,
+            )
+                .draw(display)
+                .unwrap();
+        }
+    }
 
-pub struct CompoundMenu<'a> {
-    pub menus: Vec<MenuView<'a>>,
-    pub focused: &'a str,
-    pub callback: Option<Box<dyn FnMut(&mut CompoundMenu, &str, &str) + 'a>>,
-    pub dirty: bool,
-}
-
-impl<'a> CompoundMenu<'a> {
-    pub fn is_dirty(&self) -> bool {
-        self.dirty
-    }
-    pub fn hide_menu(&mut self, id: &str) {
-        let menu = self.menus.iter_mut().find(|m| m.id == id);
-        if let Some(menu) = menu {
-            menu.hide();
-            self.focused = "main";
-        }
-        self.dirty = true;
-    }
-    pub fn open_menu(&mut self, id: &str) {
-        let menu = self.menus.iter_mut().find(|m| m.id == id);
-        if let Some(menu) = menu {
-            menu.show();
-            self.focused = menu.id;
-        }
-        self.dirty = true;
-    }
-    pub fn is_menu_visible(&self, id: &str) -> bool {
-        let menu = self.menus.iter().find(|m| m.id == id);
-        if let Some(menu) = menu {
-            return menu.is_visible();
-        }
-        false
-    }
-    pub fn hide(&mut self) {
-        for menu in &mut self.menus {
-            menu.hide();
-        }
-        self.dirty = true;
-    }
-    pub fn add_menu(&mut self, menu: MenuView<'a>) {
-        self.menus.push(menu);
-        self.dirty = true;
-    }
-    pub fn handle_key_event(&mut self, key: u8) {
-        info!("compound handling key event {}", key);
-        if key == b'\r' {
-            let menu = self.menus.iter().find(|m| m.id == self.focused);
-            if let Some(menu) = menu {
-                let cmd = menu.items[menu.highlighted_index];
-                info!("triggering action for {}", cmd);
-                let mut callback = self.callback.take().unwrap();
-                callback(self, menu.id, cmd);
-                self.callback = Some(callback);
+    fn handle_input(&mut self, event: GuiEvent) {
+        info!("Handling key event: {:?}", event);
+        match event {
+            GuiEvent::KeyEvent(key) => {
+                match key {
+                    b'j' => self.nav_prev(),
+                    b'k' => self.nav_next(),
+                    _ => {}
+                }
             }
-        } else {
-            let menu = self.menus.iter_mut().find(|m| m.id == self.focused);
-            if let Some(menu) = menu {
-                menu.handle_key_event(key);
-            }
-        }
-        self.dirty = true;
-    }
-    pub fn draw(&mut self, display: &mut TDeckDisplay) {
-        self.dirty = false;
-        for menu in &mut self.menus {
-            menu.draw(display);
         }
     }
 }
+
+// pub struct CompoundMenu<'a> {
+//     pub menus: Vec<MenuView<'a>>,
+//     pub focused: &'a str,
+//     pub callback: Option<Box<dyn FnMut(&mut CompoundMenu, &str, &str) + 'a>>,
+//     pub dirty: bool,
+// }
+//
+// impl<'a> CompoundMenu<'a> {
+//     pub fn is_dirty(&self) -> bool {
+//         self.dirty
+//     }
+//     pub fn hide_menu(&mut self, id: &str) {
+//         let menu = self.menus.iter_mut().find(|m| m.id == id);
+//         if let Some(menu) = menu {
+//             menu.hide();
+//             self.focused = "main";
+//         }
+//         self.dirty = true;
+//     }
+//     pub fn open_menu(&mut self, id: &str) {
+//         let menu = self.menus.iter_mut().find(|m| m.id == id);
+//         if let Some(menu) = menu {
+//             menu.show();
+//             self.focused = menu.id;
+//         }
+//         self.dirty = true;
+//     }
+//     pub fn is_menu_visible(&self, id: &str) -> bool {
+//         let menu = self.menus.iter().find(|m| m.id == id);
+//         if let Some(menu) = menu {
+//             return menu.is_visible();
+//         }
+//         false
+//     }
+//     pub fn hide(&mut self) {
+//         for menu in &mut self.menus {
+//             menu.hide();
+//         }
+//         self.dirty = true;
+//     }
+//     pub fn add_menu(&mut self, menu: MenuView<'a>) {
+//         self.menus.push(menu);
+//         self.dirty = true;
+//     }
+//     pub fn handle_key_event(&mut self, key: u8) {
+//         info!("compound handling key event {}", key);
+//         if key == b'\r' {
+//             let menu = self.menus.iter().find(|m| m.id == self.focused);
+//             if let Some(menu) = menu {
+//                 let cmd = menu.items[menu.highlighted_index];
+//                 info!("triggering action for {}", cmd);
+//                 let mut callback = self.callback.take().unwrap();
+//                 callback(self, menu.id, cmd);
+//                 self.callback = Some(callback);
+//             }
+//         } else {
+//             let menu = self.menus.iter_mut().find(|m| m.id == self.focused);
+//             if let Some(menu) = menu {
+//                 menu.handle_key_event(key);
+//             }
+//         }
+//         self.dirty = true;
+//     }
+//     pub fn draw(&mut self, display: &mut TDeckDisplay) {
+//         self.dirty = false;
+//         for menu in &mut self.menus {
+//             menu.draw(display);
+//         }
+//     }
+// }
 
 
 
@@ -301,7 +359,7 @@ impl View for VLabel {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub enum GuiEvent {
     KeyEvent(u8),
 }
