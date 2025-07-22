@@ -12,6 +12,7 @@ use crate::common::TDeckDisplay;
 use crate::textview::LineStyle::{Header, Plain};
 
 #[derive(Clone, Copy)]
+#[derive(Debug)]
 pub enum LineStyle {
     Header,
     Plain,

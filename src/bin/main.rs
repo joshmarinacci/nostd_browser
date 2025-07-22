@@ -6,7 +6,7 @@
     holding buffers for the duration of a data transfer."
 )]
 use alloc::boxed::Box;
-use alloc::string::String;
+use alloc::string::{String, ToString};
 use alloc::{format, vec};
 use alloc::vec::Vec;
 use embassy_executor::Spawner;
@@ -43,7 +43,7 @@ use reqwless::client::{HttpClient, TlsConfig};
 use mipidsi::{models::ST7789, Builder, Display, NoResetPin};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
-use nostd_html_parser::TagParser;
+use nostd_html_parser::{Tag, TagParser};
 use reqwless::client::HttpConnection::Plain;
 use static_cell::StaticCell;
 use nostd_browser::common::TDeckDisplay;
@@ -312,10 +312,13 @@ async fn main(spawner: Spawner) {
 
         // let content = core::str::from_utf8(res).unwrap();
         // info!("content {}", content);
-        let mut parser:TagParser = TagParser::with_debug(res, true);
-        info!("made a parser");
-        for tag in parser {
-            info!("tag {:?}", tag);
+        let mut parser:TagParser = TagParser::with_debug(res, false);
+        let lines:Vec<TextLine> = make_lines(&mut parser);
+        info!("=== rendered lines === ");
+        for line in lines {
+            for run in line.runs {
+                info!("{:?}: {}", run.style, run.text);
+            }
         }
         info!("heap is {}", esp_alloc::HEAP.stats());
     }
@@ -420,4 +423,55 @@ async fn update_display(display: &'static mut TDeckDisplay, mut menu: CompoundMe
         }
         Timer::after(Duration::from_millis(100)).await;
     }
+}
+
+fn make_lines(parser:&mut TagParser) -> Vec<TextLine> {
+    let mut lines = Vec::new();
+    let mut inside_paragraph = false;
+    let mut para = TextLine {
+        runs: Vec::new(),
+    };
+    for tag in parser {
+        // info!("TAG: {:?} {}", tag, inside_paragraph);
+        match tag {
+            Tag::Comment(_) => {}
+            Tag::Open(name) => {
+                info!("TAG: {} {}", tag, inside_paragraph);
+                let name = String::from_utf8_lossy(name);
+                if name.eq_ignore_ascii_case("h1")
+                    || name.eq_ignore_ascii_case("h2")
+                    || name.eq_ignore_ascii_case("h3")
+                    || name.eq_ignore_ascii_case("p")
+                {
+                    inside_paragraph = true;
+                }
+            }
+            Tag::Close(name) => {
+                info!("TAG: {} {}", tag, inside_paragraph);
+                let name = String::from_utf8_lossy(name);
+                if name.eq_ignore_ascii_case("h1")
+                    || name.eq_ignore_ascii_case("h2")
+                    || name.eq_ignore_ascii_case("h3")
+                    || name.eq_ignore_ascii_case("p")
+                {
+                    inside_paragraph = false;
+                    lines.push(para);
+                    para = TextLine {
+                        runs: vec![],
+                    };
+                }
+            }
+            Tag::Text(txt) => {
+                info!("TAG: {} {}", tag, inside_paragraph);
+                if inside_paragraph {
+                    para.runs.push(TextRun {
+                        text:String::from_utf8_lossy(txt).to_string(),
+                        style: LineStyle::Header,
+                    })
+                }
+            }
+            _ => {}
+        }
+    }
+    lines
 }
