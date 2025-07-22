@@ -7,20 +7,15 @@
 )]
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
-use alloc::{format, vec};
+use alloc::{vec};
 use alloc::vec::Vec;
 use embassy_executor::Spawner;
 use embassy_net::{Runner, Stack, StackResources};
 use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_time::{Duration, Timer};
-use embedded_graphics::{
-    pixelcolor::Rgb565,
-    prelude::*,
-    text::Text,
-    mono_font::{ ascii::FONT_6X10, MonoTextStyle}
-};
-use embedded_graphics::mono_font::ascii::FONT_9X15;
+use embedded_graphics::prelude::*;
+use embedded_graphics::pixelcolor::Rgb565;
 use embedded_hal_bus::spi::ExclusiveDevice;
 use esp_hal::Blocking;
 use esp_hal::clock::CpuClock;
@@ -32,24 +27,18 @@ use esp_hal::rng::Rng;
 use esp_hal::time::Rate;
 use esp_hal::spi::{ master::{Spi, Config as SpiConfig } };
 use esp_hal::timer::timg::TimerGroup;
-use esp_wifi::{
-    EspWifiController,
-    init,
-};
+use esp_wifi::{ EspWifiController,  init };
 use esp_wifi::wifi::{ClientConfiguration, Configuration, WifiController, WifiDevice, WifiEvent, WifiState};
-use log::info;
+use log::{info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
-use mipidsi::{models::ST7789, Builder, Display, NoResetPin};
+use mipidsi::{models::ST7789, Builder};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use nostd_html_parser::{Tag, TagParser};
-use reqwless::client::HttpConnection::Plain;
 use static_cell::StaticCell;
 use nostd_browser::common::TDeckDisplay;
 use nostd_browser::gui::{CompoundMenu, MenuView};
-// use nostd_browser::tagparser::TagParser;
-use nostd_browser::textview;
 use nostd_browser::textview::{break_lines, LineStyle, TextLine, TextRun, TextView};
 
 #[panic_handler]
@@ -73,8 +62,8 @@ macro_rules! mk_static {
     }};
 }
 
-const SSID: &str = env!("SSID");
-const PASSWORD: &str = env!("PASSWORD");
+const SSID: Option<&str> = option_env!("SSID");
+const PASSWORD: Option<&str> = option_env!("PASSWORD");
 
 pub const LILYGO_KB_I2C_ADDRESS: u8 =     0x55;
 
@@ -92,8 +81,8 @@ async fn main(spawner: Spawner) {
     info!("heap is {}", esp_alloc::HEAP.stats());
 
     info!("init-ting embassy");
-    let timg1 = TimerGroup::new(peripherals.TIMG1);
-    esp_hal_embassy::init(timg1.timer0);
+    let timer_g1 = TimerGroup::new(peripherals.TIMG1);
+    esp_hal_embassy::init(timer_g1.timer0);
 
 
     let mut delay = Delay::new();
@@ -179,72 +168,19 @@ async fn main(spawner: Spawner) {
         let display_ref = DISPLAY.init(display);
         info!("initialized display");
 
-        let main_menu = MenuView {
-            id:"main",
-            dirty: true,
-            items: vec!["Theme","Font","Wifi","Bookmarks","close"],
-            position: Point::new(0,0),
-            highlighted_index: 0,
-            visible: true,
-            callback: None,
-        };
-        let theme_menu = MenuView {
-            id:"themes",
-            dirty:true,
-            items: vec!["Dark", "Light", "close"],
-            position: Point::new(20,20),
-            highlighted_index: 0,
-            visible: false,
-            callback: None,
-        };
-        let mut menu = CompoundMenu {
-            menus: vec![],
-            focused: "main",
-            callback: Some(Box::new(|comp, menu, cmd| {
-                info!("menu {} cmd {}",menu,cmd);
-                if menu == "main" {
-                    if cmd == "Theme" {
-                        comp.open_menu("themes");
-                                }
-                    if cmd == "Font" {
-                        comp.open_menu("fonts");
-                    }
-                    if cmd == "Wifi" {
-                        comp.open_menu("wifi");
-                                }
-                    if cmd == "Bookmarks" {
-                        comp.open_menu("bookmarks");
-                    }
-                    if cmd == "close" {
-                        comp.hide();
-                    }
-                }
-                if menu == "themes" {
-                    if cmd == "Dark" {
-                    }
-                    if cmd == "Light" {
-                    }
-                    if cmd == "close" {
-                        comp.hide_menu("themes");
-                    }
-                }
-            })),
-            dirty: true,
-        };
-        menu.add_menu(main_menu);
-        menu.add_menu(theme_menu);
+        let menu:CompoundMenu = setup_menu();
         spawner.spawn(update_display(display_ref, menu, ic2_ref, textview)).ok();
 
     }
 
 
     let mut rng = Rng::new(peripherals.RNG);
-    let timg0 = TimerGroup::new(peripherals.TIMG0);
+    let timer_g0 = TimerGroup::new(peripherals.TIMG0);
 
     info!("made timer");
     let esp_wifi_ctrl = &*mk_static!(
         EspWifiController<'static>,
-        init(timg0.timer0, rng.clone(), peripherals.RADIO_CLK).unwrap()
+        init(timer_g0.timer0, rng.clone(), peripherals.RADIO_CLK).unwrap()
     );
     info!("making controller");
     let (wifi_controller, interfaces) = esp_wifi::wifi::new(&esp_wifi_ctrl, peripherals.WIFI).unwrap();
@@ -359,9 +295,15 @@ async fn connection(mut controller: WifiController<'static>) {
             _ => {}
         }
         if !matches!(controller.is_started(), Ok(true)) {
+            if SSID.is_none() {
+                warn!("SSID is none. did you forget to set the SSID environment variables");
+            }
+            if PASSWORD.is_none() {
+                warn!("PASSWORD is none. did you forget to set the PASSWORD environment variables");
+            }
             let client_config = Configuration::Client(ClientConfiguration {
-                ssid: SSID.into(),
-                password: PASSWORD.into(),
+                ssid: SSID.unwrap().into(),
+                password: PASSWORD.unwrap().into(),
                 ..Default::default()
             });
             controller.set_configuration(&client_config).unwrap();
@@ -375,7 +317,7 @@ async fn connection(mut controller: WifiController<'static>) {
                 info!("{:?}", ap);
             }
         }
-        info!("About to connect to ... {}",SSID);
+        info!("About to connect to ... {:?}",SSID);
 
         match controller.connect_async().await {
             Ok(_) => info!("Wifi connected!"),
@@ -411,7 +353,7 @@ async fn update_display(display: &'static mut TDeckDisplay, mut menu: CompoundMe
                     }
                 }
             }
-            Err(e) => {
+            Err(_) => {
                 // info!("kb_res = {}", e);
             }
         }
@@ -474,4 +416,63 @@ fn make_lines(parser:&mut TagParser) -> Vec<TextLine> {
         }
     }
     lines
+}
+
+
+fn setup_menu<'a>() -> CompoundMenu<'a> {
+    let main_menu = MenuView {
+        id:"main",
+        dirty: true,
+        items: vec!["Theme","Font","Wifi","Bookmarks","close"],
+        position: Point::new(0,0),
+        highlighted_index: 0,
+        visible: true,
+        callback: None,
+    };
+    let theme_menu = MenuView {
+        id:"themes",
+        dirty:true,
+        items: vec!["Dark", "Light", "close"],
+        position: Point::new(20,20),
+        highlighted_index: 0,
+        visible: false,
+        callback: None,
+    };
+    let mut menu = CompoundMenu {
+        menus: vec![],
+        focused: "main",
+        callback: Some(Box::new(|comp, menu, cmd| {
+            info!("menu {} cmd {}",menu,cmd);
+            if menu == "main" {
+                if cmd == "Theme" {
+                    comp.open_menu("themes");
+                }
+                if cmd == "Font" {
+                    comp.open_menu("fonts");
+                }
+                if cmd == "Wifi" {
+                    comp.open_menu("wifi");
+                }
+                if cmd == "Bookmarks" {
+                    comp.open_menu("bookmarks");
+                }
+                if cmd == "close" {
+                    comp.hide();
+                }
+            }
+            if menu == "themes" {
+                if cmd == "Dark" {
+                }
+                if cmd == "Light" {
+                }
+                if cmd == "close" {
+                    comp.hide_menu("themes");
+                }
+            }
+        })),
+        dirty: true,
+    };
+    menu.add_menu(main_menu);
+    menu.add_menu(theme_menu);
+    menu
 }
