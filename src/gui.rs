@@ -1,8 +1,10 @@
 use crate::common::TDeckDisplay;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
-use alloc::vec;
+use alloc::{format, vec};
 use alloc::vec::Vec;
+use core::any::{Any, TypeId};
+use core::fmt::{Debug, Formatter};
 use core::ops::Add;
 use embedded_graphics::mono_font::ascii::FONT_9X15;
 use embedded_graphics::mono_font::MonoTextStyle;
@@ -13,9 +15,32 @@ use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
 use log::info;
 
-pub struct MenuView<'a> {
-    pub id: &'a str,
-    pub items: Vec<&'a str>,
+pub trait View {
+    fn draw(&mut self, display: &mut TDeckDisplay);
+    fn handle_input(&mut self, event:GuiEvent);
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
+}
+impl Debug for Box<dyn View> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
+        let val = self as &dyn Any;
+        info!("is menu {}",TypeId::of::<MenuView>() == val.type_id());
+        info!("is box menuview {}",TypeId::of::<Box<MenuView>>() == val.type_id());
+        info!("is box view {}",TypeId::of::<Box<dyn View>>() == val.type_id());
+        match val.downcast_ref::<Box<MenuView>>() {
+            Some(menu) => {
+                write!(f, "is a menu view")
+            }
+            None => {
+                write!(f, "some other object")
+            }
+        }
+    }
+}
+
+pub struct MenuView {
+    pub id: String,
+    pub items: Vec<String>,
     pub position: Point,
     pub highlighted_index: usize,
     pub visible: bool,
@@ -23,7 +48,7 @@ pub struct MenuView<'a> {
     // pub callback: Option<Box<dyn FnMut(&mut MenuView, &str) + 'a>>,
 }
 
-impl<'a> MenuView<'a> {
+impl MenuView {
     pub(crate) fn handle_key_event(&mut self, key: u8) {
         // info!("Handling key event: {}", key);
         match key {
@@ -52,16 +77,25 @@ impl<'a> MenuView<'a> {
         self.highlighted_index = (self.highlighted_index + self.items.len() - 1) % self.items.len();
         self.dirty = true;
     }
-    fn new(id: &'a str, items: &Vec<&'a str>, p1: Point) -> MenuView<'a> {
-        MenuView {
-            id: id,
-            items: items.to_vec(),
+    pub fn new(id: &str, items: Vec<&str>, p1: Point) -> Box<MenuView> {
+        Box::new(MenuView {
+            id: id.into(),
+            items: items.iter().map(|s| s.to_string()).collect(),
+            position: p1,
+            highlighted_index: 0,
+            visible: true,
+            dirty: true,
+        })
+    }
+    pub fn start_hidden(id: &str, items: Vec<&str>, p1: Point) -> Box<MenuView> {
+        Box::new(MenuView {
+            id: id.into(),
+            items: items.iter().map(|s| s.to_string()).collect(),
             position: p1,
             highlighted_index: 0,
             visible: false,
             dirty: true,
-            // callback: None,
-        }
+        })
     }
     fn draw(&mut self, display: &mut TDeckDisplay) {
         if !self.visible {
@@ -112,7 +146,14 @@ impl<'a> MenuView<'a> {
         // self.dirty = false;
     }
 }
-impl View for MenuView<'_> {
+impl View for MenuView {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
     fn draw(&mut self, display: &mut TDeckDisplay) {
         if !self.visible { return; }
         // info!("MenuView draw");
@@ -158,7 +199,7 @@ impl View for MenuView<'_> {
     }
 
     fn handle_input(&mut self, event: GuiEvent) {
-        info!("Handling key event: {:?}", event);
+        // info!("Handling key event: {:?}", event);
         match event {
             GuiEvent::KeyEvent(key) => {
                 match key {
@@ -171,96 +212,53 @@ impl View for MenuView<'_> {
     }
 }
 
-// pub struct CompoundMenu<'a> {
-//     pub menus: Vec<MenuView<'a>>,
-//     pub focused: &'a str,
-//     pub callback: Option<Box<dyn FnMut(&mut CompoundMenu, &str, &str) + 'a>>,
-//     pub dirty: bool,
-// }
-//
-// impl<'a> CompoundMenu<'a> {
-//     pub fn is_dirty(&self) -> bool {
-//         self.dirty
-//     }
-//     pub fn hide_menu(&mut self, id: &str) {
-//         let menu = self.menus.iter_mut().find(|m| m.id == id);
-//         if let Some(menu) = menu {
-//             menu.hide();
-//             self.focused = "main";
-//         }
-//         self.dirty = true;
-//     }
-//     pub fn open_menu(&mut self, id: &str) {
-//         let menu = self.menus.iter_mut().find(|m| m.id == id);
-//         if let Some(menu) = menu {
-//             menu.show();
-//             self.focused = menu.id;
-//         }
-//         self.dirty = true;
-//     }
-//     pub fn is_menu_visible(&self, id: &str) -> bool {
-//         let menu = self.menus.iter().find(|m| m.id == id);
-//         if let Some(menu) = menu {
-//             return menu.is_visible();
-//         }
-//         false
-//     }
-//     pub fn hide(&mut self) {
-//         for menu in &mut self.menus {
-//             menu.hide();
-//         }
-//         self.dirty = true;
-//     }
-//     pub fn add_menu(&mut self, menu: MenuView<'a>) {
-//         self.menus.push(menu);
-//         self.dirty = true;
-//     }
-//     pub fn handle_key_event(&mut self, key: u8) {
-//         info!("compound handling key event {}", key);
-//         if key == b'\r' {
-//             let menu = self.menus.iter().find(|m| m.id == self.focused);
-//             if let Some(menu) = menu {
-//                 let cmd = menu.items[menu.highlighted_index];
-//                 info!("triggering action for {}", cmd);
-//                 let mut callback = self.callback.take().unwrap();
-//                 callback(self, menu.id, cmd);
-//                 self.callback = Some(callback);
-//             }
-//         } else {
-//             let menu = self.menus.iter_mut().find(|m| m.id == self.focused);
-//             if let Some(menu) = menu {
-//                 menu.handle_key_event(key);
-//             }
-//         }
-//         self.dirty = true;
-//     }
-//     pub fn draw(&mut self, display: &mut TDeckDisplay) {
-//         self.dirty = false;
-//         for menu in &mut self.menus {
-//             menu.draw(display);
-//         }
-//     }
-// }
-
-
-
-
-
-
-
-
-
-
-
-pub trait View {
-    fn draw(&mut self, display: &mut TDeckDisplay);
-    fn handle_input(&mut self, event:GuiEvent);
-}
-
 pub struct Scene {
     pub views:Vec<Box<dyn View>>,
     pub focused:Option<usize>,
     dirty: bool
+}
+
+impl Scene {
+    pub fn is_menu_selected(&self, index: usize, hi: usize) -> bool {
+        if let Some(menu) = self.views[index].as_any().downcast_ref::<MenuView>() {
+            return menu.highlighted_index == hi;
+        }
+        return false;
+    }
+}
+
+impl Scene {
+    pub fn hide_menu(&mut self, index: usize) {
+        if let Some(menu) = self.views[index].as_any_mut().downcast_mut::<MenuView>() {
+            menu.visible = false;
+            self.dirty = true;
+            self.set_focused(0);
+        }
+    }
+    pub fn show_menu(&mut self, index: usize) {
+        if let Some(menu) = self.views[index].as_any_mut().downcast_mut::<MenuView>() {
+            menu.visible = true;
+            self.dirty = true;
+            self.set_focused(index);
+        }
+    }
+}
+
+impl Scene {
+    pub fn get_menu_at(&self, index: usize) -> Option<&MenuView> {
+        self.views[index].as_any().downcast_ref::<MenuView>()
+    }
+}
+
+impl Scene {
+    pub fn is_focused(&self, p0: usize) -> bool {
+        if let Some(f) = self.focused {
+            if f == p0 {
+                return true
+            }
+        }
+        false
+    }
 }
 
 impl Scene {
@@ -316,6 +314,12 @@ impl VButton {
 }
 
 impl View for VButton {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
     fn draw(&mut self, display: &mut TDeckDisplay) {
         if !self.visible { return; }
         info!("vbutton draw {}", self.text);
@@ -347,6 +351,12 @@ impl VLabel {
 }
 
 impl View for VLabel {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
     fn draw(&mut self, display: &mut TDeckDisplay) {
         if !self.visible { return; }
         info!("vlabel draw {}", self.text);

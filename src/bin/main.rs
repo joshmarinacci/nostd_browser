@@ -7,8 +7,10 @@
 )]
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
-use alloc::{vec};
+use alloc::{format, vec};
 use alloc::vec::Vec;
+use core::any::Any;
+use core::ops::Deref;
 use embassy_executor::Spawner;
 use embassy_net::{Runner, Stack, StackResources};
 use embassy_net::dns::DnsSocket;
@@ -41,7 +43,7 @@ use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use nostd_html_parser::{Tag, TagParser};
 use static_cell::StaticCell;
 use nostd_browser::common::TDeckDisplay;
-use nostd_browser::gui::{ GuiEvent, MenuView, Scene, VButton, VLabel};
+use nostd_browser::gui::{GuiEvent, MenuView, Scene, VButton, VLabel, View};
 use nostd_browser::textview::{break_lines, LineStyle, TextLine, TextRun, TextView};
 
 #[panic_handler]
@@ -416,67 +418,73 @@ fn make_lines(parser:&mut TagParser) -> Vec<TextLine> {
 
 fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
     info!("update view from input {:?}", event);
-    let main_menu_id = 0 as usize;
-    let theme_menu_id = 1 as usize;
+    let main_menu_id = 0usize;
+    let theme_menu_id = 1usize;
+    let font_menu_id = 2usize;
+    let wifi_menu_id = 3usize;
     if scene.focused.is_none() {
         scene.focused = Some(main_menu_id);
     }
     scene.handle_event(event);
-    if let Some(focused) = scene.focused {
-        if focused == main_menu_id {
-            match event {
-                GuiEvent::KeyEvent(key_event) => {
-                    match key_event {
-                        13 => {
-                            info!("main menu is focused and got an action event {}",key_event);
-                            // if menu == main
-                            // if selected item is theme
-                            //    get themes menu
-                            //    set visible to true
-                        },
-                        _ => {
-
+    match event {
+        GuiEvent::KeyEvent(key_event) => {
+            match key_event {
+                13 => {
+                    if scene.is_focused(main_menu_id) {
+                        if scene.is_menu_selected(main_menu_id, 0) {
+                            scene.show_menu(theme_menu_id);
+                        }
+                        if scene.is_menu_selected(main_menu_id, 1) {
+                            scene.show_menu(font_menu_id);
+                        }
+                        if scene.is_menu_selected(main_menu_id, 2) {
+                            scene.show_menu(wifi_menu_id);
                         }
                     }
+                    if scene.is_focused(theme_menu_id) {
+                        if scene.is_menu_selected(theme_menu_id, 2) {
+                            scene.hide_menu(theme_menu_id);
+                        }
+                    }
+                    if scene.is_focused(font_menu_id) {
+                        if scene.is_menu_selected(font_menu_id, 3) {
+                            scene.hide_menu(font_menu_id);
+                        }
+                    }
+                    if scene.is_focused(wifi_menu_id) {
+                        if scene.is_menu_selected(wifi_menu_id, 2) {
+                            scene.hide_menu(wifi_menu_id);
+                        }
+                    }
+                },
+                _ => {
+
                 }
             }
         }
     }
+
 }
 
 fn make_gui_scene<'a>() -> Scene {
     let mut scene = Scene::new();
-    let main_menu = Box::new(MenuView {
-        id:"main",
-        dirty: true,
-        items: vec!["Theme","Font","Wifi","Bookmarks","close"],
-        position: Point::new(0,0),
-        highlighted_index: 0,
-        visible: true,
-    });
-    let theme_menu = Box::new(MenuView {
-        id:"themes",
-        dirty:true,
-        items: vec!["Dark", "Light", "close"],
-        position: Point::new(20,20),
-        highlighted_index: 0,
-        visible: false,
-    });
+    let mut main_menu = MenuView::new("main",
+                                      vec!["Theme","Font","Wifi","Bookmarks","close"],
+                                      Point::new(0,0));
+    main_menu.visible = true;
+    let mut theme_menu = MenuView::new("themes",
+                                       vec!["Dark","Light","close"],
+                                       Point::new(20,20));
+    theme_menu.visible = false;
     scene.views.push(main_menu);
     scene.views.push(theme_menu);
+    scene.views.push(MenuView::start_hidden("font",
+                                            vec!["small","medium","big","close"],
+                                            Point::new(20,20)));
+    scene.views.push(MenuView::start_hidden("wifi",
+                                            vec!["status","scan","close"],
+                                            Point::new(20,20)));
     scene
 }
-
-
-
-
-
-
-
-
-
-
-
-
 
 
