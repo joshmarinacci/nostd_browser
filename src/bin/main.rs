@@ -14,8 +14,11 @@ use embassy_net::{Runner, Stack, StackResources};
 use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_time::{Duration, Timer};
+use embedded_graphics::mono_font::ascii::FONT_9X15;
+use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::prelude::*;
 use embedded_graphics::pixelcolor::Rgb565;
+use embedded_graphics::text::Text;
 use embedded_hal_bus::spi::ExclusiveDevice;
 use esp_hal::Blocking;
 use esp_hal::clock::CpuClock;
@@ -38,7 +41,7 @@ use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use nostd_html_parser::{Tag, TagParser};
 use static_cell::StaticCell;
 use nostd_browser::common::TDeckDisplay;
-use nostd_browser::gui::{CompoundMenu, MenuView};
+use nostd_browser::gui::{CompoundMenu, GuiEvent, MenuView, Scene, VButton, VLabel};
 use nostd_browser::textview::{break_lines, LineStyle, TextLine, TextRun, TextView};
 
 #[panic_handler]
@@ -169,7 +172,8 @@ async fn main(spawner: Spawner) {
         info!("initialized display");
 
         let menu:CompoundMenu = setup_menu();
-        spawner.spawn(update_display(display_ref, menu, ic2_ref, textview)).ok();
+        let scene = make_gui_scene();
+        spawner.spawn(update_display(display_ref, menu, ic2_ref, textview, scene)).ok();
 
     }
 
@@ -335,7 +339,7 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
 }
 
 #[embassy_executor::task]
-async fn update_display(display: &'static mut TDeckDisplay, mut menu: CompoundMenu<'static>, i2c:&'static mut I2c<'static, Blocking>, mut textview: TextView) {
+async fn update_display(display: &'static mut TDeckDisplay, mut menu: CompoundMenu<'static>, i2c:&'static mut I2c<'static, Blocking>, mut textview: TextView, mut scene:Scene) {
     loop {
         let mut data = [0u8; 1];
         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
@@ -343,14 +347,16 @@ async fn update_display(display: &'static mut TDeckDisplay, mut menu: CompoundMe
             Ok(_) => {
                 if data[0] != 0x00 {
                     info!("kb_res = {:?}", String::from_utf8_lossy(&data));
+                    let evt:GuiEvent = GuiEvent::KeyEvent(data[0]);
+                    scene.handle_event(evt);
                     // menu.handle_key_event(data[0]);
-                    if menu.is_menu_visible("main") {
-                        menu.handle_key_event(data[0]);
-                    } else {
-                        if data[0] == b' ' {
-                            menu.open_menu("main");
-                        }
-                    }
+                    // if menu.is_menu_visible("main") {
+                    //     menu.handle_key_event(data[0]);
+                    // } else {
+                    //     if data[0] == b' ' {
+                    //         menu.open_menu("main");
+                    //     }
+                    // }
                 }
             }
             Err(_) => {
@@ -358,10 +364,11 @@ async fn update_display(display: &'static mut TDeckDisplay, mut menu: CompoundMe
             }
         }
 
-        if textview.dirty  || menu.is_dirty() {
+         if scene.is_dirty() {
             display.clear(Rgb565::WHITE).unwrap();
-            textview.draw(display);
-            menu.draw(display);
+            // textview.draw(display);
+            // menu.draw(display);
+            scene.draw(display);
         }
         Timer::after(Duration::from_millis(100)).await;
     }
@@ -476,3 +483,25 @@ fn setup_menu<'a>() -> CompoundMenu<'a> {
     menu.add_menu(theme_menu);
     menu
 }
+
+fn make_gui_scene<'a>() -> Scene {
+    let mut scene = Scene::new();
+    scene.views.push(VLabel::new("foo"));
+    scene.views.push(VButton::new("bar"));
+    scene.set_focused(0);
+    scene
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+

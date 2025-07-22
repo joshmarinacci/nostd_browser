@@ -1,5 +1,7 @@
 use crate::common::TDeckDisplay;
 use alloc::boxed::Box;
+use alloc::string::{String, ToString};
+use alloc::vec;
 use alloc::vec::Vec;
 use core::ops::Add;
 use embedded_graphics::mono_font::ascii::FONT_9X15;
@@ -181,3 +183,126 @@ impl<'a> CompoundMenu<'a> {
         }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+pub trait View {
+    fn draw(&mut self, display: &mut TDeckDisplay);
+    fn handle_input(&mut self, event:GuiEvent);
+}
+
+pub struct Scene {
+    pub views:Vec<Box<dyn View>>,
+    pub focused:Option<usize>,
+    dirty: bool
+}
+
+impl Scene {
+    pub fn is_dirty(&self) -> bool {
+        self.dirty
+    }
+}
+
+impl Scene {
+    pub fn new() -> Scene {
+        Scene {
+            dirty: true,
+            views: vec![],
+            focused: None,
+        }
+    }
+}
+
+impl Scene {
+    pub fn handle_event(&mut self, evt: GuiEvent) {
+        if let Some(index) = self.focused {
+            if index < self.views.len() {
+                let view = &mut self.views[index];
+                view.handle_input(evt);
+            }
+        }
+        self.dirty = true;
+    }
+    pub fn set_focused(&mut self, index:usize) {
+        self.focused = Some(index);
+    }
+}
+
+impl Scene {
+    pub fn draw(&mut self, display: &mut TDeckDisplay) {
+        self.views.iter_mut().for_each(|v| v.draw(display));
+        self.dirty = false;
+    }
+}
+
+pub struct VButton {
+    text:String,
+    visible: bool,
+}
+
+impl VButton {
+    pub fn new(label: &str) -> Box<dyn View> {
+        Box::new(VButton{
+            visible:true,
+            text: label.to_string(),
+        })
+    }
+}
+
+impl View for VButton {
+    fn draw(&mut self, display: &mut TDeckDisplay) {
+        if !self.visible { return; }
+        info!("vbutton draw {}", self.text);
+        let style = MonoTextStyle::new(&FONT_9X15, Rgb565::CSS_BLACK);
+        Text::new(&self.text, Point::new(20,20), style).draw(display).unwrap();
+    }
+
+    fn handle_input(&mut self, event:GuiEvent) {
+        match event {
+            GuiEvent::KeyEvent(key) => {
+                info!("vbutton key event: {:?}", key);
+                self.visible = true;
+            }
+        }
+    }
+}
+pub struct VLabel {
+    text:String,
+    visible: bool,
+}
+
+impl VLabel {
+    pub fn new(label: &str) -> Box<dyn View> {
+        Box::new(VLabel {
+            visible:true,
+            text: label.to_string(),
+        })
+    }
+}
+
+impl View for VLabel {
+    fn draw(&mut self, display: &mut TDeckDisplay) {
+        if !self.visible { return; }
+        info!("vlabel draw {}", self.text);
+        let style = MonoTextStyle::new(&FONT_9X15, Rgb565::CSS_BLACK);
+        Text::new(&self.text, Point::new(20,50), style).draw(display).unwrap();
+    }
+    fn handle_input(&mut self, event:GuiEvent) {
+        info!("vlabel handle_input {:?}",event);
+        self.visible = true;
+    }
+}
+
+#[derive(Debug)]
+pub enum GuiEvent {
+    KeyEvent(u8),
+}
+
