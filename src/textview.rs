@@ -1,6 +1,7 @@
 use alloc::string::{String, ToString};
 use alloc::{format, vec};
 use alloc::vec::Vec;
+use core::any::Any;
 use embedded_graphics::Drawable;
 use embedded_graphics::geometry::{OriginDimensions, Point};
 use embedded_graphics::mono_font::ascii::FONT_9X15;
@@ -8,7 +9,9 @@ use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::WebColors;
 use embedded_graphics::text::Text;
+use log::info;
 use crate::common::TDeckDisplay;
+use crate::gui::{GuiEvent, View};
 use crate::textview::LineStyle::{Header, Plain};
 
 #[derive(Clone, Copy)]
@@ -99,13 +102,17 @@ pub fn break_lines(text: &str, width: u32, style: LineStyle) -> Vec<TextLine> {
 pub struct TextView {
     pub dirty: bool,
     pub lines: Vec<TextLine>,
+    pub visible: bool,
+    pub scroll_index: usize,
 }
-impl TextView {
-    pub fn draw(&mut self, display: &mut TDeckDisplay) {
+impl View for TextView {
+    fn draw(&mut self, display: &mut TDeckDisplay) {
+        if !self.visible {
+            return;
+        }
         self.dirty = false;
         let font = FONT_9X15;
         let viewport_height:i32 = (display.size().height / font.character_size.height) as i32;
-        let scroll_offset = 0;
         let line_height = font.character_size.height as i32;
         let char_width = font.character_size.width as i32;
         let debug =  MonoTextStyle::new(&FONT_9X15, Rgb565::CSS_ORANGE);
@@ -114,11 +121,11 @@ impl TextView {
         // info!("drawing lines at scroll {}", scroll_offset);
         // select the lines in the current viewport
         // draw the lines
-        let mut end:usize = (scroll_offset + viewport_height) as usize;
+        let mut end:usize = (self.scroll_index as i32 + viewport_height) as usize;
         if end >= self.lines.len() {
             end = self.lines.len();
         }
-        let viewport_lines = &self.lines[(scroll_offset as usize) .. end];
+        let viewport_lines = &self.lines[(self.scroll_index) .. end];
         for (j, line) in viewport_lines.iter().enumerate() {
             let mut inset_chars: usize = 3;
             let y = j as i32 * line_height + 10;
@@ -137,4 +144,24 @@ impl TextView {
         }
 
     }
+    fn handle_input(&mut self, event: GuiEvent) {
+        match event {
+            GuiEvent::KeyEvent(key) => {
+                match key {
+                    b'j' => self.scroll_index = (self.scroll_index + 1) % self.lines.len(),
+                    b'k' => self.scroll_index = (self.scroll_index - 1) % self.lines.len(),
+                    _ => {}
+                }
+                self.dirty = true
+            }
+        }
+    }
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
 }

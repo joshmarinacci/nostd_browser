@@ -108,29 +108,6 @@ async fn main(spawner: Spawner) {
     let ic2_ref = I2C.init(i2c);
 
 
-    let max_chars = 30;
-    let mut lines:Vec<TextLine> = vec![];
-    lines.append(&mut break_lines("Thoughts on LLMs and the coming AI backlash", max_chars-4,LineStyle::Header));
-    lines.push(TextLine {
-        runs: vec![TextRun {
-            style:LineStyle::Plain,
-            text:"".into(),
-        }]
-    });
-    lines.append(&mut break_lines(r#"I find Large Language Models fascinating.
-    They are a very different approach to AI than most of the 60 years of
-    AI research and show great promise. At the same time they are just technology.
-    They aren't magic. They aren't even very good technology yet. LLM hype has vastly
-    outpaced reality and I think we are due for a correction, possibly even a bubble pop.
-    Furthermore, I think future AI progress is going to happen on the app / UX side,
-    not on the core models, which are already starting to show their scaling limits.
-    Let's dig in. Better pour a cup of coffee. This could be a long one."#, max_chars-4,LineStyle::Plain));
-
-    let textview = TextView {
-        dirty: true,
-        lines: lines,
-    };
-
     // set up the display
     {
         // set TFT CS to high
@@ -174,7 +151,7 @@ async fn main(spawner: Spawner) {
         info!("initialized display");
 
         let scene = make_gui_scene();
-        spawner.spawn(update_display(display_ref, ic2_ref, textview, scene)).ok();
+        spawner.spawn(update_display(display_ref, ic2_ref, scene)).ok();
 
     }
 
@@ -340,14 +317,13 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
 }
 
 #[embassy_executor::task]
-async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c<'static, Blocking>, mut textview: TextView, mut scene:Scene) {
+async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c<'static, Blocking>, mut scene:Scene) {
     loop {
         let mut data = [0u8; 1];
         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
         match kb_res {
             Ok(_) => {
                 if data[0] != 0x00 {
-                    // info!("kb_res = {:?}", String::from_utf8_lossy(&data));
                     let evt:GuiEvent = GuiEvent::KeyEvent(data[0]);
                     update_view_from_input(evt,&mut scene);
                 }
@@ -422,10 +398,33 @@ fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
     let theme_menu_id = 1usize;
     let font_menu_id = 2usize;
     let wifi_menu_id = 3usize;
+    let text_view = 4usize;
     if scene.focused.is_none() {
         scene.focused = Some(main_menu_id);
     }
-    scene.handle_event(event);
+    if let Some(menu) = scene.get_menu_at(main_menu_id) {
+        if menu.visible {
+            info!("the main menu is visible");;
+            scene.handle_event(event);
+        } else {
+            info!("the main menu is not visible");
+            match event {
+                GuiEvent::KeyEvent(evt) => {
+                    if evt == b' ' {
+                        scene.show_menu(main_menu_id);
+                    } else {
+                        if let Some(tv) = scene.get_textview_at_mut(text_view) {
+                            info!("the text view gets input");
+                            tv.handle_input(event);
+                            scene.mark_dirty();
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // scene.handle_event(event);
     match event {
         GuiEvent::KeyEvent(key_event) => {
             match key_event {
@@ -471,7 +470,7 @@ fn make_gui_scene<'a>() -> Scene {
     let mut main_menu = MenuView::new("main",
                                       vec!["Theme","Font","Wifi","Bookmarks","close"],
                                       Point::new(0,0));
-    main_menu.visible = true;
+    main_menu.visible = false;
     let mut theme_menu = MenuView::new("themes",
                                        vec!["Dark","Light","close"],
                                        Point::new(20,20));
@@ -484,6 +483,33 @@ fn make_gui_scene<'a>() -> Scene {
     scene.views.push(MenuView::start_hidden("wifi",
                                             vec!["status","scan","close"],
                                             Point::new(20,20)));
+    let mut textview = TextView {
+        dirty: true,
+        visible: true,
+        lines: vec![],
+        scroll_index: 0
+    };
+
+    let mut lines:Vec<TextLine> = vec![];
+    lines.append(&mut break_lines("Thoughts on LLMs and the coming AI backlash", 26,LineStyle::Header));
+    lines.push(TextLine {
+        runs: vec![TextRun {
+            style:LineStyle::Plain,
+            text:"".into(),
+        }]
+    });
+    lines.append(&mut break_lines(r#"I find Large Language Models fascinating.
+    They are a very different approach to AI than most of the 60 years of
+    AI research and show great promise. At the same time they are just technology.
+    They aren't magic. They aren't even very good technology yet. LLM hype has vastly
+    outpaced reality and I think we are due for a correction, possibly even a bubble pop.
+    Furthermore, I think future AI progress is going to happen on the app / UX side,
+    not on the core models, which are already starting to show their scaling limits.
+    Let's dig in. Better pour a cup of coffee. This could be a long one."#, 26,LineStyle::Plain));
+    textview.lines = lines;
+
+    scene.views.push(Box::new(textview));
+
     scene
 }
 

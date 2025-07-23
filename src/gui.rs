@@ -14,6 +14,7 @@ use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
 use log::info;
+use crate::textview::TextView;
 
 pub trait View {
     fn draw(&mut self, display: &mut TDeckDisplay);
@@ -49,14 +50,6 @@ pub struct MenuView {
 }
 
 impl MenuView {
-    pub(crate) fn handle_key_event(&mut self, key: u8) {
-        // info!("Handling key event: {}", key);
-        match key {
-            b'j' => self.nav_prev(),
-            b'k' => self.nav_next(),
-            _ => {}
-        }
-    }
     pub(crate) fn is_visible(&self) -> bool {
         self.visible
     }
@@ -223,11 +216,8 @@ impl Scene {
         if let Some(menu) = self.views[index].as_any().downcast_ref::<MenuView>() {
             return menu.highlighted_index == hi;
         }
-        return false;
+        false
     }
-}
-
-impl Scene {
     pub fn hide_menu(&mut self, index: usize) {
         if let Some(menu) = self.views[index].as_any_mut().downcast_mut::<MenuView>() {
             menu.visible = false;
@@ -242,15 +232,15 @@ impl Scene {
             self.set_focused(index);
         }
     }
-}
-
-impl Scene {
     pub fn get_menu_at(&self, index: usize) -> Option<&MenuView> {
         self.views[index].as_any().downcast_ref::<MenuView>()
     }
-}
-
-impl Scene {
+    pub fn get_textview_at(&self, index: usize) -> Option<&TextView> {
+        self.views[index].as_any().downcast_ref::<TextView>()
+    }
+    pub fn get_textview_at_mut(&mut self, index: usize) -> Option<&mut TextView>  {
+        self.views[index].as_any_mut().downcast_mut::<TextView>()
+    }
     pub fn is_focused(&self, p0: usize) -> bool {
         if let Some(f) = self.focused {
             if f == p0 {
@@ -259,15 +249,13 @@ impl Scene {
         }
         false
     }
-}
 
-impl Scene {
     pub fn is_dirty(&self) -> bool {
         self.dirty
     }
-}
-
-impl Scene {
+    pub fn mark_dirty(&mut self) {
+        self.dirty = true
+    }
     pub fn new() -> Scene {
         Scene {
             dirty: true,
@@ -275,9 +263,6 @@ impl Scene {
             focused: None,
         }
     }
-}
-
-impl Scene {
     pub fn handle_event(&mut self, evt: GuiEvent) {
         if let Some(index) = self.focused {
             if index < self.views.len() {
@@ -290,9 +275,7 @@ impl Scene {
     pub fn set_focused(&mut self, index:usize) {
         self.focused = Some(index);
     }
-}
 
-impl Scene {
     pub fn draw(&mut self, display: &mut TDeckDisplay) {
         self.views.iter_mut().for_each(|v| v.draw(display));
         self.dirty = false;
