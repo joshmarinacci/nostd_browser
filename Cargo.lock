@@ -1365,6 +1365,9 @@ dependencies = [
 [[package]]
 name = "nostd_html_parser"
 version = "0.1.0"
+dependencies = [
+ "log",
+]
 
 [[package]]
 name = "nourl"

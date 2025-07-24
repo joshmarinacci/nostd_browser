@@ -4,5 +4,6 @@
 run with
 
 ```shell
+. ~/export-esp.sh
 SSID=wifi PASSWORD=wifi_password cargo run
 ```
