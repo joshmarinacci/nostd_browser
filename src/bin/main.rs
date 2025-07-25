@@ -16,6 +16,11 @@ use embassy_net::{Runner, Stack, StackResources};
 use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_time::{Duration, Timer};
+use embassy_sync::signal::Signal;
+use embassy_sync::blocking_mutex::{CriticalSectionMutex, Mutex};
+use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
+use embassy_sync::channel::Channel;
+use embassy_sync::pubsub::WaitResult::Message;
 use embedded_graphics::mono_font::ascii::FONT_9X15;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::prelude::*;
@@ -41,7 +46,7 @@ use reqwless::client::{HttpClient, TlsConfig};
 use mipidsi::{models::ST7789, Builder};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
-use nostd_html_parser::{Tag, TagParser};
+use nostd_html_parser::{Block, BlockParser, Tag, TagParser};
 use static_cell::StaticCell;
 use nostd_browser::common::TDeckDisplay;
 use nostd_browser::gui::{GuiEvent, MenuView, Scene, VButton, VLabel, View};
@@ -75,6 +80,7 @@ pub const LILYGO_KB_I2C_ADDRESS: u8 =     0x55;
 
 static I2C:StaticCell<I2c<Blocking>> = StaticCell::new();
 
+static CHANNEL: Channel<CriticalSectionRawMutex, Vec<Block>, 2> = Channel::new();
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
 
@@ -122,7 +128,6 @@ async fn main(spawner: Spawner) {
         tft_enable.set_high();
 
         info!("creating spi device");
-        info!("heap is {}", esp_alloc::HEAP.stats());
         let spi = Spi::new(peripherals.SPI2, SpiConfig::default()
             .with_frequency(Rate::from_mhz(40))
                            // .with_mode(Mode::_0)
@@ -191,6 +196,11 @@ async fn main(spawner: Spawner) {
     spawner.spawn(net_task(wifi_runner)).ok();
 
 
+    info!("sending a message");
+    let tags = TagParser::with_debug(b"<html><body><h1>loding page</h1><p>hi there</p></body></html>", false);
+    let block_parser = BlockParser::with_debug(tags, false);
+    let blocks = block_parser.collect();
+    CHANNEL.sender().send(blocks).await;
 
     wait_for_connection(network_stack).await;
 
@@ -213,7 +223,6 @@ async fn main(spawner: Spawner) {
         // let mut client = HttpClient::new(&tcp, &dns);
         let mut buffer = [0u8; 4096 * 5];
         info!("making the actual request");
-        info!("heap is {}", esp_alloc::HEAP.stats());
         let mut http_req = client
             .request(
                 reqwless::request::Method::GET,
@@ -228,21 +237,11 @@ async fn main(spawner: Spawner) {
 
         info!("Got response");
         let res = response.body().read_to_end().await.unwrap();
-
-        // let content = core::str::from_utf8(res).unwrap();
-        // info!("content {}", content);
-        let mut parser:TagParser = TagParser::with_debug(res, false);
-        let lines:Vec<TextLine> = make_lines(&mut parser);
-        info!("=== rendered lines === ");
-        for line in lines {
-            for run in line.runs {
-                info!("{:?}: {}", run.style, run.text);
-            }
-        }
-        info!("heap is {}", esp_alloc::HEAP.stats());
+        let tags = TagParser::with_debug(res, false);
+        let block_parser = BlockParser::with_debug(tags, false);
+        let blocks = block_parser.collect();
+        CHANNEL.sender().send(blocks).await;
     }
-
-    // for inspiration have a look at the examples at https://github.com/esp-rs/esp-hal/tree/esp-hal-v1.0.0-beta.1/examples/src/bin
 }
 async fn wait_for_connection(stack: Stack<'_>) {
     info!("Waiting for link to be up");
@@ -307,7 +306,7 @@ async fn connection(mut controller: WifiController<'static>) {
             result.sort_by(|a,b| a.signal_strength.cmp(&b.signal_strength));
             result.reverse();
             for ap in result.iter() {
-                info!("found AP: {:?}", ap);
+                // info!("found AP: {:?}", ap);
             }
             // pick the first that matches the passed in SSID
             let ap = result.iter()
@@ -343,6 +342,22 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
 #[embassy_executor::task]
 async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c<'static, Blocking>, mut scene:Scene) {
     loop {
+        if let Ok(blocks) = CHANNEL.try_receive() {
+            info!("got the lines");
+            let mut lines:Vec<TextLine> = vec![];
+            for block in blocks {
+                info!("block: {:?}", block);
+                let mut txt = break_lines(&block.text, 30, LineStyle::Plain);
+                lines.append(&mut txt);
+            }
+
+            let text_view = 4usize;
+            if let Some(tv) = scene.get_textview_at_mut(text_view) {
+                info!("set the lines");
+                tv.lines = lines;
+            }
+            scene.mark_dirty();
+        }
         let mut data = [0u8; 1];
         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
         match kb_res {
@@ -365,56 +380,6 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
     }
 }
 
-fn make_lines(parser:&mut TagParser) -> Vec<TextLine> {
-    let mut lines = Vec::new();
-    let mut inside_paragraph = false;
-    let mut para = TextLine {
-        runs: Vec::new(),
-    };
-    for tag in parser {
-        // info!("TAG: {:?} {}", tag, inside_paragraph);
-        match tag {
-            Tag::Comment(_) => {}
-            Tag::Open(name) => {
-                info!("TAG: {} {}", tag, inside_paragraph);
-                let name = String::from_utf8_lossy(name);
-                if name.eq_ignore_ascii_case("h1")
-                    || name.eq_ignore_ascii_case("h2")
-                    || name.eq_ignore_ascii_case("h3")
-                    || name.eq_ignore_ascii_case("p")
-                {
-                    inside_paragraph = true;
-                }
-            }
-            Tag::Close(name) => {
-                info!("TAG: {} {}", tag, inside_paragraph);
-                let name = String::from_utf8_lossy(name);
-                if name.eq_ignore_ascii_case("h1")
-                    || name.eq_ignore_ascii_case("h2")
-                    || name.eq_ignore_ascii_case("h3")
-                    || name.eq_ignore_ascii_case("p")
-                {
-                    inside_paragraph = false;
-                    lines.push(para);
-                    para = TextLine {
-                        runs: vec![],
-                    };
-                }
-            }
-            Tag::Text(txt) => {
-                info!("TAG: {} {}", tag, inside_paragraph);
-                if inside_paragraph {
-                    para.runs.push(TextRun {
-                        text:String::from_utf8_lossy(txt).to_string(),
-                        style: LineStyle::Header,
-                    })
-                }
-            }
-            _ => {}
-        }
-    }
-    lines
-}
 
 fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
     info!("update view from input {:?}", event);
@@ -515,24 +480,19 @@ fn make_gui_scene<'a>() -> Scene {
     };
 
     let mut lines:Vec<TextLine> = vec![];
-    lines.append(&mut break_lines("Thoughts on LLMs and the coming AI backlash", 26,LineStyle::Header));
+    lines.append(&mut break_lines("Header Text", 26,LineStyle::Header));
     lines.push(TextLine {
         runs: vec![TextRun {
             style:LineStyle::Plain,
             text:"".into(),
         }]
     });
-    lines.append(&mut break_lines(r#"I find Large Language Models fascinating.
-    They are a very different approach to AI than most of the 60 years of
-    AI research and show great promise. At the same time they are just technology.
-    They aren't magic. They aren't even very good technology yet. LLM hype has vastly
-    outpaced reality and I think we are due for a correction, possibly even a bubble pop.
-    Furthermore, I think future AI progress is going to happen on the app / UX side,
-    not on the core models, which are already starting to show their scaling limits.
-    Let's dig in. Better pour a cup of coffee. This could be a long one."#, 26,LineStyle::Plain));
-    textview.lines = lines;
 
     scene.views.push(Box::new(textview));
+    let text_view = 4usize;
+    if let Some(tv) = scene.get_textview_at_mut(text_view) {
+        tv.lines = lines
+    }
 
     scene
 }
