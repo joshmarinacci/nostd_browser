@@ -226,9 +226,9 @@ async fn main(spawner: Spawner) {
         let mut http_req = client
             .request(
                 reqwless::request::Method::GET,
-                // "https://joshondesign.com/2023/07/12/css_text_style_builder",
+                "https://joshondesign.com/2023/07/12/css_text_style_builder",
                 // "https://jsonplaceholder.typicode.com/posts/1",
-                "https://apps.josh.earth/",
+                // "https://apps.josh.earth/",
 
             )
             .await
