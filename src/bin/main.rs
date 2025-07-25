@@ -33,7 +33,8 @@ use esp_hal::time::Rate;
 use esp_hal::spi::{ master::{Spi, Config as SpiConfig } };
 use esp_hal::timer::timg::TimerGroup;
 use esp_wifi::{ EspWifiController,  init };
-use esp_wifi::wifi::{ClientConfiguration, Configuration, WifiController, WifiDevice, WifiEvent, WifiState};
+use esp_wifi::wifi::{ClientConfiguration, Configuration, ScanConfig, WifiController, WifiDevice, WifiEvent, WifiState};
+use esp_wifi::wifi::ScanTypeConfig::Active;
 use log::{info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
@@ -284,8 +285,6 @@ async fn connection(mut controller: WifiController<'static>) {
                 warn!("PASSWORD is none. did you forget to set the PASSWORD environment variables");
             }
             let client_config = Configuration::Client(ClientConfiguration {
-                ssid: SSID.unwrap().into(),
-                password: PASSWORD.unwrap().into(),
                 ..Default::default()
             });
             controller.set_configuration(&client_config).unwrap();
@@ -294,18 +293,43 @@ async fn connection(mut controller: WifiController<'static>) {
             info!("Wifi started!");
 
             info!("Scan");
-            let result = controller.scan_n_async(10).await.unwrap();
-            for ap in result {
-                info!("{:?}", ap);
+            // scan for longer and show hidden
+            let active = Active {
+                min:core::time::Duration::from_millis(50),
+                max:core::time::Duration::from_millis(100),
+            };
+            let mut result = controller.scan_with_config_async(ScanConfig{
+                show_hidden:true,
+                scan_type:active,
+                ..Default::default()
+            }).await.unwrap();
+            // sort by best signal strength first
+            result.sort_by(|a,b| a.signal_strength.cmp(&b.signal_strength));
+            result.reverse();
+            for ap in result.iter() {
+                info!("found AP: {:?}", ap);
             }
-        }
-        info!("About to connect to ... {:?}",SSID);
-
-        match controller.connect_async().await {
-            Ok(_) => info!("Wifi connected!"),
-            Err(e) => {
-                info!("Failed to connect to wifi: {e:?}");
-                Timer::after(Duration::from_millis(5000)).await
+            // pick the first that matches the passed in SSID
+            let ap = result.iter()
+                .filter(|ap|ap.ssid.eq_ignore_ascii_case(SSID.unwrap()))
+                .next();
+            if let Some(ap) = ap {
+                info!("using the AP {:?}", ap);
+                // set the config to use for connecting
+                controller.set_configuration(&Configuration::Client(ClientConfiguration {
+                    ssid: ap.ssid.to_string(),
+                    password: PASSWORD.unwrap().into(),
+                    ..Default::default()
+                })).unwrap();
+                
+                info!("About to connect");
+                match controller.connect_async().await {
+                    Ok(_) => info!("Wifi connected!"),
+                    Err(e) => {
+                        info!("Failed to connect to wifi: {e:?}");
+                        Timer::after(Duration::from_millis(5000)).await
+                    }
+                }
             }
         }
     }
