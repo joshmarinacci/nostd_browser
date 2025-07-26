@@ -1,18 +1,18 @@
+use crate::common::TDeckDisplay;
+use crate::gui::{GuiEvent, View};
+use crate::textview::LineStyle::{Header, Plain};
 use alloc::string::{String, ToString};
-use alloc::{format, vec};
 use alloc::vec::Vec;
+use alloc::vec;
 use core::any::Any;
-use embedded_graphics::Drawable;
 use embedded_graphics::geometry::{OriginDimensions, Point};
 use embedded_graphics::mono_font::ascii::FONT_9X15;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::WebColors;
+use embedded_graphics::prelude::RgbColor;
 use embedded_graphics::text::Text;
-use log::info;
-use crate::common::TDeckDisplay;
-use crate::gui::{GuiEvent, View};
-use crate::textview::LineStyle::{Header, Plain};
+use embedded_graphics::Drawable;
+use nostd_html_parser::blocks::{Block, BlockType};
 
 #[derive(Clone, Copy)]
 #[derive(Debug)]
@@ -61,7 +61,14 @@ impl TextLine {
     }
 }
 
-pub fn break_lines(text: &str, width: u32, style: LineStyle) -> Vec<TextLine> {
+pub fn break_lines(block:&Block, width: u32) -> Vec<TextLine> {
+    let style = match block.block_type {
+        BlockType::Plain => Plain,
+        BlockType::Header => Header,
+        BlockType::ListItem => Plain,
+    };
+    let text = &block.text;
+
     let mut lines: Vec<TextLine> = vec![];
     let mut tl:TextLine = TextLine {
         runs: vec![],
@@ -115,29 +122,28 @@ impl View for TextView {
         let viewport_height:i32 = (display.size().height / font.character_size.height) as i32;
         let line_height = font.character_size.height as i32;
         let char_width = font.character_size.width as i32;
-        let debug =  MonoTextStyle::new(&FONT_9X15, Rgb565::CSS_ORANGE);
-        let x_inset = 5;
 
-        // info!("drawing lines at scroll {}", scroll_offset);
         // select the lines in the current viewport
-        // draw the lines
         let mut end:usize = (self.scroll_index as i32 + viewport_height) as usize;
         if end >= self.lines.len() {
             end = self.lines.len();
         }
         let viewport_lines = &self.lines[(self.scroll_index) .. end];
+
+        // draw the lines
         for (j, line) in viewport_lines.iter().enumerate() {
-            let mut inset_chars: usize = 3;
+            let mut inset_chars: usize = 0;
             let y = j as i32 * line_height + 10;
-            Text::new(&format!("{}", j), Point::new(x_inset, y), debug).draw(display).unwrap();
             for (i, run) in line.runs.iter().enumerate() {
                 let pos = Point::new(inset_chars as i32 * char_width, y);
-                let style = MonoTextStyle::new(&FONT_9X15, Rgb565::CSS_RED);
-                // let style = match run.style {
-                //     Plain => theme.plain,
-                //     Header => theme.header,
-                //     Link => theme.link,
-                // };
+                let style = match run.style {
+                    Plain => Rgb565::BLACK,
+                    Header => Rgb565::BLUE,
+                    _ => {
+                        Rgb565::MAGENTA
+                    }
+                };
+                let style = MonoTextStyle::new(&FONT_9X15, style);
                 Text::new(&run.text, pos, style).draw(display).unwrap();
                 inset_chars += run.text.len();
             }

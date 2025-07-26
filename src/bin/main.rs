@@ -46,7 +46,8 @@ use reqwless::client::{HttpClient, TlsConfig};
 use mipidsi::{models::ST7789, Builder};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
-use nostd_html_parser::{Block, BlockParser, Tag, TagParser};
+use nostd_html_parser::blocks::{Block, BlockParser, BlockType};
+use nostd_html_parser::tags::TagParser;
 use static_cell::StaticCell;
 use nostd_browser::common::TDeckDisplay;
 use nostd_browser::gui::{GuiEvent, MenuView, Scene, VButton, VLabel, View};
@@ -196,12 +197,6 @@ async fn main(spawner: Spawner) {
     spawner.spawn(net_task(wifi_runner)).ok();
 
 
-    info!("sending a message");
-    let tags = TagParser::with_debug(b"<html><body><h1>loding page</h1><p>hi there</p></body></html>", false);
-    let block_parser = BlockParser::with_debug(tags, false);
-    let blocks = block_parser.collect();
-    CHANNEL.sender().send(blocks).await;
-
     wait_for_connection(network_stack).await;
 
     info!("we are connected. on to the HTTP request");
@@ -342,12 +337,17 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
 #[embassy_executor::task]
 async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c<'static, Blocking>, mut scene:Scene) {
     loop {
+        let display_width = display.size().width;
+        let font = FONT_9X15;
+        let char_width = font.character_size.width as i32;
+        let columns = ((display_width as i32) / char_width) as u32;
+        // info!("width is {} char width = {} columns is {}", display_width, char_width, columns);
         if let Ok(blocks) = CHANNEL.try_receive() {
             info!("got the lines");
             let mut lines:Vec<TextLine> = vec![];
             for block in blocks {
                 info!("block: {:?}", block);
-                let mut txt = break_lines(&block.text, 30, LineStyle::Plain);
+                let mut txt = break_lines(&block, columns);
                 lines.append(&mut txt);
             }
 
@@ -472,7 +472,7 @@ fn make_gui_scene<'a>() -> Scene {
     scene.views.push(MenuView::start_hidden("wifi",
                                             vec!["status","scan","close"],
                                             Point::new(20,20)));
-    let mut textview = TextView {
+    let textview = TextView {
         dirty: true,
         visible: true,
         lines: vec![],
@@ -480,13 +480,18 @@ fn make_gui_scene<'a>() -> Scene {
     };
 
     let mut lines:Vec<TextLine> = vec![];
-    lines.append(&mut break_lines("Header Text", 26,LineStyle::Header));
-    lines.push(TextLine {
-        runs: vec![TextRun {
-            style:LineStyle::Plain,
-            text:"".into(),
-        }]
-    });
+    lines.append(&mut break_lines(&Block{
+        text: String::from("Header Text"),
+        block_type: BlockType::Header,
+    }, 30));
+    lines.append(&mut break_lines(&Block{
+        text: String::from("list item"),
+        block_type: BlockType::ListItem,
+    }, 30));
+    lines.append(&mut break_lines(&Block{
+        text: String::from("This is some long body text that needs to be broken into multiple lines"),
+        block_type: BlockType::Plain,
+    }, 30));
 
     scene.views.push(Box::new(textview));
     let text_view = 4usize;
