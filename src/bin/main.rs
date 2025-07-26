@@ -343,20 +343,19 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
         let columns = ((display_width as i32) / char_width) as u32;
         // info!("width is {} char width = {} columns is {}", display_width, char_width, columns);
         if let Ok(blocks) = CHANNEL.try_receive() {
-            info!("got the lines");
+            info!("got new page blocks");
             let mut lines:Vec<TextLine> = vec![];
             for block in blocks {
-                info!("block: {:?}", block);
                 let mut txt = break_lines(&block, columns);
                 lines.append(&mut txt);
             }
 
             let text_view = 4usize;
             if let Some(tv) = scene.get_textview_at_mut(text_view) {
-                info!("set the lines");
                 tv.lines = lines;
             }
             scene.mark_dirty();
+            info!("heap is {}", esp_alloc::HEAP.stats());
         }
         let mut data = [0u8; 1];
         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
@@ -393,17 +392,17 @@ fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
     }
     if let Some(menu) = scene.get_menu_at(main_menu_id) {
         if menu.visible {
-            info!("the main menu is visible");;
+            // info!("the main menu is visible");;
             scene.handle_event(event);
         } else {
-            info!("the main menu is not visible");
+            // info!("the main menu is not visible");
             match event {
                 GuiEvent::KeyEvent(evt) => {
                     if evt == b' ' {
                         scene.show_menu(main_menu_id);
                     } else {
                         if let Some(tv) = scene.get_textview_at_mut(text_view) {
-                            info!("the text view gets input");
+                            // info!("the text view gets input");
                             tv.handle_input(event);
                             scene.mark_dirty();
                         }

@@ -5,13 +5,15 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::vec;
 use core::any::Any;
+use core::cmp::max;
 use embedded_graphics::geometry::{OriginDimensions, Point};
-use embedded_graphics::mono_font::ascii::FONT_9X15;
+use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::RgbColor;
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
+use log::{info, warn};
 use nostd_html_parser::blocks::{Block, BlockType};
 
 #[derive(Clone, Copy)]
@@ -43,17 +45,20 @@ impl TextRun {
 }
 
 pub struct TextLine {
+    pub block_type: BlockType,
     pub runs: Vec<TextRun>,
 }
 
 impl TextLine {
     pub fn with(runs: Vec<TextRun>) -> TextLine {
         TextLine {
+            block_type: BlockType::Plain,
             runs: Vec::from(runs),
         }
     }
     pub fn new(p0: &str) -> TextLine {
         TextLine {
+            block_type: BlockType::Plain,
             runs: Vec::from([
                 TextRun::plain(p0),
             ])
@@ -71,12 +76,12 @@ pub fn break_lines(block:&Block, width: u32) -> Vec<TextLine> {
 
     let mut lines: Vec<TextLine> = vec![];
     let mut tl:TextLine = TextLine {
+        block_type: block.block_type.clone(),
         runs: vec![],
     };
     let mut bucket = String::new();
     for (i,word) in text.split(' ').enumerate() {
         let word = word.trim();
-        // info!("word = {:?}", word);
         if word == "" {
             continue;
         }
@@ -90,6 +95,7 @@ pub fn break_lines(block:&Block, width: u32) -> Vec<TextLine> {
             });
             lines.push(tl);
             tl = TextLine {
+                block_type: block.block_type.clone(),
                 runs: vec![],
             };
             bucket.clear();
@@ -110,7 +116,7 @@ pub struct TextView {
     pub dirty: bool,
     pub lines: Vec<TextLine>,
     pub visible: bool,
-    pub scroll_index: usize,
+    pub scroll_index: i32,
 }
 impl View for TextView {
     fn draw(&mut self, display: &mut TDeckDisplay) {
@@ -128,22 +134,20 @@ impl View for TextView {
         if end >= self.lines.len() {
             end = self.lines.len();
         }
-        let viewport_lines = &self.lines[(self.scroll_index) .. end];
+        let start = max(self.scroll_index,0) as usize;
+        let viewport_lines = &self.lines[start .. end];
 
         // draw the lines
         for (j, line) in viewport_lines.iter().enumerate() {
             let mut inset_chars: usize = 0;
             let y = j as i32 * line_height + 10;
+            let style = match line.block_type {
+                BlockType::Plain => MonoTextStyle::new(&FONT_9X15, Rgb565::BLACK),
+                BlockType::ListItem => MonoTextStyle::new(&FONT_9X15, Rgb565::GREEN),
+                BlockType::Header => MonoTextStyle::new(&FONT_9X15_BOLD, Rgb565::BLACK),
+            };
             for (i, run) in line.runs.iter().enumerate() {
                 let pos = Point::new(inset_chars as i32 * char_width, y);
-                let style = match run.style {
-                    Plain => Rgb565::BLACK,
-                    Header => Rgb565::BLUE,
-                    _ => {
-                        Rgb565::MAGENTA
-                    }
-                };
-                let style = MonoTextStyle::new(&FONT_9X15, style);
                 Text::new(&run.text, pos, style).draw(display).unwrap();
                 inset_chars += run.text.len();
             }
@@ -154,10 +158,13 @@ impl View for TextView {
         match event {
             GuiEvent::KeyEvent(key) => {
                 match key {
-                    b'j' => self.scroll_index = (self.scroll_index + 1) % self.lines.len(),
-                    b'k' => self.scroll_index = (self.scroll_index - 1) % self.lines.len(),
-                    _ => {}
+                    b'j' => self.scroll_index = (self.scroll_index + 1) % (self.lines.len() as i32),
+                    b'k' => self.scroll_index = max(self.scroll_index - 1, 0),
+                    _ => {
+                        warn!("Unhandled key {:?}", key);
+                    }
                 }
+                info!("now scroll index {}", self.scroll_index);
                 self.dirty = true
             }
         }
