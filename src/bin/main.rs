@@ -7,7 +7,7 @@
 )]
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
-use alloc::{format, vec};
+use alloc::{vec};
 use alloc::vec::Vec;
 use embassy_executor::Spawner;
 use embassy_net::{Runner, Stack, StackResources};
@@ -293,9 +293,9 @@ async fn connection(mut controller: WifiController<'static>) {
             // sort by best signal strength first
             result.sort_by(|a,b| a.signal_strength.cmp(&b.signal_strength));
             result.reverse();
-            for ap in result.iter() {
-                // info!("found AP: {:?}", ap);
-            }
+            // for ap in result.iter() {
+            //     // info!("found AP: {:?}", ap);
+            // }
             // pick the first that matches the passed in SSID
             let ap = result.iter()
                 .filter(|ap|ap.ssid.eq_ignore_ascii_case(SSID.unwrap()))
@@ -370,19 +370,14 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
         Timer::after(Duration::from_millis(100)).await;
     }
 }
-// const main_menu_id:i32 = 0;
-// const theme_menu_id:i32 = 1;
-// const font_menu_id:i32 = 2;
-// const wifi_menu_id:i32 = 3;
-// const text_view_id:i32 = 4;
-
 
 fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
     info!("update view from input {:?}", event);
     if scene.focused.is_none() {
         scene.focused = Some(0);
     }
-    if let Some(menu) = scene.get_menu_at(*scene.keys.get("main").unwrap()) {
+    if let Some(menu) = scene.get_menu_by_name("main") {
+        info!("menus is visible");
         if menu.visible {
             scene.handle_event(event);
         } else {
@@ -417,20 +412,26 @@ fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
                         if scene.is_menu_selected_by_name("main", 2) {
                             scene.show_menu_by_name("wifi");
                         }
+                        if scene.is_menu_selected_by_name("main", 4) {
+                            scene.hide_menu_by_name("main")
+                        }
                     }
                     if scene.is_focused_by_name("theme") {
                         if scene.is_menu_selected_by_name("theme", 2) {
                             scene.hide_menu_by_name("theme");
+                            scene.set_focused_by_name("main")
                         }
                     }
                     if scene.is_focused_by_name("font") {
                         if scene.is_menu_selected_by_name("font", 3) {
                             scene.hide_menu_by_name("font");
+                            scene.set_focused_by_name("main")
                         }
                     }
                     if scene.is_focused_by_name("wifi") {
                         if scene.is_menu_selected_by_name("wifi", 2) {
                             scene.hide_menu_by_name("wifi");
+                            scene.set_focused_by_name("main")
                         }
                     }
                 },

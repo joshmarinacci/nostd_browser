@@ -1,7 +1,7 @@
 use crate::common::TDeckDisplay;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
-use alloc::{format, vec};
+use alloc::{vec};
 use alloc::vec::Vec;
 use core::any::{Any, TypeId};
 use core::fmt::{Debug, Formatter};
@@ -51,18 +51,6 @@ pub struct MenuView {
 }
 
 impl MenuView {
-    pub(crate) fn is_visible(&self) -> bool {
-        self.visible
-    }
-    pub(crate) fn show(&mut self) {
-        self.visible = true;
-        self.dirty = true;
-        self.highlighted_index = 0;
-    }
-    pub(crate) fn hide(&mut self) {
-        self.visible = false;
-        self.dirty = true;
-    }
     pub(crate) fn nav_prev(&mut self) {
         self.highlighted_index = (self.highlighted_index + 1) % self.items.len();
         self.dirty = true;
@@ -91,54 +79,54 @@ impl MenuView {
             dirty: true,
         })
     }
-    fn draw(&mut self, display: &mut TDeckDisplay) {
-        if !self.visible {
-            return;
-        }
-        if !self.dirty {
-            return;
-        }
-        let font = FONT_9X15;
-        let lh = font.character_size.height as i32;
-        let pad = 5;
-        let rect = Rectangle::new(
-            self.position,
-            Size::new(100, (self.items.len() as i32 * lh + pad * 2) as u32),
-        );
-        rect.into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_GRAY))
-            .draw(display)
-            .unwrap();
-        // info!("Highlighted index {}", self.highlighted_index);
-        for (i, item) in self.items.iter().enumerate() {
-            let bg = if i == self.highlighted_index {
-                Rgb565::RED
-            } else {
-                Rgb565::WHITE
-            };
-            let fg = if i == self.highlighted_index {
-                Rgb565::WHITE
-            } else {
-                Rgb565::RED
-            };
-            let ly = (i as i32) * lh + pad;
-            Rectangle::new(
-                Point::new(pad, ly).add(self.position),
-                Size::new(100, lh as u32),
-            )
-            .into_styled(PrimitiveStyle::with_fill(bg))
-            .draw(display)
-            .unwrap();
-            let text_style = MonoTextStyle::new(&font, fg);
-            Text::new(
-                &item,
-                Point::new(pad, ly + lh - 2).add(self.position),
-                text_style,
-            )
-            .draw(display)
-            .unwrap();
-        }
-        // self.dirty = false;
-    }
+    // fn draw(&mut self, display: &mut TDeckDisplay) {
+    //     if !self.visible {
+    //         return;
+    //     }
+    //     if !self.dirty {
+    //         return;
+    //     }
+    //     let font = FONT_9X15;
+    //     let lh = font.character_size.height as i32;
+    //     let pad = 5;
+    //     let rect = Rectangle::new(
+    //         self.position,
+    //         Size::new(100, (self.items.len() as i32 * lh + pad * 2) as u32),
+    //     );
+    //     rect.into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_GRAY))
+    //         .draw(display)
+    //         .unwrap();
+    //     // info!("Highlighted index {}", self.highlighted_index);
+    //     for (i, item) in self.items.iter().enumerate() {
+    //         let bg = if i == self.highlighted_index {
+    //             Rgb565::RED
+    //         } else {
+    //             Rgb565::WHITE
+    //         };
+    //         let fg = if i == self.highlighted_index {
+    //             Rgb565::WHITE
+    //         } else {
+    //             Rgb565::RED
+    //         };
+    //         let ly = (i as i32) * lh + pad;
+    //         Rectangle::new(
+    //             Point::new(pad, ly).add(self.position),
+    //             Size::new(100, lh as u32),
+    //         )
+    //         .into_styled(PrimitiveStyle::with_fill(bg))
+    //         .draw(display)
+    //         .unwrap();
+    //         let text_style = MonoTextStyle::new(&font, fg);
+    //         Text::new(
+    //             &item,
+    //             Point::new(pad, ly + lh - 2).add(self.position),
+    //             text_style,
+    //         )
+    //         .draw(display)
+    //         .unwrap();
+    //     }
+    //     // self.dirty = false;
+    // }
 }
 impl View for MenuView {
     fn as_any(&self) -> &dyn Any {
@@ -262,6 +250,14 @@ impl Scene {
     pub fn get_menu_at(&self, index: i32) -> Option<&MenuView> {
         self.views[index as usize].as_any().downcast_ref::<MenuView>()
     }
+    pub fn get_menu_by_name(&self, name: &str) -> Option<&MenuView> {
+        if let Some(index) = self.keys.get(name) {
+            self.get_menu_at(*index)
+        } else {
+            warn!("Missing menu by name '{}'", name);
+            None
+        }
+    }
     pub fn get_textview_at(&self, index: i32) -> Option<&TextView> {
         self.views[index as usize].as_any().downcast_ref::<TextView>()
     }
@@ -315,6 +311,11 @@ impl Scene {
     }
     pub fn set_focused(&mut self, index:i32) {
         self.focused = Some(index);
+    }
+    pub fn set_focused_by_name(&mut self, name: &str) {
+        if let Some(index) = self.keys.get(name) {
+            self.set_focused(*index);
+        }
     }
 
     pub fn draw(&mut self, display: &mut TDeckDisplay) {

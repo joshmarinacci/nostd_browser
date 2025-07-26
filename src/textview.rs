@@ -30,12 +30,6 @@ pub struct TextRun {
 }
 
 impl TextRun {
-    fn header(p0: &str) -> TextRun {
-        TextRun {
-            style: Header,
-            text: p0.to_string(),
-        }
-    }
     fn plain(p0: &str) -> TextRun {
         TextRun {
             style: Plain,
