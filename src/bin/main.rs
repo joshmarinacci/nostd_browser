@@ -350,8 +350,7 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
                 lines.append(&mut txt);
             }
 
-            let text_view = 4usize;
-            if let Some(tv) = scene.get_textview_at_mut(text_view) {
+            if let Some(tv) = scene.get_textview_at_mut(text_view_id) {
                 tv.lines = lines;
             }
             scene.mark_dirty();
@@ -378,30 +377,28 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
         Timer::after(Duration::from_millis(100)).await;
     }
 }
+// const main_menu_id:i32 = 0;
+const theme_menu_id:i32 = 1;
+const font_menu_id:i32 = 2;
+const wifi_menu_id:i32 = 3;
+const text_view_id:i32 = 4;
 
 
 fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
     info!("update view from input {:?}", event);
-    let main_menu_id = 0usize;
-    let theme_menu_id = 1usize;
-    let font_menu_id = 2usize;
-    let wifi_menu_id = 3usize;
-    let text_view = 4usize;
     if scene.focused.is_none() {
-        scene.focused = Some(main_menu_id);
+        scene.focused = Some(0);
     }
-    if let Some(menu) = scene.get_menu_at(main_menu_id) {
+    if let Some(menu) = scene.get_menu_at(*scene.keys.get("main").unwrap()) {
         if menu.visible {
-            // info!("the main menu is visible");;
             scene.handle_event(event);
         } else {
-            // info!("the main menu is not visible");
             match event {
                 GuiEvent::KeyEvent(evt) => {
                     if evt == b' ' {
-                        scene.show_menu(main_menu_id);
+                        scene.show_menu_by_name("main");
                     } else {
-                        if let Some(tv) = scene.get_textview_at_mut(text_view) {
+                        if let Some(tv) = scene.get_textview_at_mut(text_view_id) {
                             // info!("the text view gets input");
                             tv.handle_input(event);
                             scene.mark_dirty();
@@ -417,14 +414,14 @@ fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
         GuiEvent::KeyEvent(key_event) => {
             match key_event {
                 13 => {
-                    if scene.is_focused(main_menu_id) {
-                        if scene.is_menu_selected(main_menu_id, 0) {
-                            scene.show_menu(theme_menu_id);
+                    if scene.is_focused_by_name("main") {
+                        if scene.is_menu_selected_by_name("main", 0) {
+                            scene.show_menu_by_name("theme")
                         }
-                        if scene.is_menu_selected(main_menu_id, 1) {
+                        if scene.is_menu_selected_by_name("main", 1) {
                             scene.show_menu(font_menu_id);
                         }
-                        if scene.is_menu_selected(main_menu_id, 2) {
+                        if scene.is_menu_selected_by_name("main", 2) {
                             scene.show_menu(wifi_menu_id);
                         }
                     }
@@ -455,20 +452,16 @@ fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
 
 fn make_gui_scene<'a>() -> Scene {
     let mut scene = Scene::new();
-    let mut main_menu = MenuView::new("main",
+    scene.add("main", MenuView::start_hidden("main",
                                       vec!["Theme","Font","Wifi","Bookmarks","close"],
-                                      Point::new(0,0));
-    main_menu.visible = false;
-    let mut theme_menu = MenuView::new("themes",
+                                      Point::new(0,0)));
+    scene.add("theme", MenuView::start_hidden("themes",
                                        vec!["Dark","Light","close"],
-                                       Point::new(20,20));
-    theme_menu.visible = false;
-    scene.views.push(main_menu);
-    scene.views.push(theme_menu);
-    scene.views.push(MenuView::start_hidden("font",
-                                            vec!["small","medium","big","close"],
-                                            Point::new(20,20)));
-    scene.views.push(MenuView::start_hidden("wifi",
+                                       Point::new(20,20)));
+    scene.add("font", MenuView::start_hidden("font",
+                                     vec!["small","medium","big","close"],
+                                     Point::new(20,20)));
+    scene.add("wifi", MenuView::start_hidden("wifi",
                                             vec!["status","scan","close"],
                                             Point::new(20,20)));
     let textview = TextView {
@@ -493,8 +486,8 @@ fn make_gui_scene<'a>() -> Scene {
     }, 30));
 
     scene.views.push(Box::new(textview));
-    let text_view = 4usize;
-    if let Some(tv) = scene.get_textview_at_mut(text_view) {
+    scene.keys.insert("page".to_string(), 4);
+    if let Some(tv) = scene.get_textview_at_mut(text_view_id) {
         tv.lines = lines
     }
 

@@ -13,7 +13,8 @@ use embedded_graphics::prelude::{Point, Primitive, RgbColor, Size, WebColors};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
-use log::info;
+use hashbrown::HashMap;
+use log::{info, warn};
 use crate::textview::TextView;
 
 pub trait View {
@@ -207,45 +208,72 @@ impl View for MenuView {
 
 pub struct Scene {
     pub views:Vec<Box<dyn View>>,
-    pub focused:Option<usize>,
+    pub focused:Option<i32>,
+    pub keys:HashMap<String,i32>,
     dirty: bool
 }
 
 impl Scene {
-    pub fn is_menu_selected(&self, index: usize, hi: usize) -> bool {
-        if let Some(menu) = self.views[index].as_any().downcast_ref::<MenuView>() {
+    pub fn add(&mut self, name: &str, main_menu: Box<MenuView>) {
+        self.views.push(main_menu);
+        self.keys.insert(name.to_string(), (self.views.len() as i32)-1);
+    }
+}
+
+impl Scene {
+    pub fn is_menu_selected(&self, index: i32, hi: usize) -> bool {
+        if let Some(menu) = self.views[index as usize].as_any().downcast_ref::<MenuView>() {
             return menu.highlighted_index == hi;
         }
         false
     }
-    pub fn hide_menu(&mut self, index: usize) {
-        if let Some(menu) = self.views[index].as_any_mut().downcast_mut::<MenuView>() {
+    pub fn is_menu_selected_by_name(&self, name: &str, hi:usize) -> bool {
+        if let Some(index) = self.keys.get(name) {
+            return self.is_menu_selected(*index, hi)
+        }
+        return false
+    }
+    pub fn hide_menu(&mut self, index: i32) {
+        if let Some(menu) = self.views[index as usize].as_any_mut().downcast_mut::<MenuView>() {
             menu.visible = false;
             self.dirty = true;
             self.set_focused(0);
         }
     }
-    pub fn show_menu(&mut self, index: usize) {
-        if let Some(menu) = self.views[index].as_any_mut().downcast_mut::<MenuView>() {
+    pub fn show_menu(&mut self, index: i32) {
+        if let Some(menu) = self.views[index as usize].as_any_mut().downcast_mut::<MenuView>() {
             menu.visible = true;
             self.dirty = true;
             self.set_focused(index);
         }
     }
-    pub fn get_menu_at(&self, index: usize) -> Option<&MenuView> {
-        self.views[index].as_any().downcast_ref::<MenuView>()
+    pub fn show_menu_by_name(&mut self, name: &str) {
+        if let Some(index) = self.keys.get(name) {
+            self.show_menu(*index);
+        } else {
+            warn!("Missing menu by name '{}'", name);
+        }
     }
-    pub fn get_textview_at(&self, index: usize) -> Option<&TextView> {
-        self.views[index].as_any().downcast_ref::<TextView>()
+    pub fn get_menu_at(&self, index: i32) -> Option<&MenuView> {
+        self.views[index as usize].as_any().downcast_ref::<MenuView>()
     }
-    pub fn get_textview_at_mut(&mut self, index: usize) -> Option<&mut TextView>  {
-        self.views[index].as_any_mut().downcast_mut::<TextView>()
+    pub fn get_textview_at(&self, index: i32) -> Option<&TextView> {
+        self.views[index as usize].as_any().downcast_ref::<TextView>()
     }
-    pub fn is_focused(&self, p0: usize) -> bool {
+    pub fn get_textview_at_mut(&mut self, index: i32) -> Option<&mut TextView>  {
+        self.views[index as usize].as_any_mut().downcast_mut::<TextView>()
+    }
+    pub fn is_focused(&self, p0: i32) -> bool {
         if let Some(f) = self.focused {
             if f == p0 {
                 return true
             }
+        }
+        false
+    }
+    pub fn is_focused_by_name(&self, name: &str) -> bool {
+        if let Some(f) = self.keys.get(name) {
+            return self.is_focused(*f)
         }
         false
     }
@@ -261,18 +289,19 @@ impl Scene {
             dirty: true,
             views: vec![],
             focused: None,
+            keys: HashMap::new(),
         }
     }
     pub fn handle_event(&mut self, evt: GuiEvent) {
         if let Some(index) = self.focused {
-            if index < self.views.len() {
-                let view = &mut self.views[index];
+            if index < self.views.len() as i32 {
+                let view = &mut self.views[index as usize];
                 view.handle_input(evt);
             }
         }
         self.dirty = true;
     }
-    pub fn set_focused(&mut self, index:usize) {
+    pub fn set_focused(&mut self, index:i32) {
         self.focused = Some(index);
     }
 
