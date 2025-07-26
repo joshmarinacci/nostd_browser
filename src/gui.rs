@@ -240,6 +240,11 @@ impl Scene {
             self.set_focused(0);
         }
     }
+    pub fn hide_menu_by_name(&mut self, name: &str) {
+        if let Some(index) = self.keys.get(name) {
+            self.hide_menu(*index);
+        }
+    }
     pub fn show_menu(&mut self, index: i32) {
         if let Some(menu) = self.views[index as usize].as_any_mut().downcast_mut::<MenuView>() {
             menu.visible = true;
@@ -262,6 +267,13 @@ impl Scene {
     }
     pub fn get_textview_at_mut(&mut self, index: i32) -> Option<&mut TextView>  {
         self.views[index as usize].as_any_mut().downcast_mut::<TextView>()
+    }
+    pub fn get_textview_at_mut_by_name(&mut self, name:&str) -> Option<&mut TextView>  {
+        if let Some(index) = self.keys.get(name) {
+            self.views[*index as usize].as_any_mut().downcast_mut::<TextView>()
+        } else {
+            None
+        }
     }
     pub fn is_focused(&self, p0: i32) -> bool {
         if let Some(f) = self.focused {

@@ -9,23 +9,16 @@ use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::{format, vec};
 use alloc::vec::Vec;
-use core::any::Any;
-use core::ops::Deref;
 use embassy_executor::Spawner;
 use embassy_net::{Runner, Stack, StackResources};
 use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_time::{Duration, Timer};
-use embassy_sync::signal::Signal;
-use embassy_sync::blocking_mutex::{CriticalSectionMutex, Mutex};
-use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
+use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex};
 use embassy_sync::channel::Channel;
-use embassy_sync::pubsub::WaitResult::Message;
 use embedded_graphics::mono_font::ascii::FONT_9X15;
-use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::prelude::*;
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::text::Text;
 use embedded_hal_bus::spi::ExclusiveDevice;
 use esp_hal::Blocking;
 use esp_hal::clock::CpuClock;
@@ -50,8 +43,8 @@ use nostd_html_parser::blocks::{Block, BlockParser, BlockType};
 use nostd_html_parser::tags::TagParser;
 use static_cell::StaticCell;
 use nostd_browser::common::TDeckDisplay;
-use nostd_browser::gui::{GuiEvent, MenuView, Scene, VButton, VLabel, View};
-use nostd_browser::textview::{break_lines, LineStyle, TextLine, TextRun, TextView};
+use nostd_browser::gui::{GuiEvent, MenuView, Scene, View};
+use nostd_browser::textview::{break_lines, TextLine, TextView};
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
@@ -350,7 +343,7 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
                 lines.append(&mut txt);
             }
 
-            if let Some(tv) = scene.get_textview_at_mut(text_view_id) {
+            if let Some(tv) = scene.get_textview_at_mut_by_name("page") {
                 tv.lines = lines;
             }
             scene.mark_dirty();
@@ -378,10 +371,10 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
     }
 }
 // const main_menu_id:i32 = 0;
-const theme_menu_id:i32 = 1;
-const font_menu_id:i32 = 2;
-const wifi_menu_id:i32 = 3;
-const text_view_id:i32 = 4;
+// const theme_menu_id:i32 = 1;
+// const font_menu_id:i32 = 2;
+// const wifi_menu_id:i32 = 3;
+// const text_view_id:i32 = 4;
 
 
 fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
@@ -398,7 +391,7 @@ fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
                     if evt == b' ' {
                         scene.show_menu_by_name("main");
                     } else {
-                        if let Some(tv) = scene.get_textview_at_mut(text_view_id) {
+                        if let Some(tv) = scene.get_textview_at_mut_by_name("page") {
                             // info!("the text view gets input");
                             tv.handle_input(event);
                             scene.mark_dirty();
@@ -419,25 +412,25 @@ fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
                             scene.show_menu_by_name("theme")
                         }
                         if scene.is_menu_selected_by_name("main", 1) {
-                            scene.show_menu(font_menu_id);
+                            scene.show_menu_by_name("font");
                         }
                         if scene.is_menu_selected_by_name("main", 2) {
-                            scene.show_menu(wifi_menu_id);
+                            scene.show_menu_by_name("wifi");
                         }
                     }
-                    if scene.is_focused(theme_menu_id) {
-                        if scene.is_menu_selected(theme_menu_id, 2) {
-                            scene.hide_menu(theme_menu_id);
+                    if scene.is_focused_by_name("theme") {
+                        if scene.is_menu_selected_by_name("theme", 2) {
+                            scene.hide_menu_by_name("theme");
                         }
                     }
-                    if scene.is_focused(font_menu_id) {
-                        if scene.is_menu_selected(font_menu_id, 3) {
-                            scene.hide_menu(font_menu_id);
+                    if scene.is_focused_by_name("font") {
+                        if scene.is_menu_selected_by_name("font", 3) {
+                            scene.hide_menu_by_name("font");
                         }
                     }
-                    if scene.is_focused(wifi_menu_id) {
-                        if scene.is_menu_selected(wifi_menu_id, 2) {
-                            scene.hide_menu(wifi_menu_id);
+                    if scene.is_focused_by_name("wifi") {
+                        if scene.is_menu_selected_by_name("wifi", 2) {
+                            scene.hide_menu_by_name("wifi");
                         }
                     }
                 },
@@ -452,6 +445,15 @@ fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
 
 fn make_gui_scene<'a>() -> Scene {
     let mut scene = Scene::new();
+    let textview = TextView {
+        dirty: true,
+        visible: true,
+        lines: vec![],
+        scroll_index: 0
+    };
+    scene.views.push(Box::new(textview));
+    scene.keys.insert("page".to_string(), 0);
+
     scene.add("main", MenuView::start_hidden("main",
                                       vec!["Theme","Font","Wifi","Bookmarks","close"],
                                       Point::new(0,0)));
@@ -464,12 +466,6 @@ fn make_gui_scene<'a>() -> Scene {
     scene.add("wifi", MenuView::start_hidden("wifi",
                                             vec!["status","scan","close"],
                                             Point::new(20,20)));
-    let textview = TextView {
-        dirty: true,
-        visible: true,
-        lines: vec![],
-        scroll_index: 0
-    };
 
     let mut lines:Vec<TextLine> = vec![];
     lines.append(&mut break_lines(&Block{
@@ -485,9 +481,7 @@ fn make_gui_scene<'a>() -> Scene {
         block_type: BlockType::Plain,
     }, 30));
 
-    scene.views.push(Box::new(textview));
-    scene.keys.insert("page".to_string(), 4);
-    if let Some(tv) = scene.get_textview_at_mut(text_view_id) {
+    if let Some(tv) = scene.get_textview_at_mut_by_name("page") {
         tv.lines = lines
     }
 
