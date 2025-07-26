@@ -377,7 +377,6 @@ fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
         scene.focused = Some(0);
     }
     if let Some(menu) = scene.get_menu_by_name("main") {
-        info!("menus is visible");
         if menu.visible {
             scene.handle_event(event);
         } else {
@@ -387,7 +386,6 @@ fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
                         scene.show_menu_by_name("main");
                     } else {
                         if let Some(tv) = scene.get_textview_at_mut_by_name("page") {
-                            // info!("the text view gets input");
                             tv.handle_input(event);
                             scene.mark_dirty();
                         }

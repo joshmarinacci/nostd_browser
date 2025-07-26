@@ -119,8 +119,8 @@ impl View for TextView {
         }
         self.dirty = false;
         let font = FONT_9X15;
-        let viewport_height:i32 = (display.size().height / font.character_size.height) as i32;
-        let line_height = font.character_size.height as i32;
+        let line_height = font.character_size.height + 2;
+        let viewport_height:i32 = (display.size().height / line_height) as i32;
         let char_width = font.character_size.width as i32;
 
         // select the lines in the current viewport
@@ -131,17 +131,20 @@ impl View for TextView {
         let start = max(self.scroll_index,0) as usize;
         let viewport_lines = &self.lines[start .. end];
 
+        let x_inset = 5;
+        let y_inset = 5;
+
         // draw the lines
         for (j, line) in viewport_lines.iter().enumerate() {
             let mut inset_chars: usize = 0;
-            let y = j as i32 * line_height + 10;
+            let y = j as i32 * (line_height as i32) + 10;
             let style = match line.block_type {
                 BlockType::Plain => MonoTextStyle::new(&FONT_9X15, Rgb565::BLACK),
-                BlockType::ListItem => MonoTextStyle::new(&FONT_9X15, Rgb565::GREEN),
+                BlockType::ListItem => MonoTextStyle::new(&FONT_9X15, Rgb565::RED),
                 BlockType::Header => MonoTextStyle::new(&FONT_9X15_BOLD, Rgb565::BLACK),
             };
             for (i, run) in line.runs.iter().enumerate() {
-                let pos = Point::new(inset_chars as i32 * char_width, y);
+                let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
                 Text::new(&run.text, pos, style).draw(display).unwrap();
                 inset_chars += run.text.len();
             }

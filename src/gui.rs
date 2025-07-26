@@ -47,7 +47,6 @@ pub struct MenuView {
     pub highlighted_index: usize,
     pub visible: bool,
     pub dirty: bool,
-    // pub callback: Option<Box<dyn FnMut(&mut MenuView, &str) + 'a>>,
 }
 
 impl MenuView {
@@ -79,54 +78,6 @@ impl MenuView {
             dirty: true,
         })
     }
-    // fn draw(&mut self, display: &mut TDeckDisplay) {
-    //     if !self.visible {
-    //         return;
-    //     }
-    //     if !self.dirty {
-    //         return;
-    //     }
-    //     let font = FONT_9X15;
-    //     let lh = font.character_size.height as i32;
-    //     let pad = 5;
-    //     let rect = Rectangle::new(
-    //         self.position,
-    //         Size::new(100, (self.items.len() as i32 * lh + pad * 2) as u32),
-    //     );
-    //     rect.into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_GRAY))
-    //         .draw(display)
-    //         .unwrap();
-    //     // info!("Highlighted index {}", self.highlighted_index);
-    //     for (i, item) in self.items.iter().enumerate() {
-    //         let bg = if i == self.highlighted_index {
-    //             Rgb565::RED
-    //         } else {
-    //             Rgb565::WHITE
-    //         };
-    //         let fg = if i == self.highlighted_index {
-    //             Rgb565::WHITE
-    //         } else {
-    //             Rgb565::RED
-    //         };
-    //         let ly = (i as i32) * lh + pad;
-    //         Rectangle::new(
-    //             Point::new(pad, ly).add(self.position),
-    //             Size::new(100, lh as u32),
-    //         )
-    //         .into_styled(PrimitiveStyle::with_fill(bg))
-    //         .draw(display)
-    //         .unwrap();
-    //         let text_style = MonoTextStyle::new(&font, fg);
-    //         Text::new(
-    //             &item,
-    //             Point::new(pad, ly + lh - 2).add(self.position),
-    //             text_style,
-    //         )
-    //         .draw(display)
-    //         .unwrap();
-    //     }
-    //     // self.dirty = false;
-    // }
 }
 impl View for MenuView {
     fn as_any(&self) -> &dyn Any {
@@ -140,31 +91,34 @@ impl View for MenuView {
         if !self.visible { return; }
         // info!("MenuView draw");
         let font = FONT_9X15;
-        let lh = font.character_size.height as i32;
+        let line_height = (font.character_size.height + 2) as i32;
         let pad = 5;
-        let rect = Rectangle::new(
-            self.position,
-            Size::new(100, (self.items.len() as i32 * lh + pad * 2) as u32),
-        );
-        rect.into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_GRAY))
-            .draw(display)
-            .unwrap();
-        // info!("Highlighted index {}", self.highlighted_index);
+
+        let xoff:i32 = 2;
+        let yoff:i32 = 2;
+        let menu_width:i32 = 100;
+
+        let menu_size = Size::new((menu_width+2*xoff) as u32, (self.items.len() as i32 * line_height + 2*yoff) as u32);
+        // menu background
+        let shadow = Rectangle::new(self.position.add(Point::new(10, 10)),menu_size);
+        shadow.into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_GRAY)).draw(display).unwrap();
+        let background = Rectangle::new(self.position.add(Point::new(5, 5)),menu_size);
+        background.into_styled(PrimitiveStyle::with_fill(Rgb565::RED)).draw(display).unwrap();
         for (i, item) in self.items.iter().enumerate() {
             let bg = if i == self.highlighted_index {
-                Rgb565::RED
+                Rgb565::BLACK
             } else {
                 Rgb565::WHITE
             };
             let fg = if i == self.highlighted_index {
                 Rgb565::WHITE
             } else {
-                Rgb565::RED
+                Rgb565::BLACK
             };
-            let ly = (i as i32) * lh + pad;
+            let line_y = (i as i32) * line_height + pad;
             Rectangle::new(
-                Point::new(pad, ly).add(self.position),
-                Size::new(100, lh as u32),
+                Point::new(pad + xoff, line_y + yoff).add(self.position),
+                Size::new(100, line_height as u32),
             )
                 .into_styled(PrimitiveStyle::with_fill(bg))
                 .draw(display)
@@ -172,7 +126,7 @@ impl View for MenuView {
             let text_style = MonoTextStyle::new(&font, fg);
             Text::new(
                 &item,
-                Point::new(pad, ly + lh - 2).add(self.position),
+                Point::new(pad + xoff, line_y + line_height - 2 + yoff).add(self.position),
                 text_style,
             )
                 .draw(display)
