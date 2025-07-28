@@ -226,7 +226,7 @@ async fn main(spawner: Spawner) {
 
         info!("Got response");
         let res = response.body().read_to_end().await.unwrap();
-        let tags = TagParser::with_debug(res, false);
+        let tags = TagParser::new(res);
         let block_parser = BlockParser::with_debug(tags, false);
         let blocks = block_parser.collect();
         CHANNEL.sender().send(blocks).await;
