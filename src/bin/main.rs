@@ -40,11 +40,12 @@ use mipidsi::{models::ST7789, Builder};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use nostd_html_parser::blocks::{Block, BlockParser, BlockType};
+use nostd_html_parser::lines::{break_lines, TextLine};
 use nostd_html_parser::tags::TagParser;
 use static_cell::StaticCell;
 use nostd_browser::common::TDeckDisplay;
 use nostd_browser::gui::{GuiEvent, MenuView, Scene, View};
-use nostd_browser::textview::{break_lines, TextLine, TextView};
+use nostd_browser::textview::TextView;
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {

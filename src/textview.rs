@@ -1,6 +1,5 @@
 use crate::common::TDeckDisplay;
 use crate::gui::{GuiEvent, View};
-use crate::textview::LineStyle::{Header, Plain};
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::vec;
@@ -14,96 +13,10 @@ use embedded_graphics::prelude::RgbColor;
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
 use log::{info, warn};
-use nostd_html_parser::blocks::{Block, BlockType};
+use nostd_html_parser::blocks::{BlockType};
+use nostd_html_parser::lines::{TextLine, TextRun, break_lines };
 
-#[derive(Clone, Copy)]
-#[derive(Debug)]
-pub enum LineStyle {
-    Header,
-    Plain,
-    Link,
-}
 
-pub struct TextRun {
-    pub style: LineStyle,
-    pub text: String,
-}
-
-impl TextRun {
-    fn plain(p0: &str) -> TextRun {
-        TextRun {
-            style: Plain,
-            text: p0.to_string(),
-        }
-    }
-}
-
-pub struct TextLine {
-    pub block_type: BlockType,
-    pub runs: Vec<TextRun>,
-}
-
-impl TextLine {
-    pub fn with(runs: Vec<TextRun>) -> TextLine {
-        TextLine {
-            block_type: BlockType::Plain,
-            runs: Vec::from(runs),
-        }
-    }
-    pub fn new(p0: &str) -> TextLine {
-        TextLine {
-            block_type: BlockType::Plain,
-            runs: Vec::from([
-                TextRun::plain(p0),
-            ])
-        }
-    }
-}
-
-pub fn break_lines(block:&Block, width: u32) -> Vec<TextLine> {
-    let style = match block.block_type {
-        BlockType::Plain => Plain,
-        BlockType::Header => Header,
-        BlockType::ListItem => Plain,
-    };
-    let text = &block.text;
-
-    let mut lines: Vec<TextLine> = vec![];
-    let mut tl:TextLine = TextLine {
-        block_type: block.block_type.clone(),
-        runs: vec![],
-    };
-    let mut bucket = String::new();
-    for (i,word) in text.split(' ').enumerate() {
-        let word = word.trim();
-        if word == "" {
-            continue;
-        }
-        if bucket.len() + word.len() < width as usize {
-            bucket.push_str(word);
-            bucket.push_str(" ");
-        } else {
-            tl.runs.push(TextRun{
-                style: style.clone(),
-                text: bucket.clone(),
-            });
-            lines.push(tl);
-            tl = TextLine {
-                block_type: block.block_type.clone(),
-                runs: vec![],
-            };
-            bucket.clear();
-            bucket.push_str(word);
-            bucket.push_str(" ");
-        }
-    }
-    tl.runs.push(TextRun{
-        style:style.clone(),
-        text: bucket.clone(),
-    });
-    lines.push(tl);
-    return lines;
-}
 
 
 pub struct TextView {
