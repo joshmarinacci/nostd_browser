@@ -41,6 +41,9 @@ use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use nostd_html_parser::blocks::{Block, BlockParser, BlockType};
 use nostd_html_parser::lines::{break_lines, TextLine};
+use nostd_html_parser::blocks::BlockType::{ListItem, Paragraph};
+use nostd_html_parser::lines::{break_lines, TextLine};
+use nostd_html_parser::lines::RunStyle::Plain;
 use nostd_html_parser::tags::TagParser;
 use static_cell::StaticCell;
 use nostd_browser::common::TDeckDisplay;
@@ -227,7 +230,7 @@ async fn main(spawner: Spawner) {
         info!("Got response");
         let res = response.body().read_to_end().await.unwrap();
         let tags = TagParser::new(res);
-        let block_parser = BlockParser::with_debug(tags, false);
+        let block_parser = BlockParser::new(tags);
         let blocks = block_parser.collect();
         CHANNEL.sender().send(blocks).await;
     }

@@ -52,7 +52,7 @@ impl View for TextView {
             let mut inset_chars: usize = 0;
             let y = j as i32 * (line_height as i32) + 10;
             let style = match line.block_type {
-                BlockType::Plain => MonoTextStyle::new(&FONT_9X15, Rgb565::BLACK),
+                BlockType::Paragraph => MonoTextStyle::new(&FONT_9X15, Rgb565::BLACK),
                 BlockType::ListItem => MonoTextStyle::new(&FONT_9X15, Rgb565::RED),
                 BlockType::Header => MonoTextStyle::new(&FONT_9X15_BOLD, Rgb565::BLACK),
             };
