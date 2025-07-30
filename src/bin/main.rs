@@ -40,7 +40,6 @@ use mipidsi::{models::ST7789, Builder};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use nostd_html_parser::blocks::{Block, BlockParser, BlockType};
-use nostd_html_parser::lines::{break_lines, TextLine};
 use nostd_html_parser::blocks::BlockType::{ListItem, Paragraph};
 use nostd_html_parser::lines::{break_lines, TextLine};
 use nostd_html_parser::lines::RunStyle::Plain;
@@ -471,19 +470,9 @@ fn make_gui_scene<'a>() -> Scene {
                                             Point::new(20,20)));
 
     let mut lines:Vec<TextLine> = vec![];
-    lines.append(&mut break_lines(&Block{
-        text: String::from("Header Text"),
-        block_type: BlockType::Header,
-    }, 30));
-    lines.append(&mut break_lines(&Block{
-        text: String::from("list item"),
-        block_type: BlockType::ListItem,
-    }, 30));
-    lines.append(&mut break_lines(&Block{
-        text: String::from("This is some long body text that needs to be broken into multiple lines"),
-        block_type: BlockType::Plain,
-    }, 30));
-
+    lines.append(&mut break_lines(&Block::new_of_type(BlockType::Header,"Header Text"),30));
+    lines.append(&mut break_lines(&Block::new_of_type(BlockType::ListItem,"list item"),30));
+    lines.append(&mut break_lines(&Block::new_of_type(BlockType::Paragraph,"This is some long body text that needs to be broken into multiple lines"),30));
     if let Some(tv) = scene.get_textview_at_mut_by_name("page") {
         tv.lines = lines
     }
