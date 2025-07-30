@@ -74,6 +74,8 @@ macro_rules! mk_static {
 const SSID: Option<&str> = option_env!("SSID");
 const PASSWORD: Option<&str> = option_env!("PASSWORD");
 
+const AUTO_CONNECT: Option<&str> = option_env!("AUTO_CONNECT");
+
 pub const LILYGO_KB_I2C_ADDRESS: u8 =     0x55;
 
 static I2C:StaticCell<I2c<Blocking>> = StaticCell::new();
@@ -159,80 +161,81 @@ async fn main(spawner: Spawner) {
 
     }
 
+    if AUTO_CONNECT.is_some() {
+        let mut rng = Rng::new(peripherals.RNG);
+        let timer_g0 = TimerGroup::new(peripherals.TIMG0);
 
-    let mut rng = Rng::new(peripherals.RNG);
-    let timer_g0 = TimerGroup::new(peripherals.TIMG0);
+        info!("made timer");
+        let esp_wifi_ctrl = &*mk_static!(
+            EspWifiController<'static>,
+            init(timer_g0.timer0, rng.clone(), peripherals.RADIO_CLK).unwrap()
+        );
+        info!("making controller");
+        let (wifi_controller, interfaces) = esp_wifi::wifi::new(&esp_wifi_ctrl, peripherals.WIFI).unwrap();
+        let wifi_interface = interfaces.sta;
 
-    info!("made timer");
-    let esp_wifi_ctrl = &*mk_static!(
-        EspWifiController<'static>,
-        init(timer_g0.timer0, rng.clone(), peripherals.RADIO_CLK).unwrap()
-    );
-    info!("making controller");
-    let (wifi_controller, interfaces) = esp_wifi::wifi::new(&esp_wifi_ctrl, peripherals.WIFI).unwrap();
-    let wifi_interface = interfaces.sta;
+        let config = embassy_net::Config::dhcpv4(Default::default());
+        let net_seed = (rng.random() as u64) << 32 | rng.random() as u64;
+        info!("made net seed {}", net_seed);
+        let tls_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
+        info!("made tls seed {}", tls_seed);
 
-    let config = embassy_net::Config::dhcpv4(Default::default());
-    let net_seed = (rng.random() as u64) << 32 | rng.random() as u64;
-    info!("made net seed {}", net_seed);
-    let tls_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
-    info!("made tls seed {}", tls_seed);
-
-    info!("init-ing the network stack");
-    // Init network stack
-    let (network_stack, wifi_runner) = embassy_net::new(
-        wifi_interface,
-        config,
-        mk_static!(StackResources<3>, StackResources::<3>::new()),
-        net_seed,
-    );
-
-
-    info!("spawning connection");
-    spawner.spawn(connection(wifi_controller)).ok();
-    info!("spawning net task");
-    spawner.spawn(net_task(wifi_runner)).ok();
-
-
-    wait_for_connection(network_stack).await;
-
-    info!("we are connected. on to the HTTP request");
-    {
-        let mut rx_buffer = [0; 4096 * 2];
-        let mut tx_buffer = [0; 4096 * 2];
-        let dns = DnsSocket::new(network_stack);
-        let tcp_state = TcpClientState::<1, 4096, 4096>::new();
-        let tcp = TcpClient::new(network_stack, &tcp_state);
-
-        let tls = TlsConfig::new(
-            tls_seed,
-            &mut rx_buffer,
-            &mut tx_buffer,
-            reqwless::client::TlsVerify::None,
+        info!("init-ing the network stack");
+        // Init network stack
+        let (network_stack, wifi_runner) = embassy_net::new(
+            wifi_interface,
+            config,
+            mk_static!(StackResources<3>, StackResources::<3>::new()),
+            net_seed,
         );
 
-        let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
-        // let mut client = HttpClient::new(&tcp, &dns);
-        let mut buffer = [0u8; 4096 * 5];
-        info!("making the actual request");
-        let mut http_req = client
-            .request(
-                reqwless::request::Method::GET,
-                "https://joshondesign.com/2023/07/12/css_text_style_builder",
-                // "https://jsonplaceholder.typicode.com/posts/1",
-                // "https://apps.josh.earth/",
 
-            )
-            .await
-            .unwrap();
-        let response = http_req.send(&mut buffer).await.unwrap();
+        info!("spawning connection");
+        spawner.spawn(connection(wifi_controller)).ok();
+        info!("spawning net task");
+        spawner.spawn(net_task(wifi_runner)).ok();
 
-        info!("Got response");
-        let res = response.body().read_to_end().await.unwrap();
-        let tags = TagParser::new(res);
-        let block_parser = BlockParser::new(tags);
-        let blocks = block_parser.collect();
-        CHANNEL.sender().send(blocks).await;
+
+        wait_for_connection(network_stack).await;
+
+        info!("we are connected. on to the HTTP request");
+        {
+            let mut rx_buffer = [0; 4096 * 2];
+            let mut tx_buffer = [0; 4096 * 2];
+            let dns = DnsSocket::new(network_stack);
+            let tcp_state = TcpClientState::<1, 4096, 4096>::new();
+            let tcp = TcpClient::new(network_stack, &tcp_state);
+
+            let tls = TlsConfig::new(
+                tls_seed,
+                &mut rx_buffer,
+                &mut tx_buffer,
+                reqwless::client::TlsVerify::None,
+            );
+
+            let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
+            // let mut client = HttpClient::new(&tcp, &dns);
+            let mut buffer = [0u8; 4096 * 5];
+            info!("making the actual request");
+            let mut http_req = client
+                .request(
+                    reqwless::request::Method::GET,
+                    "https://joshondesign.com/2023/07/12/css_text_style_builder",
+                    // "https://jsonplaceholder.typicode.com/posts/1",
+                    // "https://apps.josh.earth/",
+
+                )
+                .await
+                .unwrap();
+            let response = http_req.send(&mut buffer).await.unwrap();
+
+            info!("Got response");
+            let res = response.body().read_to_end().await.unwrap();
+            let tags = TagParser::new(res);
+            let block_parser = BlockParser::new(tags);
+            let blocks = block_parser.collect();
+            CHANNEL.sender().send(blocks).await;
+        }
     }
 }
 async fn wait_for_connection(stack: Stack<'_>) {
