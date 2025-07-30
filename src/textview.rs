@@ -9,9 +9,10 @@ use embedded_graphics::geometry::{OriginDimensions, Point};
 use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::RgbColor;
+use embedded_graphics::prelude::{Dimensions, Primitive, RgbColor, Size};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
+use embedded_graphics::primitives::{PrimitiveStyle, Rectangle, StyledDimensions};
 use log::{info, warn};
 use nostd_html_parser::blocks::{BlockType};
 use nostd_html_parser::lines::{TextLine, TextRun, break_lines };
@@ -24,9 +25,10 @@ pub struct TextView {
     pub lines: Vec<TextLine>,
     pub visible: bool,
     pub scroll_index: i32,
+    pub bounds: Rectangle,
 }
 impl View for TextView {
-    fn draw(&mut self, display: &mut TDeckDisplay) {
+    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
         if !self.visible {
             return;
         }
@@ -35,6 +37,8 @@ impl View for TextView {
         let line_height = font.character_size.height + 2;
         let viewport_height:i32 = (display.size().height / line_height) as i32;
         let char_width = font.character_size.width as i32;
+
+        self.bounds.intersection(clip).into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE)).draw(display).unwrap();
 
         // select the lines in the current viewport
         let mut end:usize = (self.scroll_index as i32 + viewport_height) as usize;
@@ -58,7 +62,10 @@ impl View for TextView {
             };
             for (i, run) in line.runs.iter().enumerate() {
                 let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
-                Text::new(&run.text, pos, style).draw(display).unwrap();
+                let text = Text::new(&run.text, pos, style);
+                if !text.bounding_box().intersection(clip).is_zero_sized() {
+                    text.draw(display).unwrap();
+                }
                 inset_chars += run.text.len();
             }
         }
@@ -85,6 +92,10 @@ impl View for TextView {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn bounds(&self) -> Rectangle {
+        self.bounds.clone()
     }
 
 }

@@ -19,6 +19,7 @@ use embassy_sync::channel::Channel;
 use embedded_graphics::mono_font::ascii::FONT_9X15;
 use embedded_graphics::prelude::*;
 use embedded_graphics::pixelcolor::Rgb565;
+use embedded_graphics::primitives::Rectangle;
 use embedded_hal_bus::spi::ExclusiveDevice;
 use esp_hal::Blocking;
 use esp_hal::clock::CpuClock;
@@ -348,8 +349,9 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
 
             if let Some(tv) = scene.get_textview_at_mut_by_name("page") {
                 tv.lines = lines;
+                let bounds = tv.bounds();
+                scene.mark_dirty(bounds);
             }
-            scene.mark_dirty();
             info!("heap is {}", esp_alloc::HEAP.stats());
         }
         let mut data = [0u8; 1];
@@ -367,7 +369,7 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
         }
 
          if scene.is_dirty() {
-            display.clear(Rgb565::WHITE).unwrap();
+            // display.clear(Rgb565::WHITE).unwrap();
             scene.draw(display);
         }
         Timer::after(Duration::from_millis(100)).await;
@@ -375,7 +377,7 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
 }
 
 fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
-    info!("update view from input {:?}", event);
+    // info!("update view from input {:?}", event);
     if scene.focused.is_none() {
         scene.focused = Some(0);
     }
@@ -390,7 +392,8 @@ fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
                     } else {
                         if let Some(tv) = scene.get_textview_at_mut_by_name("page") {
                             tv.handle_input(event);
-                            scene.mark_dirty();
+                            let clip = tv.bounds();
+                            scene.mark_dirty(clip);
                         }
                     }
                 }
@@ -451,7 +454,11 @@ fn make_gui_scene<'a>() -> Scene {
         dirty: true,
         visible: true,
         lines: vec![],
-        scroll_index: 0
+        scroll_index: 0,
+        bounds: Rectangle {
+            top_left: Point::new(0,0),
+            size: Size::new(320,240),
+        }
     };
     scene.views.push(Box::new(textview));
     scene.keys.insert("page".to_string(), 0);

@@ -9,7 +9,7 @@ use core::ops::Add;
 use embedded_graphics::mono_font::ascii::FONT_9X15;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::{Point, Primitive, RgbColor, Size, WebColors};
+use embedded_graphics::prelude::{Dimensions, Point, Primitive, RgbColor, Size, WebColors};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
@@ -18,10 +18,11 @@ use log::{info, warn};
 use crate::textview::TextView;
 
 pub trait View {
-    fn draw(&mut self, display: &mut TDeckDisplay);
+    fn draw(&mut self, display: &mut TDeckDisplay, clip:&Rectangle);
     fn handle_input(&mut self, event:GuiEvent);
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn bounds(&self) -> Rectangle;
 }
 impl Debug for Box<dyn View> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
@@ -78,6 +79,11 @@ impl MenuView {
             dirty: true,
         })
     }
+    fn size(&self) -> Size {
+        let font = FONT_9X15;
+        let line_height = (font.character_size.height + 2) as i32;
+        return Size::new(100+2*2, (self.items.len() as i32 * line_height + 2 *2 ) as u32)
+    }
 }
 impl View for MenuView {
     fn as_any(&self) -> &dyn Any {
@@ -87,22 +93,25 @@ impl View for MenuView {
         self
     }
 
-    fn draw(&mut self, display: &mut TDeckDisplay) {
+    fn bounds(&self) -> Rectangle {
+        Rectangle {
+            top_left: self.position,
+            size: self.size().add(Size::new(10, 10)),
+        }
+    }
+    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
         if !self.visible { return; }
-        // info!("MenuView draw");
         let font = FONT_9X15;
         let line_height = (font.character_size.height + 2) as i32;
         let pad = 5;
 
         let xoff:i32 = 2;
         let yoff:i32 = 2;
-        let menu_width:i32 = 100;
-
-        let menu_size = Size::new((menu_width+2*xoff) as u32, (self.items.len() as i32 * line_height + 2*yoff) as u32);
+        let menu_size = self.size();
         // menu background
-        let shadow = Rectangle::new(self.position.add(Point::new(10, 10)),menu_size);
+        let shadow = Rectangle::new(self.position.add(Point::new(10, 10)),menu_size).intersection(clip);
         shadow.into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_GRAY)).draw(display).unwrap();
-        let background = Rectangle::new(self.position.add(Point::new(5, 5)),menu_size);
+        let background = Rectangle::new(self.position.add(Point::new(5, 5)),menu_size).intersection(clip);
         background.into_styled(PrimitiveStyle::with_fill(Rgb565::RED)).draw(display).unwrap();
         for (i, item) in self.items.iter().enumerate() {
             let bg = if i == self.highlighted_index {
@@ -120,17 +129,18 @@ impl View for MenuView {
                 Point::new(pad + xoff, line_y + yoff).add(self.position),
                 Size::new(100, line_height as u32),
             )
+                .intersection(clip)
                 .into_styled(PrimitiveStyle::with_fill(bg))
                 .draw(display)
                 .unwrap();
             let text_style = MonoTextStyle::new(&font, fg);
-            Text::new(
-                &item,
-                Point::new(pad + xoff, line_y + line_height - 2 + yoff).add(self.position),
-                text_style,
-            )
-                .draw(display)
-                .unwrap();
+            let pos =Point::new(pad + xoff, line_y + line_height - 2 + yoff).add(self.position);
+            let text_bounds = Text::new(item, pos, text_style).bounding_box();
+            if !text_bounds.intersection(clip).is_zero_sized() {
+                Text::new(&item, pos, text_style)
+                    .draw(display)
+                    .unwrap();
+            }
         }
     }
 
@@ -146,19 +156,23 @@ impl View for MenuView {
             }
         }
     }
+
 }
 
 pub struct Scene {
     pub views:Vec<Box<dyn View>>,
     pub focused:Option<i32>,
     pub keys:HashMap<String,i32>,
-    dirty: bool
+    dirty: bool,
+    pub clip: Rectangle,
 }
 
 impl Scene {
     pub fn add(&mut self, name: &str, main_menu: Box<MenuView>) {
+        let bounds = main_menu.bounds();
         self.views.push(main_menu);
         self.keys.insert(name.to_string(), (self.views.len() as i32)-1);
+        self.mark_dirty(bounds);
     }
 }
 
@@ -169,7 +183,7 @@ impl Scene {
         }
         false
     }
-    pub fn is_menu_selected_by_name(&self, name: &str, hi:usize) -> bool {
+    pub fn is_menu_selected_by_name(&self, name: &str, hi: usize) -> bool {
         if let Some(index) = self.keys.get(name) {
             return self.is_menu_selected(*index, hi)
         }
@@ -189,9 +203,11 @@ impl Scene {
     }
     pub fn show_menu(&mut self, index: i32) {
         if let Some(menu) = self.views[index as usize].as_any_mut().downcast_mut::<MenuView>() {
+            let bounds = menu.bounds();
             menu.visible = true;
             self.dirty = true;
             self.set_focused(index);
+            self.mark_dirty(bounds);
         }
     }
     pub fn show_menu_by_name(&mut self, name: &str) {
@@ -215,10 +231,10 @@ impl Scene {
     pub fn get_textview_at(&self, index: i32) -> Option<&TextView> {
         self.views[index as usize].as_any().downcast_ref::<TextView>()
     }
-    pub fn get_textview_at_mut(&mut self, index: i32) -> Option<&mut TextView>  {
+    pub fn get_textview_at_mut(&mut self, index: i32) -> Option<&mut TextView> {
         self.views[index as usize].as_any_mut().downcast_mut::<TextView>()
     }
-    pub fn get_textview_at_mut_by_name(&mut self, name:&str) -> Option<&mut TextView>  {
+    pub fn get_textview_at_mut_by_name(&mut self, name: &str) -> Option<&mut TextView> {
         if let Some(index) = self.keys.get(name) {
             self.views[*index as usize].as_any_mut().downcast_mut::<TextView>()
         } else {
@@ -243,8 +259,9 @@ impl Scene {
     pub fn is_dirty(&self) -> bool {
         self.dirty
     }
-    pub fn mark_dirty(&mut self) {
-        self.dirty = true
+    pub fn mark_dirty(&mut self, bounds:Rectangle) {
+        self.dirty = true;
+        self.clip = union(&self.clip,&bounds);
     }
     pub fn new() -> Scene {
         Scene {
@@ -252,6 +269,7 @@ impl Scene {
             views: vec![],
             focused: None,
             keys: HashMap::new(),
+            clip: Rectangle::zero(),
         }
     }
     pub fn handle_event(&mut self, evt: GuiEvent) {
@@ -259,11 +277,12 @@ impl Scene {
             if index < self.views.len() as i32 {
                 let view = &mut self.views[index as usize];
                 view.handle_input(evt);
+                let bounds = view.bounds();
+                self.mark_dirty(bounds);
             }
         }
-        self.dirty = true;
     }
-    pub fn set_focused(&mut self, index:i32) {
+    pub fn set_focused(&mut self, index: i32) {
         self.focused = Some(index);
     }
     pub fn set_focused_by_name(&mut self, name: &str) {
@@ -271,81 +290,28 @@ impl Scene {
             self.set_focused(*index);
         }
     }
+}
 
+impl Scene {
     pub fn draw(&mut self, display: &mut TDeckDisplay) {
-        self.views.iter_mut().for_each(|v| v.draw(display));
+        self.views.iter_mut().for_each(|v| v.draw(display, &self.clip));
         self.dirty = false;
+        self.clip = Rectangle::zero();
     }
 }
 
-pub struct VButton {
-    text:String,
-    visible: bool,
-}
-
-impl VButton {
-    pub fn new(label: &str) -> Box<dyn View> {
-        Box::new(VButton{
-            visible:true,
-            text: label.to_string(),
-        })
+fn union(a:&Rectangle, b:&Rectangle) -> Rectangle {
+    if a.is_zero_sized() {
+        return b.clone();
     }
-}
-
-impl View for VButton {
-    fn as_any(&self) -> &dyn Any {
-        self
+    if b.is_zero_sized() {
+        return a.clone();
     }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-    fn draw(&mut self, display: &mut TDeckDisplay) {
-        if !self.visible { return; }
-        info!("vbutton draw {}", self.text);
-        let style = MonoTextStyle::new(&FONT_9X15, Rgb565::CSS_BLACK);
-        Text::new(&self.text, Point::new(20,20), style).draw(display).unwrap();
-    }
-
-    fn handle_input(&mut self, event:GuiEvent) {
-        match event {
-            GuiEvent::KeyEvent(key) => {
-                info!("vbutton key event: {:?}", key);
-                self.visible = true;
-            }
-        }
-    }
-}
-pub struct VLabel {
-    text:String,
-    visible: bool,
-}
-
-impl VLabel {
-    pub fn new(label: &str) -> Box<dyn View> {
-        Box::new(VLabel {
-            visible:true,
-            text: label.to_string(),
-        })
-    }
-}
-
-impl View for VLabel {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-    fn draw(&mut self, display: &mut TDeckDisplay) {
-        if !self.visible { return; }
-        info!("vlabel draw {}", self.text);
-        let style = MonoTextStyle::new(&FONT_9X15, Rgb565::CSS_BLACK);
-        Text::new(&self.text, Point::new(20,50), style).draw(display).unwrap();
-    }
-    fn handle_input(&mut self, event:GuiEvent) {
-        info!("vlabel handle_input {:?}",event);
-        self.visible = true;
-    }
+    let x = a.top_left.x.max(b.top_left.x);
+    let y = a.top_left.y.max(b.top_left.y);
+    let x2 = (a.top_left.x + a.size.width as i32).max(b.top_left.x + b.size.width as i32);
+    let y2 = (a.top_left.y + a.size.height as i32).max(b.top_left.y + b.size.height as i32);
+    Rectangle::with_corners(Point::new(x, y), Point::new(x2, y2))
 }
 
 #[derive(Debug, Copy, Clone)]
