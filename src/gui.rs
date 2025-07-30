@@ -283,6 +283,9 @@ impl Scene {
         }
     }
     pub fn set_focused(&mut self, index: i32) {
+        let view = &mut self.views[index as usize];
+        let bounds = view.bounds();
+        self.mark_dirty(bounds);
         self.focused = Some(index);
     }
     pub fn set_focused_by_name(&mut self, name: &str) {
