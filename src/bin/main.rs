@@ -470,7 +470,23 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                         scene.show_menu("font");
                     }
                     if scene.menu_equals("main", "Wifi") {
-                        scene.show_menu("wifi");
+                        info!("showing the wifi panel");
+                        let panel = Panel::new(
+                            Rectangle::new(Point::new(50,50), Size::new(100,100))
+                        );
+                        let label1a = Label::new("SSID", Point::new(60,80));
+                        let label1b = Label::new(SSID.unwrap_or("----"), Point::new(100,80));
+                        let label2a = Label::new("PASSWORD", Point::new(60,100));
+                        let label2b = Label::new(PASSWORD.unwrap_or("----"), Point::new(100,100));
+                        
+                        let button = Button::new("done", Point::new(80,150));
+
+                        scene.add("wifi-panel",panel);
+                        scene.add("wifi-label1a",label1a);
+                        scene.add("wifi-label1b",label1b);
+                        scene.add("wifi-label2a",label2a);
+                        scene.add("wifi-label2b",label2b);
+                        scene.add("wifi-button",button);
                     }
                     if scene.menu_equals("main", "Bookmarks") {
                         // show the bookmarks
@@ -506,6 +522,15 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                         // close
                         scene.hide_menu("main");
                     }
+                }
+                if scene.is_focused_by_name("wifi-button") {
+                    info!("clicked the button");
+                    scene.remove("wifi-panel");
+                    scene.remove("wifi-label1a");
+                    scene.remove("wifi-label1b");
+                    scene.remove("wifi-label2a");
+                    scene.remove("wifi-label2b");
+                    scene.remove("wifi-button");
                 }
                 if scene.is_focused_by_name("info-button") {
                     info!("clicked the button");

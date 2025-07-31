@@ -17,6 +17,12 @@ use embedded_graphics::Drawable;
 use hashbrown::HashMap;
 use log::{info, warn};
 
+
+const base_background_color: Rgb565 = Rgb565::CSS_GRAY;
+const base_font:MonoFont = FONT_9X15;
+const base_text_color: Rgb565 = Rgb565::BLACK;
+const base_button_background_color: Rgb565 = Rgb565::GREEN;
+
 pub trait View {
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle);
     fn handle_input(&mut self, event: GuiEvent);
@@ -101,7 +107,6 @@ impl View for MenuView {
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
-
     fn bounds(&self) -> Rectangle {
         Rectangle {
             top_left: self.position,
@@ -112,8 +117,7 @@ impl View for MenuView {
         if !self.visible {
             return;
         }
-        let font = FONT_9X15;
-        let line_height = (font.character_size.height + 2) as i32;
+        let line_height = (base_font.character_size.height + 2) as i32;
         let pad = 5;
 
         let xoff: i32 = 2;
@@ -129,7 +133,7 @@ impl View for MenuView {
         let background =
             Rectangle::new(self.position.add(Point::new(5, 5)), menu_size).intersection(clip);
         background
-            .into_styled(PrimitiveStyle::with_fill(Rgb565::RED))
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
             .draw(display)
             .unwrap();
         for (i, item) in self.items.iter().enumerate() {
@@ -141,7 +145,7 @@ impl View for MenuView {
             let fg = if i == self.highlighted_index {
                 Rgb565::WHITE
             } else {
-                Rgb565::BLACK
+                base_text_color
             };
             let line_y = (i as i32) * line_height + pad;
             Rectangle::new(
@@ -203,6 +207,8 @@ impl Scene {
         if let Some(index) = self.keys.get(name) {
             let view = self.views[*index as usize].as_mut();
             info!("pretending to delete the view {name}");
+        } else {
+            warn!("no view found for the name: {name}");
         }
     }
 }
@@ -423,9 +429,6 @@ pub struct Label {
     position:Point,
 }
 
-const base_font:MonoFont = FONT_9X15;
-const base_text_color: Rgb565 = Rgb565::BLACK;
-
 impl View for Label {
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
         let style = MonoTextStyle::new(&base_font, base_text_color);
@@ -469,10 +472,10 @@ pub struct Button {
 }
 
 impl Button {
-    pub fn new(p0: &str, p1: Point) -> Box<Button> {
+    pub fn new(text: &str, position: Point) -> Box<Button> {
         Box::new(Button {
-            text:p0.to_string(),
-            position:p1,
+            text: text.to_string(),
+            position,
         })
     }
 }
@@ -480,7 +483,7 @@ impl Button {
 impl View for Button {
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
         self.bounds().intersection(clip)
-            .into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_YELLOW))
+            .into_styled(PrimitiveStyle::with_fill(base_button_background_color))
             .draw(display).unwrap();
         let style = MonoTextStyle::new(&base_font, base_text_color);
         let text = Text::new(&self.text, self.position, style);
