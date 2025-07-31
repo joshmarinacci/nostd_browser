@@ -1,24 +1,21 @@
 use crate::common::TDeckDisplay;
 use crate::gui::{GuiEvent, View};
 use alloc::string::{String, ToString};
-use alloc::vec::Vec;
 use alloc::vec;
+use alloc::vec::Vec;
 use core::any::Any;
 use core::cmp::max;
 use embedded_graphics::geometry::{OriginDimensions, Point};
 use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::{Dimensions, Primitive, RgbColor, Size};
+use embedded_graphics::prelude::{Dimensions, Primitive, RgbColor};
+use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
-use embedded_graphics::primitives::{PrimitiveStyle, Rectangle, StyledDimensions};
 use log::{info, warn};
-use nostd_html_parser::blocks::{BlockType};
-use nostd_html_parser::lines::{TextLine, TextRun, break_lines };
-
-
-
+use nostd_html_parser::blocks::BlockType;
+use nostd_html_parser::lines::TextLine;
 
 pub struct TextView {
     pub dirty: bool,
@@ -35,18 +32,22 @@ impl View for TextView {
         self.dirty = false;
         let font = FONT_9X15;
         let line_height = font.character_size.height + 2;
-        let viewport_height:i32 = (display.size().height / line_height) as i32;
+        let viewport_height: i32 = (display.size().height / line_height) as i32;
         let char_width = font.character_size.width as i32;
 
-        self.bounds.intersection(clip).into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE)).draw(display).unwrap();
+        self.bounds
+            .intersection(clip)
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
+            .draw(display)
+            .unwrap();
 
         // select the lines in the current viewport
-        let mut end:usize = (self.scroll_index as i32 + viewport_height) as usize;
+        let mut end: usize = (self.scroll_index as i32 + viewport_height) as usize;
         if end >= self.lines.len() {
             end = self.lines.len();
         }
-        let start = max(self.scroll_index,0) as usize;
-        let viewport_lines = &self.lines[start .. end];
+        let start = max(self.scroll_index, 0) as usize;
+        let viewport_lines = &self.lines[start..end];
 
         let x_inset = 5;
         let y_inset = 5;
@@ -69,7 +70,6 @@ impl View for TextView {
                 inset_chars += run.text.len();
             }
         }
-
     }
     fn handle_input(&mut self, event: GuiEvent) {
         match event {
@@ -97,5 +97,4 @@ impl View for TextView {
     fn bounds(&self) -> Rectangle {
         self.bounds.clone()
     }
-
 }

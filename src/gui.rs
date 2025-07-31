@@ -1,7 +1,8 @@
 use crate::common::TDeckDisplay;
+use crate::textview::TextView;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
-use alloc::{vec};
+use alloc::vec;
 use alloc::vec::Vec;
 use core::any::{Any, TypeId};
 use core::fmt::{Debug, Formatter};
@@ -15,11 +16,10 @@ use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
 use hashbrown::HashMap;
 use log::{info, warn};
-use crate::textview::TextView;
 
 pub trait View {
-    fn draw(&mut self, display: &mut TDeckDisplay, clip:&Rectangle);
-    fn handle_input(&mut self, event:GuiEvent);
+    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle);
+    fn handle_input(&mut self, event: GuiEvent);
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn bounds(&self) -> Rectangle;
@@ -27,9 +27,15 @@ pub trait View {
 impl Debug for Box<dyn View> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         let val = self as &dyn Any;
-        info!("is menu {}",TypeId::of::<MenuView>() == val.type_id());
-        info!("is box menuview {}",TypeId::of::<Box<MenuView>>() == val.type_id());
-        info!("is box view {}",TypeId::of::<Box<dyn View>>() == val.type_id());
+        info!("is menu {}", TypeId::of::<MenuView>() == val.type_id());
+        info!(
+            "is box menuview {}",
+            TypeId::of::<Box<MenuView>>() == val.type_id()
+        );
+        info!(
+            "is box view {}",
+            TypeId::of::<Box<dyn View>>() == val.type_id()
+        );
         match val.downcast_ref::<Box<MenuView>>() {
             Some(menu) => {
                 write!(f, "is a menu view")
@@ -82,7 +88,10 @@ impl MenuView {
     fn size(&self) -> Size {
         let font = FONT_9X15;
         let line_height = (font.character_size.height + 2) as i32;
-        return Size::new(100+2*2, (self.items.len() as i32 * line_height + 2 *2 ) as u32)
+        return Size::new(
+            100 + 2 * 2,
+            (self.items.len() as i32 * line_height + 2 * 2) as u32,
+        );
     }
 }
 impl View for MenuView {
@@ -100,19 +109,29 @@ impl View for MenuView {
         }
     }
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
-        if !self.visible { return; }
+        if !self.visible {
+            return;
+        }
         let font = FONT_9X15;
         let line_height = (font.character_size.height + 2) as i32;
         let pad = 5;
 
-        let xoff:i32 = 2;
-        let yoff:i32 = 2;
+        let xoff: i32 = 2;
+        let yoff: i32 = 2;
         let menu_size = self.size();
         // menu background
-        let shadow = Rectangle::new(self.position.add(Point::new(10, 10)),menu_size).intersection(clip);
-        shadow.into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_GRAY)).draw(display).unwrap();
-        let background = Rectangle::new(self.position.add(Point::new(5, 5)),menu_size).intersection(clip);
-        background.into_styled(PrimitiveStyle::with_fill(Rgb565::RED)).draw(display).unwrap();
+        let shadow =
+            Rectangle::new(self.position.add(Point::new(10, 10)), menu_size).intersection(clip);
+        shadow
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_GRAY))
+            .draw(display)
+            .unwrap();
+        let background =
+            Rectangle::new(self.position.add(Point::new(5, 5)), menu_size).intersection(clip);
+        background
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::RED))
+            .draw(display)
+            .unwrap();
         for (i, item) in self.items.iter().enumerate() {
             let bg = if i == self.highlighted_index {
                 Rgb565::BLACK
@@ -129,17 +148,15 @@ impl View for MenuView {
                 Point::new(pad + xoff, line_y + yoff).add(self.position),
                 Size::new(100, line_height as u32),
             )
-                .intersection(clip)
-                .into_styled(PrimitiveStyle::with_fill(bg))
-                .draw(display)
-                .unwrap();
+            .intersection(clip)
+            .into_styled(PrimitiveStyle::with_fill(bg))
+            .draw(display)
+            .unwrap();
             let text_style = MonoTextStyle::new(&font, fg);
-            let pos =Point::new(pad + xoff, line_y + line_height - 2 + yoff).add(self.position);
+            let pos = Point::new(pad + xoff, line_y + line_height - 2 + yoff).add(self.position);
             let text_bounds = Text::new(item, pos, text_style).bounding_box();
             if !text_bounds.intersection(clip).is_zero_sized() {
-                Text::new(&item, pos, text_style)
-                    .draw(display)
-                    .unwrap();
+                Text::new(&item, pos, text_style).draw(display).unwrap();
             }
         }
     }
@@ -147,22 +164,19 @@ impl View for MenuView {
     fn handle_input(&mut self, event: GuiEvent) {
         // info!("Handling key event: {:?}", event);
         match event {
-            GuiEvent::KeyEvent(key) => {
-                match key {
-                    b'j' => self.nav_prev(),
-                    b'k' => self.nav_next(),
-                    _ => {}
-                }
-            }
+            GuiEvent::KeyEvent(key) => match key {
+                b'j' => self.nav_prev(),
+                b'k' => self.nav_next(),
+                _ => {}
+            },
         }
     }
-
 }
 
 pub struct Scene {
-    pub views:Vec<Box<dyn View>>,
-    pub focused:Option<i32>,
-    pub keys:HashMap<String,i32>,
+    pub views: Vec<Box<dyn View>>,
+    pub focused: Option<i32>,
+    pub keys: HashMap<String, i32>,
     dirty: bool,
     pub clip: Rectangle,
 }
@@ -171,26 +185,33 @@ impl Scene {
     pub fn add(&mut self, name: &str, main_menu: Box<MenuView>) {
         let bounds = main_menu.bounds();
         self.views.push(main_menu);
-        self.keys.insert(name.to_string(), (self.views.len() as i32)-1);
+        self.keys
+            .insert(name.to_string(), (self.views.len() as i32) - 1);
         self.mark_dirty(bounds);
     }
 }
 
 impl Scene {
     pub fn is_menu_selected(&self, index: i32, hi: usize) -> bool {
-        if let Some(menu) = self.views[index as usize].as_any().downcast_ref::<MenuView>() {
+        if let Some(menu) = self.views[index as usize]
+            .as_any()
+            .downcast_ref::<MenuView>()
+        {
             return menu.highlighted_index == hi;
         }
         false
     }
     pub fn is_menu_selected_by_name(&self, name: &str, hi: usize) -> bool {
         if let Some(index) = self.keys.get(name) {
-            return self.is_menu_selected(*index, hi)
+            return self.is_menu_selected(*index, hi);
         }
-        return false
+        return false;
     }
     pub fn hide_menu(&mut self, index: i32) {
-        if let Some(menu) = self.views[index as usize].as_any_mut().downcast_mut::<MenuView>() {
+        if let Some(menu) = self.views[index as usize]
+            .as_any_mut()
+            .downcast_mut::<MenuView>()
+        {
             menu.visible = false;
             self.dirty = true;
             self.set_focused(0);
@@ -202,7 +223,10 @@ impl Scene {
         }
     }
     pub fn show_menu(&mut self, index: i32) {
-        if let Some(menu) = self.views[index as usize].as_any_mut().downcast_mut::<MenuView>() {
+        if let Some(menu) = self.views[index as usize]
+            .as_any_mut()
+            .downcast_mut::<MenuView>()
+        {
             let bounds = menu.bounds();
             menu.visible = true;
             self.dirty = true;
@@ -218,7 +242,9 @@ impl Scene {
         }
     }
     pub fn get_menu_at(&self, index: i32) -> Option<&MenuView> {
-        self.views[index as usize].as_any().downcast_ref::<MenuView>()
+        self.views[index as usize]
+            .as_any()
+            .downcast_ref::<MenuView>()
     }
     pub fn get_menu_by_name(&self, name: &str) -> Option<&MenuView> {
         if let Some(index) = self.keys.get(name) {
@@ -229,14 +255,20 @@ impl Scene {
         }
     }
     pub fn get_textview_at(&self, index: i32) -> Option<&TextView> {
-        self.views[index as usize].as_any().downcast_ref::<TextView>()
+        self.views[index as usize]
+            .as_any()
+            .downcast_ref::<TextView>()
     }
     pub fn get_textview_at_mut(&mut self, index: i32) -> Option<&mut TextView> {
-        self.views[index as usize].as_any_mut().downcast_mut::<TextView>()
+        self.views[index as usize]
+            .as_any_mut()
+            .downcast_mut::<TextView>()
     }
     pub fn get_textview_at_mut_by_name(&mut self, name: &str) -> Option<&mut TextView> {
         if let Some(index) = self.keys.get(name) {
-            self.views[*index as usize].as_any_mut().downcast_mut::<TextView>()
+            self.views[*index as usize]
+                .as_any_mut()
+                .downcast_mut::<TextView>()
         } else {
             None
         }
@@ -244,14 +276,14 @@ impl Scene {
     pub fn is_focused(&self, p0: i32) -> bool {
         if let Some(f) = self.focused {
             if f == p0 {
-                return true
+                return true;
             }
         }
         false
     }
     pub fn is_focused_by_name(&self, name: &str) -> bool {
         if let Some(f) = self.keys.get(name) {
-            return self.is_focused(*f)
+            return self.is_focused(*f);
         }
         false
     }
@@ -259,9 +291,9 @@ impl Scene {
     pub fn is_dirty(&self) -> bool {
         self.dirty
     }
-    pub fn mark_dirty(&mut self, bounds:Rectangle) {
+    pub fn mark_dirty(&mut self, bounds: Rectangle) {
         self.dirty = true;
-        self.clip = union(&self.clip,&bounds);
+        self.clip = union(&self.clip, &bounds);
     }
     pub fn new() -> Scene {
         Scene {
@@ -297,13 +329,15 @@ impl Scene {
 
 impl Scene {
     pub fn draw(&mut self, display: &mut TDeckDisplay) {
-        self.views.iter_mut().for_each(|v| v.draw(display, &self.clip));
+        self.views
+            .iter_mut()
+            .for_each(|v| v.draw(display, &self.clip));
         self.dirty = false;
         self.clip = Rectangle::zero();
     }
 }
 
-fn union(a:&Rectangle, b:&Rectangle) -> Rectangle {
+fn union(a: &Rectangle, b: &Rectangle) -> Rectangle {
     if a.is_zero_sized() {
         return b.clone();
     }
@@ -321,4 +355,3 @@ fn union(a:&Rectangle, b:&Rectangle) -> Rectangle {
 pub enum GuiEvent {
     KeyEvent(u8),
 }
-

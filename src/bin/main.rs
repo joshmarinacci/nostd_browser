@@ -5,57 +5,56 @@
     reason = "mem::forget is generally not safe to do with esp_hal types, especially those \
     holding buffers for the duration of a data transfer."
 )]
+extern crate alloc;
 use alloc::boxed::Box;
-use alloc::string::{String, ToString};
-use alloc::{vec};
+use alloc::string::ToString;
+use alloc::vec;
 use alloc::vec::Vec;
 use embassy_executor::Spawner;
-use embassy_net::{Runner, Stack, StackResources};
 use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
-use embassy_time::{Duration, Timer};
-use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex};
+use embassy_net::{Runner, Stack, StackResources};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
+use embassy_time::{Duration, Timer};
 use embedded_graphics::mono_font::ascii::FONT_9X15;
 use embedded_graphics::prelude::*;
-use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::primitives::Rectangle;
 use embedded_hal_bus::spi::ExclusiveDevice;
-use esp_hal::Blocking;
 use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
 use esp_hal::gpio::Level::{High, Low};
 use esp_hal::gpio::{Input, InputConfig, Output, OutputConfig, Pull};
 use esp_hal::i2c::master::{BusTimeout, Config, I2c};
 use esp_hal::rng::Rng;
+use esp_hal::spi::master::{Config as SpiConfig, Spi};
 use esp_hal::time::Rate;
-use esp_hal::spi::{ master::{Spi, Config as SpiConfig } };
 use esp_hal::timer::timg::TimerGroup;
-use esp_wifi::{ EspWifiController,  init };
-use esp_wifi::wifi::{ClientConfiguration, Configuration, ScanConfig, WifiController, WifiDevice, WifiEvent, WifiState};
+use esp_hal::Blocking;
 use esp_wifi::wifi::ScanTypeConfig::Active;
+use esp_wifi::wifi::{
+    ClientConfiguration, Configuration, ScanConfig, WifiController, WifiDevice, WifiEvent,
+    WifiState,
+};
+use esp_wifi::{init, EspWifiController};
 use log::{info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
-use mipidsi::{models::ST7789, Builder};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
-use nostd_html_parser::blocks::{Block, BlockParser, BlockType};
-use nostd_html_parser::blocks::BlockType::{ListItem, Paragraph};
-use nostd_html_parser::lines::{break_lines, TextLine};
-use nostd_html_parser::lines::RunStyle::Plain;
-use nostd_html_parser::tags::TagParser;
-use static_cell::StaticCell;
+use mipidsi::{models::ST7789, Builder};
 use nostd_browser::common::TDeckDisplay;
 use nostd_browser::gui::{GuiEvent, MenuView, Scene, View};
 use nostd_browser::textview::TextView;
+use nostd_html_parser::blocks::{Block, BlockParser, BlockType};
+use nostd_html_parser::lines::{break_lines, TextLine};
+use nostd_html_parser::tags::TagParser;
+use static_cell::StaticCell;
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
     loop {}
 }
-
-extern crate alloc;
 
 // This creates a default app-descriptor required by the esp-idf bootloader.
 // For more information see: <https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/app_image_format.html#application-description>
@@ -76,14 +75,13 @@ const PASSWORD: Option<&str> = option_env!("PASSWORD");
 
 const AUTO_CONNECT: Option<&str> = option_env!("AUTO_CONNECT");
 
-pub const LILYGO_KB_I2C_ADDRESS: u8 =     0x55;
+pub const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
 
-static I2C:StaticCell<I2c<Blocking>> = StaticCell::new();
+static I2C: StaticCell<I2c<Blocking>> = StaticCell::new();
 
 static CHANNEL: Channel<CriticalSectionRawMutex, Vec<Block>, 2> = Channel::new();
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
-
     esp_println::logger::init_logger_from_env();
 
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
@@ -96,7 +94,6 @@ async fn main(spawner: Spawner) {
     let timer_g1 = TimerGroup::new(peripherals.TIMG1);
     esp_hal_embassy::init(timer_g1.timer0);
 
-
     let mut delay = Delay::new();
     // have to turn on the board and wait 500ms before using the keyboard
     let mut board_power = Output::new(peripherals.GPIO10, High, OutputConfig::default());
@@ -106,21 +103,25 @@ async fn main(spawner: Spawner) {
     // set up the keyboard
     let i2c = I2c::new(
         peripherals.I2C0,
-        Config::default().with_frequency(Rate::from_khz(100)).with_timeout(BusTimeout::Disabled),
+        Config::default()
+            .with_frequency(Rate::from_khz(100))
+            .with_timeout(BusTimeout::Disabled),
     )
-        .unwrap()
-        .with_sda(peripherals.GPIO18)
-        .with_scl(peripherals.GPIO8);
+    .unwrap()
+    .with_sda(peripherals.GPIO18)
+    .with_scl(peripherals.GPIO8);
     info!("initialized I2C keyboard");
     let ic2_ref = I2C.init(i2c);
-
 
     // set up the display
     {
         // set TFT CS to high
         let mut tft_cs = Output::new(peripherals.GPIO12, High, OutputConfig::default());
         tft_cs.set_high();
-        let tft_miso = Input::new(peripherals.GPIO38, InputConfig::default().with_pull(Pull::Up));
+        let tft_miso = Input::new(
+            peripherals.GPIO38,
+            InputConfig::default().with_pull(Pull::Up),
+        );
         let tft_sck = peripherals.GPIO40;
         let tft_mosi = peripherals.GPIO41;
         let tft_dc = Output::new(peripherals.GPIO11, Low, OutputConfig::default());
@@ -128,15 +129,15 @@ async fn main(spawner: Spawner) {
         tft_enable.set_high();
 
         info!("creating spi device");
-        let spi = Spi::new(peripherals.SPI2, SpiConfig::default()
-            .with_frequency(Rate::from_mhz(40))
-                           // .with_mode(Mode::_0)
-        ).unwrap()
-            .with_sck(tft_sck)
-            .with_miso(tft_miso)
-            .with_mosi(tft_mosi)
-            ;
-        static DISPLAY_BUF:StaticCell<[u8;512]> = StaticCell::new();
+        let spi = Spi::new(
+            peripherals.SPI2,
+            SpiConfig::default().with_frequency(Rate::from_mhz(40)), // .with_mode(Mode::_0)
+        )
+        .unwrap()
+        .with_sck(tft_sck)
+        .with_miso(tft_miso)
+        .with_mosi(tft_mosi);
+        static DISPLAY_BUF: StaticCell<[u8; 512]> = StaticCell::new();
         let buffer = DISPLAY_BUF.init([0u8; 512]);
 
         info!("setting up the display");
@@ -146,21 +147,46 @@ async fn main(spawner: Spawner) {
         info!("building");
         let display = Builder::new(ST7789, di)
             // .reset_pin(tft_enable)
-            .display_size(240,320)
+            .display_size(240, 320)
             .invert_colors(ColorInversion::Inverted)
             .color_order(ColorOrder::Rgb)
             .orientation(Orientation::new().rotate(Rotation::Deg90))
             // .display_size(320,240)
-            .init(&mut delay).unwrap();
-        static DISPLAY:StaticCell<TDeckDisplay> = StaticCell::new();
+            .init(&mut delay)
+            .unwrap();
+        static DISPLAY: StaticCell<TDeckDisplay> = StaticCell::new();
         let display_ref = DISPLAY.init(display);
         info!("initialized display");
 
         let scene = make_gui_scene();
-        spawner.spawn(update_display(display_ref, ic2_ref, scene)).ok();
-
+        spawner
+            .spawn(update_display(display_ref, ic2_ref, scene))
+            .ok();
     }
 
+    // setup trackball
+    {
+        let tdeck_track_click = Input::new(
+            peripherals.GPIO0,
+            InputConfig::default().with_pull(Pull::Up),
+        ); // .pins.gpio0.into_pull_up_input();
+           // connect to the left and right trackball pins
+        let tdeck_trackball_right = Input::new(
+            peripherals.GPIO15,
+            InputConfig::default().with_pull(Pull::Down),
+        ); //.pins.gpio3.into_pull_up_input(); // G01  GS1
+        let tdeck_trackball_left = Input::new(
+            peripherals.GPIO1,
+            InputConfig::default().with_pull(Pull::Down),
+        ); //.pins.gpio3.into_pull_up_input(); // G01  GS1
+        spawner
+            .spawn(handle_trackball(
+                tdeck_track_click,
+                tdeck_trackball_left,
+                tdeck_trackball_right,
+            ))
+            .ok();
+    }
     if AUTO_CONNECT.is_some() {
         let mut rng = Rng::new(peripherals.RNG);
         let timer_g0 = TimerGroup::new(peripherals.TIMG0);
@@ -171,7 +197,8 @@ async fn main(spawner: Spawner) {
             init(timer_g0.timer0, rng.clone(), peripherals.RADIO_CLK).unwrap()
         );
         info!("making controller");
-        let (wifi_controller, interfaces) = esp_wifi::wifi::new(&esp_wifi_ctrl, peripherals.WIFI).unwrap();
+        let (wifi_controller, interfaces) =
+            esp_wifi::wifi::new(&esp_wifi_ctrl, peripherals.WIFI).unwrap();
         let wifi_interface = interfaces.sta;
 
         let config = embassy_net::Config::dhcpv4(Default::default());
@@ -189,12 +216,10 @@ async fn main(spawner: Spawner) {
             net_seed,
         );
 
-
         info!("spawning connection");
         spawner.spawn(connection(wifi_controller)).ok();
         info!("spawning net task");
         spawner.spawn(net_task(wifi_runner)).ok();
-
 
         wait_for_connection(network_stack).await;
 
@@ -223,7 +248,6 @@ async fn main(spawner: Spawner) {
                     "https://joshondesign.com/2023/07/12/css_text_style_builder",
                     // "https://jsonplaceholder.typicode.com/posts/1",
                     // "https://apps.josh.earth/",
-
                 )
                 .await
                 .unwrap();
@@ -257,7 +281,6 @@ async fn wait_for_connection(stack: Stack<'_>) {
     }
 }
 
-
 #[embassy_executor::task]
 async fn connection(mut controller: WifiController<'static>) {
     info!("start connection task");
@@ -289,33 +312,39 @@ async fn connection(mut controller: WifiController<'static>) {
             info!("Scan");
             // scan for longer and show hidden
             let active = Active {
-                min:core::time::Duration::from_millis(50),
-                max:core::time::Duration::from_millis(100),
+                min: core::time::Duration::from_millis(50),
+                max: core::time::Duration::from_millis(100),
             };
-            let mut result = controller.scan_with_config_async(ScanConfig{
-                show_hidden:true,
-                scan_type:active,
-                ..Default::default()
-            }).await.unwrap();
+            let mut result = controller
+                .scan_with_config_async(ScanConfig {
+                    show_hidden: true,
+                    scan_type: active,
+                    ..Default::default()
+                })
+                .await
+                .unwrap();
             // sort by best signal strength first
-            result.sort_by(|a,b| a.signal_strength.cmp(&b.signal_strength));
+            result.sort_by(|a, b| a.signal_strength.cmp(&b.signal_strength));
             result.reverse();
             // for ap in result.iter() {
             //     // info!("found AP: {:?}", ap);
             // }
             // pick the first that matches the passed in SSID
-            let ap = result.iter()
-                .filter(|ap|ap.ssid.eq_ignore_ascii_case(SSID.unwrap()))
+            let ap = result
+                .iter()
+                .filter(|ap| ap.ssid.eq_ignore_ascii_case(SSID.unwrap()))
                 .next();
             if let Some(ap) = ap {
                 info!("using the AP {:?}", ap);
                 // set the config to use for connecting
-                controller.set_configuration(&Configuration::Client(ClientConfiguration {
-                    ssid: ap.ssid.to_string(),
-                    password: PASSWORD.unwrap().into(),
-                    ..Default::default()
-                })).unwrap();
-                
+                controller
+                    .set_configuration(&Configuration::Client(ClientConfiguration {
+                        ssid: ap.ssid.to_string(),
+                        password: PASSWORD.unwrap().into(),
+                        ..Default::default()
+                    }))
+                    .unwrap();
+
                 info!("About to connect");
                 match controller.connect_async().await {
                     Ok(_) => info!("Wifi connected!"),
@@ -335,7 +364,11 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
 }
 
 #[embassy_executor::task]
-async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c<'static, Blocking>, mut scene:Scene) {
+async fn update_display(
+    display: &'static mut TDeckDisplay,
+    i2c: &'static mut I2c<'static, Blocking>,
+    mut scene: Scene,
+) {
     loop {
         let display_width = display.size().width;
         let font = FONT_9X15;
@@ -344,7 +377,7 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
         // info!("width is {} char width = {} columns is {}", display_width, char_width, columns);
         if let Ok(blocks) = CHANNEL.try_receive() {
             info!("got new page blocks");
-            let mut lines:Vec<TextLine> = vec![];
+            let mut lines: Vec<TextLine> = vec![];
             for block in blocks {
                 let mut txt = break_lines(&block, columns);
                 lines.append(&mut txt);
@@ -362,8 +395,8 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
         match kb_res {
             Ok(_) => {
                 if data[0] != 0x00 {
-                    let evt:GuiEvent = GuiEvent::KeyEvent(data[0]);
-                    update_view_from_input(evt,&mut scene);
+                    let evt: GuiEvent = GuiEvent::KeyEvent(data[0]);
+                    update_view_from_input(evt, &mut scene);
                 }
             }
             Err(_) => {
@@ -371,7 +404,7 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
             }
         }
 
-         if scene.is_dirty() {
+        if scene.is_dirty() {
             // display.clear(Rgb565::WHITE).unwrap();
             scene.draw(display);
         }
@@ -379,7 +412,7 @@ async fn update_display(display: &'static mut TDeckDisplay, i2c:&'static mut I2c
     }
 }
 
-fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
+fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
     // info!("update view from input {:?}", event);
     if scene.focused.is_none() {
         scene.focused = Some(0);
@@ -406,49 +439,44 @@ fn update_view_from_input(event:GuiEvent, scene:&mut Scene) {
 
     // scene.handle_event(event);
     match event {
-        GuiEvent::KeyEvent(key_event) => {
-            match key_event {
-                13 => {
-                    if scene.is_focused_by_name("main") {
-                        if scene.is_menu_selected_by_name("main", 0) {
-                            scene.show_menu_by_name("theme")
-                        }
-                        if scene.is_menu_selected_by_name("main", 1) {
-                            scene.show_menu_by_name("font");
-                        }
-                        if scene.is_menu_selected_by_name("main", 2) {
-                            scene.show_menu_by_name("wifi");
-                        }
-                        if scene.is_menu_selected_by_name("main", 4) {
-                            scene.hide_menu_by_name("main")
-                        }
+        GuiEvent::KeyEvent(key_event) => match key_event {
+            13 => {
+                if scene.is_focused_by_name("main") {
+                    if scene.is_menu_selected_by_name("main", 0) {
+                        scene.show_menu_by_name("theme")
                     }
-                    if scene.is_focused_by_name("theme") {
-                        if scene.is_menu_selected_by_name("theme", 2) {
-                            scene.hide_menu_by_name("theme");
-                            scene.set_focused_by_name("main")
-                        }
+                    if scene.is_menu_selected_by_name("main", 1) {
+                        scene.show_menu_by_name("font");
                     }
-                    if scene.is_focused_by_name("font") {
-                        if scene.is_menu_selected_by_name("font", 3) {
-                            scene.hide_menu_by_name("font");
-                            scene.set_focused_by_name("main")
-                        }
+                    if scene.is_menu_selected_by_name("main", 2) {
+                        scene.show_menu_by_name("wifi");
                     }
-                    if scene.is_focused_by_name("wifi") {
-                        if scene.is_menu_selected_by_name("wifi", 2) {
-                            scene.hide_menu_by_name("wifi");
-                            scene.set_focused_by_name("main")
-                        }
+                    if scene.is_menu_selected_by_name("main", 4) {
+                        scene.hide_menu_by_name("main")
                     }
-                },
-                _ => {
-
+                }
+                if scene.is_focused_by_name("theme") {
+                    if scene.is_menu_selected_by_name("theme", 2) {
+                        scene.hide_menu_by_name("theme");
+                        scene.set_focused_by_name("main")
+                    }
+                }
+                if scene.is_focused_by_name("font") {
+                    if scene.is_menu_selected_by_name("font", 3) {
+                        scene.hide_menu_by_name("font");
+                        scene.set_focused_by_name("main")
+                    }
+                }
+                if scene.is_focused_by_name("wifi") {
+                    if scene.is_menu_selected_by_name("wifi", 2) {
+                        scene.hide_menu_by_name("wifi");
+                        scene.set_focused_by_name("main")
+                    }
                 }
             }
-        }
+            _ => {}
+        },
     }
-
 }
 
 fn make_gui_scene<'a>() -> Scene {
@@ -459,30 +487,54 @@ fn make_gui_scene<'a>() -> Scene {
         lines: vec![],
         scroll_index: 0,
         bounds: Rectangle {
-            top_left: Point::new(0,0),
-            size: Size::new(320,240),
-        }
+            top_left: Point::new(0, 0),
+            size: Size::new(320, 240),
+        },
     };
     scene.views.push(Box::new(textview));
     scene.keys.insert("page".to_string(), 0);
 
-    scene.add("main", MenuView::start_hidden("main",
-                                      vec!["Theme","Font","Wifi","Bookmarks","close"],
-                                      Point::new(0,0)));
-    scene.add("theme", MenuView::start_hidden("themes",
-                                       vec!["Dark","Light","close"],
-                                       Point::new(20,20)));
-    scene.add("font", MenuView::start_hidden("font",
-                                     vec!["small","medium","big","close"],
-                                     Point::new(20,20)));
-    scene.add("wifi", MenuView::start_hidden("wifi",
-                                            vec!["status","scan","close"],
-                                            Point::new(20,20)));
+    scene.add(
+        "main",
+        MenuView::start_hidden(
+            "main",
+            vec!["Theme", "Font", "Wifi", "Bookmarks", "close"],
+            Point::new(0, 0),
+        ),
+    );
+    scene.add(
+        "theme",
+        MenuView::start_hidden("themes", vec!["Dark", "Light", "close"], Point::new(20, 20)),
+    );
+    scene.add(
+        "font",
+        MenuView::start_hidden(
+            "font",
+            vec!["small", "medium", "big", "close"],
+            Point::new(20, 20),
+        ),
+    );
+    scene.add(
+        "wifi",
+        MenuView::start_hidden("wifi", vec!["status", "scan", "close"], Point::new(20, 20)),
+    );
 
-    let mut lines:Vec<TextLine> = vec![];
-    lines.append(&mut break_lines(&Block::new_of_type(BlockType::Header,"Header Text"),30));
-    lines.append(&mut break_lines(&Block::new_of_type(BlockType::ListItem,"list item"),30));
-    lines.append(&mut break_lines(&Block::new_of_type(BlockType::Paragraph,"This is some long body text that needs to be broken into multiple lines"),30));
+    let mut lines: Vec<TextLine> = vec![];
+    lines.append(&mut break_lines(
+        &Block::new_of_type(BlockType::Header, "Header Text"),
+        30,
+    ));
+    lines.append(&mut break_lines(
+        &Block::new_of_type(BlockType::ListItem, "list item"),
+        30,
+    ));
+    lines.append(&mut break_lines(
+        &Block::new_of_type(
+            BlockType::Paragraph,
+            "This is some long body text that needs to be broken into multiple lines",
+        ),
+        30,
+    ));
     if let Some(tv) = scene.get_textview_at_mut_by_name("page") {
         tv.lines = lines
     }
@@ -490,4 +542,26 @@ fn make_gui_scene<'a>() -> Scene {
     scene
 }
 
-
+#[embassy_executor::task]
+async fn handle_trackball(
+    tdeck_track_click: Input<'static>,
+    tdeck_trackball_left: Input<'static>,
+    tdeck_trackball_right: Input<'static>,
+) {
+    let mut last_right_high = false;
+    let mut last_left_high = false;
+    info!("running");
+    loop {
+        info!("button pressed is {} ", tdeck_track_click.is_low());
+        if tdeck_trackball_right.is_high() != last_right_high {
+            info!("trackball right changed ");
+            last_right_high = tdeck_trackball_right.is_high();
+        }
+        if tdeck_trackball_left.is_high() != last_left_high {
+            info!("trackball left changed ");
+            last_left_high = tdeck_trackball_left.is_high();
+        }
+        // wait one msec
+        Timer::after(Duration::from_millis(1)).await;
+    }
+}
