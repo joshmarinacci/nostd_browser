@@ -463,10 +463,12 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                 scene.info();
                 if scene.is_focused("main") {
                     if scene.menu_equals("main", "Theme") {
-                        scene.show_menu("theme")
+                        scene.show_menu("theme");
+                        return;
                     }
                     if scene.menu_equals("main", "Font") {
                         scene.show_menu("font");
+                        return;
                     }
                     if scene.menu_equals("main", "Wifi") {
                         info!("showing the wifi panel");
@@ -486,9 +488,13 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                         scene.add("wifi-label2a",label2a);
                         scene.add("wifi-label2b",label2b);
                         scene.add("wifi-button",button);
+                        scene.hide_menu("main");
+                        scene.set_focused("wifi-button");
+                        return;
                     }
                     if scene.menu_equals("main", "Bookmarks") {
                         // show the bookmarks
+                        return;
                     }
                     if scene.menu_equals("main","Info") {
                         info!("showing the info panel");
@@ -505,9 +511,11 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                         scene.add("info-button",button);
                         scene.hide_menu("main");
                         scene.set_focused("info-button");
+                        return;
                     }
                     if scene.menu_equals("main", "Font") {
                         scene.show_menu("font");
+                        return;
                     }
                     if scene.menu_equals("main", "Brick Breaker") {
                         scene.add("game", GameView::new());
@@ -516,11 +524,13 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                         if let Some(page) = scene.get_textview_mut("page") {
                             page.visible = false;
                         }
+                        return;
                     }
                     if scene.menu_equals("main", "close") {
-                        // close
                         scene.hide_menu("main");
+                        return;
                     }
+                    return;
                 }
                 if scene.is_focused("wifi-button") {
                     info!("clicked the button");
@@ -530,6 +540,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                     scene.remove("wifi-label2a");
                     scene.remove("wifi-label2b");
                     scene.remove("wifi-button");
+                    return;
                 }
                 if scene.is_focused("info-button") {
                     info!("clicked the info button");
@@ -537,25 +548,28 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                     scene.remove("info-label1");
                     scene.remove("info-label2");
                     scene.remove("info-button");
+                    return;
                 }
                 if scene.is_focused("theme") {
-                    // close
                     if scene.menu_equals("theme", "close") {
                         scene.hide_menu("theme");
-                        scene.set_focused("main")
+                        scene.set_focused("main");
+                        return;
                     }
                 }
                 if scene.is_focused("font") {
                     // close
                     if scene.menu_equals("font", "close") {
                         scene.hide_menu("font");
-                        scene.set_focused("main")
+                        scene.set_focused("main");
+                        return;
                     }
                 }
                 if scene.is_focused("wifi") {
                     if scene.menu_equals("wifi", "close") {
                         scene.hide_menu("wifi");
-                        scene.set_focused("main")
+                        scene.set_focused("main");
+                        return;
                     }
                 }
             }
@@ -578,8 +592,7 @@ fn make_gui_scene<'a>() -> Scene {
             size: Size::new(320, 240),
         },
     };
-    scene.views.push(Box::new(textview));
-    scene.keys.insert("page".to_string(), 0);
+    scene.add("page",Box::new(textview));
 
     scene.add(
         "main",

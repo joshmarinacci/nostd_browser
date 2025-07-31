@@ -53,9 +53,9 @@ impl Debug for Box<dyn View> {
     }
 }
 pub struct Scene {
-    pub views: Vec<Box<dyn View>>,
+    pub draw_order: Vec<String>,
     pub focused: Option<String>,
-    pub keys: HashMap<String, i32>,
+    pub keys: HashMap<String, Box<dyn View>>,
     dirty: bool,
     pub clip: Rectangle,
 }
@@ -74,93 +74,110 @@ impl Scene {
     pub fn new() -> Scene {
         Scene {
             dirty: true,
-            views: vec![],
+            draw_order: Vec::new(),
             focused: None,
             keys: HashMap::new(),
             clip: Rectangle::zero(),
         }
     }
-    pub fn add(&mut self, name: &str, main_menu: Box<dyn View>) {
-        let bounds = main_menu.bounds();
-        self.views.push(main_menu);
+    pub fn add(&mut self, name: &str, view: Box<dyn View>) {
+        let bounds = view.bounds();
         self.keys
-            .insert(name.to_string(), (self.views.len() as i32) - 1);
+            .insert(name.to_string(), view);
+        self.draw_order.push(name.to_string());
         self.mark_dirty(bounds);
     }
     pub fn remove(&mut self, name: &str) {
-        if let Some(index) = self.keys.get(name) {
-            let view = self.views[*index as usize].as_mut();
-            info!("pretending to delete the view {name}");
+        if self.keys.contains_key(name) {
+            self.keys.remove(name);
+            if let Some(index) = self.draw_order.iter().position(|x| x == name) {
+                self.draw_order.remove(index);
+            }
+            info!("deleting the view {name}");
         } else {
-            warn!("no view found for the name: {name}");
+            warn!("remove: no view found for the name: {name}");
         }
     }
 }
 
 impl Scene {
+    pub fn get_view(&self, name: &str) -> Option<&Box<dyn View>> {
+        if let Some(view) = self.keys.get(name) {
+            Some(view)
+        } else {
+            None
+        }
+    }
+    pub fn get_view_mut(&mut self, name: &str) -> Option<&mut Box<dyn View>> {
+        if let Some(view) = self.keys.get_mut(name) {
+            Some(view)
+        } else {
+            None
+        }
+    }
+    pub fn get_menu(&self, name: &str) -> Option<&MenuView> {
+        if let Some(view) = self.keys.get(name) {
+            if let Some(menu) = view.as_any().downcast_ref::<MenuView>() {
+                Some(menu)
+            } else {
+                None
+            }
+        } else {
+            warn!("get_menu: Missing menu by name '{}'", name);
+            None
+        }
+    }
+    pub fn get_menu_mut(&mut self, name: &str) -> Option<&mut MenuView> {
+        if let Some(view) = self.keys.get_mut(name) {
+            if let Some(menu) = view.as_any_mut().downcast_mut::<MenuView>() {
+                Some(menu)
+            } else {
+                None
+            }
+        } else {
+            warn!("get_menu: Missing menu by name '{}'", name);
+            None
+        }
+    }
+
     pub fn menu_equals(&self, name: &str, value:&str) -> bool {
-        if let Some(index) = self.keys.get(name) {
-            if let Some(menu) = self.views[*index as usize]
-                .as_any()
-                .downcast_ref::<MenuView>()
-            {
-                let item = &menu.items[menu.highlighted_index as usize];
-                if item == value {
-                    return true;
-                } else {
-                    return false;
-                }
+        if let Some(menu) = self.get_menu(name) {
+            let item = &menu.items[menu.highlighted_index];
+            return if item == value {
+                true
+            } else {
+                false
             }
         }
         warn!("menu_equals: no view found for the name: {name}");
         false
     }
     pub fn hide_menu(&mut self, name: &str) {
-        if let Some(index) = self.keys.get(name) {
-            if let Some(menu) = self.views[*index as usize]
-                .as_any_mut()
-                .downcast_mut::<MenuView>()
-            {
-                menu.visible = false;
-                self.dirty = true;
-                // self.set_focused(0);
-                return
-            }
+        if let Some(menu) = self.get_menu_mut(name) {
+            menu.visible = false;
+            let bounds = menu.bounds();
+            self.mark_dirty(bounds);
+        } else {
+            warn!("hide_menu: no view found for the name: {name}");
         }
-        warn!("hide_menu: no view found for the name: {name}");
     }
     pub fn show_menu(&mut self, name: &str) {
-        if let Some(index) = self.keys.get(name) {
-            if let Some(menu) = self.views[*index as usize]
-                .as_any_mut()
-                .downcast_mut::<MenuView>()
-            {
-                let bounds = menu.bounds();
-                menu.visible = true;
-                self.dirty = true;
-                self.set_focused(name);
-                // self.set_focused(*index);
-                self.mark_dirty(bounds);
-                return
-            }
-        }
-        warn!("show_menu: no menu found for the name: {name}");
-    }
-    pub fn get_menu(&self, name: &str) -> Option<&MenuView> {
-        if let Some(index) = self.keys.get(name) {
-            self.views[*index as usize]
-                .as_any()
-                .downcast_ref::<MenuView>()
+        if let Some(menu) = self.get_menu_mut(name) {
+            let bounds = menu.bounds();
+            menu.visible = true;
+            self.set_focused(name);
+            self.mark_dirty(bounds);
         } else {
-            warn!("get_menu: Missing menu by name '{}'", name);
-            None
+            warn!("show_menu: no menu found for the name: {name}");
         }
     }
     pub fn get_textview_mut(&mut self, name: &str) -> Option<&mut TextView> {
-        if let Some(index) = self.keys.get(name) {
-            self.views[*index as usize]
-                .as_any_mut()
-                .downcast_mut::<TextView>()
+        if let Some(view) = self.keys.get_mut(name) {
+            if let Some(menu) = view.as_any_mut().downcast_mut::<TextView>() {
+                Some(menu)
+            } else {
+                None
+            }
         } else {
             warn!("Missing textview by name '{}'", name);
             None
@@ -202,30 +219,15 @@ impl Scene {
         warn!("Missing view by name '{}'", name);
     }
 
-    pub fn get_view(&self, name: &str) -> Option<&Box<dyn View>> {
-        if let Some(index) = self.keys.get(name) {
-            Some(&self.views[*index as usize])
-        } else {
-            None
-        }
-    }
     pub fn get_focused_view(&self) -> Option<&Box<dyn View>> {
         if let Some(name) = &self.focused {
-            return if let Some(index) = self.keys.get(name) {
-                Some(&self.views[*index as usize])
-            } else {
-                None
-            }
+            return self.get_view(name);
         }
         None
     }
-    pub fn get_focused_view_as_mut(&mut self) -> Option<&mut (dyn View)> {
+    pub fn get_focused_view_as_mut(&mut self) -> Option<&mut Box<dyn View>> {
         if let Some(name) = &self.focused {
-            return if let Some(index) = self.keys.get(name) {
-                Some(self.views[*index as usize].as_mut())
-            } else {
-                None
-            }
+            return self.get_view_mut(&name.clone());
         }
         None
     }
@@ -236,9 +238,11 @@ impl Scene {
         if !self.is_dirty() {
             return;
         }
-        self.views
-            .iter_mut()
-            .for_each(|v| v.draw(display, &self.clip));
+        for name in &self.draw_order {
+            if let Some(view) = self.keys.get_mut(name) {
+                view.draw(display, &self.clip);
+            }
+        }
         self.dirty = false;
         self.clip = Rectangle::zero();
     }
