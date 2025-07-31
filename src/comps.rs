@@ -139,7 +139,6 @@ impl View for Button {
 }
 
 pub struct MenuView {
-    pub id: String,
     pub items: Vec<String>,
     pub position: Point,
     pub highlighted_index: usize,
@@ -156,9 +155,8 @@ impl MenuView {
         self.highlighted_index = (self.highlighted_index + self.items.len() - 1) % self.items.len();
         self.dirty = true;
     }
-    pub fn new(id: &str, items: Vec<&str>, p1: Point) -> Box<MenuView> {
+    pub fn new(items: Vec<&str>, p1: Point) -> Box<MenuView> {
         Box::new(MenuView {
-            id: id.into(),
             items: items.iter().map(|s| s.to_string()).collect(),
             position: p1,
             highlighted_index: 0,
@@ -166,9 +164,8 @@ impl MenuView {
             dirty: true,
         })
     }
-    pub fn start_hidden(id: &str, items: Vec<&str>, p1: Point) -> Box<MenuView> {
+    pub fn start_hidden(items: Vec<&str>, p1: Point) -> Box<MenuView> {
         Box::new(MenuView {
-            id: id.into(),
             items: items.iter().map(|s| s.to_string()).collect(),
             position: p1,
             highlighted_index: 0,

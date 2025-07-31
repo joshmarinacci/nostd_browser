@@ -428,19 +428,22 @@ async fn update_display(
     }
 }
 
+const MAIN_MENU:&'static str = "main";
+const THEME_MENU:&'static str = "theme";
+
 fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
     info!("update view from input {:?}", event);
     if scene.focused.is_none() {
         scene.focused = Some("".to_string());
     }
-    if let Some(menu) = scene.get_menu("main") {
+    if let Some(menu) = scene.get_menu(MAIN_MENU) {
         if menu.visible {
             scene.handle_event(event);
         } else {
             match event {
                 GuiEvent::KeyEvent(evt) => {
                     if evt == b' ' {
-                        scene.show_menu("main");
+                        scene.show_menu(MAIN_MENU);
                     } else {
                         if let Some(tv) = scene.get_textview_mut("page") {
                             tv.handle_input(event);
@@ -461,16 +464,16 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
         GuiEvent::KeyEvent(key_event) => match key_event {
             13 => {
                 scene.info();
-                if scene.is_focused("main") {
-                    if scene.menu_equals("main", "Theme") {
-                        scene.show_menu("theme");
+                if scene.is_focused(MAIN_MENU) {
+                    if scene.menu_equals(MAIN_MENU, "Theme") {
+                        scene.show_menu(THEME_MENU);
                         return;
                     }
-                    if scene.menu_equals("main", "Font") {
+                    if scene.menu_equals(MAIN_MENU, "Font") {
                         scene.show_menu("font");
                         return;
                     }
-                    if scene.menu_equals("main", "Wifi") {
+                    if scene.menu_equals(MAIN_MENU, "Wifi") {
                         info!("showing the wifi panel");
                         let panel = Panel::new(
                             Rectangle::new(Point::new(25,25), Size::new(200,200))
@@ -488,15 +491,15 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                         scene.add("wifi-label2a",label2a);
                         scene.add("wifi-label2b",label2b);
                         scene.add("wifi-button",button);
-                        scene.hide_menu("main");
+                        scene.hide_menu(MAIN_MENU);
                         scene.set_focused("wifi-button");
                         return;
                     }
-                    if scene.menu_equals("main", "Bookmarks") {
+                    if scene.menu_equals(MAIN_MENU, "Bookmarks") {
                         // show the bookmarks
                         return;
                     }
-                    if scene.menu_equals("main","Info") {
+                    if scene.menu_equals(MAIN_MENU,"Info") {
                         info!("showing the info panel");
                         let panel = Panel::new(
                             Rectangle::new(Point::new(20,20), Size::new(200,200))
@@ -509,25 +512,25 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                         scene.add("info-label1",label1);
                         scene.add("info-label2",label2);
                         scene.add("info-button",button);
-                        scene.hide_menu("main");
+                        scene.hide_menu(MAIN_MENU);
                         scene.set_focused("info-button");
                         return;
                     }
-                    if scene.menu_equals("main", "Font") {
+                    if scene.menu_equals(MAIN_MENU, "Font") {
                         scene.show_menu("font");
                         return;
                     }
-                    if scene.menu_equals("main", "Brick Breaker") {
+                    if scene.menu_equals(MAIN_MENU, "Bricks") {
                         scene.add("game", GameView::new());
-                        scene.hide_menu("main");
+                        scene.hide_menu(MAIN_MENU);
                         scene.set_focused("game");
                         if let Some(page) = scene.get_textview_mut("page") {
                             page.visible = false;
                         }
                         return;
                     }
-                    if scene.menu_equals("main", "close") {
-                        scene.hide_menu("main");
+                    if scene.menu_equals(MAIN_MENU, "close") {
+                        scene.hide_menu(MAIN_MENU);
                         return;
                     }
                     return;
@@ -551,9 +554,9 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                     return;
                 }
                 if scene.is_focused("theme") {
-                    if scene.menu_equals("theme", "close") {
-                        scene.hide_menu("theme");
-                        scene.set_focused("main");
+                    if scene.menu_equals(THEME_MENU, "close") {
+                        scene.hide_menu(THEME_MENU);
+                        scene.set_focused(MAIN_MENU);
                         return;
                     }
                 }
@@ -561,14 +564,14 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                     // close
                     if scene.menu_equals("font", "close") {
                         scene.hide_menu("font");
-                        scene.set_focused("main");
+                        scene.set_focused(MAIN_MENU);
                         return;
                     }
                 }
                 if scene.is_focused("wifi") {
                     if scene.menu_equals("wifi", "close") {
                         scene.hide_menu("wifi");
-                        scene.set_focused("main");
+                        scene.set_focused(MAIN_MENU);
                         return;
                     }
                 }
@@ -594,37 +597,30 @@ fn make_gui_scene<'a>() -> Scene {
     };
     scene.add("page",Box::new(textview));
 
-    scene.add(
-        "main",
-        MenuView::start_hidden(
-            "main",
+    scene.add(MAIN_MENU, MenuView::start_hidden(
             vec![
                 "Theme",
                 "Font",
                 "Wifi",
                 "Bookmarks",
-                "Brick Breaker",
+                "Bricks",
                 "Info",
                 "close",
             ],
             Point::new(0, 0),
         ),
     );
-    scene.add(
-        "theme",
-        MenuView::start_hidden("themes", vec!["Dark", "Light", "close"], Point::new(20, 20)),
-    );
+    scene.add(THEME_MENU, MenuView::start_hidden(vec!["Dark", "Light", "close"], Point::new(20, 20)));
     scene.add(
         "font",
         MenuView::start_hidden(
-            "font",
             vec!["small", "medium", "big", "close"],
             Point::new(20, 20),
         ),
     );
     scene.add(
         "wifi",
-        MenuView::start_hidden("wifi", vec!["status", "scan", "close"], Point::new(20, 20)),
+        MenuView::start_hidden(vec!["status", "scan", "close"], Point::new(20, 20)),
     );
 
     let mut lines: Vec<TextLine> = vec![];
