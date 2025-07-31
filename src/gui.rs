@@ -8,7 +8,7 @@ use core::any::{Any, TypeId};
 use core::fmt::{Debug, Formatter};
 use core::ops::Add;
 use embedded_graphics::mono_font::ascii::FONT_9X15;
-use embedded_graphics::mono_font::MonoTextStyle;
+use embedded_graphics::mono_font::{MonoFont, MonoTextStyle};
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{Dimensions, Point, Primitive, RgbColor, Size, WebColors};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
@@ -152,7 +152,7 @@ impl View for MenuView {
             .into_styled(PrimitiveStyle::with_fill(bg))
             .draw(display)
             .unwrap();
-            let text_style = MonoTextStyle::new(&font, fg);
+            let text_style = MonoTextStyle::new(&base_font, fg);
             let pos = Point::new(pad + xoff, line_y + line_height - 2 + yoff).add(self.position);
             let text_bounds = Text::new(item, pos, text_style).bounding_box();
             if !text_bounds.intersection(clip).is_zero_sized() {
@@ -190,6 +190,7 @@ pub struct Scene {
     pub clip: Rectangle,
 }
 
+
 impl Scene {
     pub fn add(&mut self, name: &str, main_menu: Box<dyn View>) {
         let bounds = main_menu.bounds();
@@ -197,6 +198,12 @@ impl Scene {
         self.keys
             .insert(name.to_string(), (self.views.len() as i32) - 1);
         self.mark_dirty(bounds);
+    }
+    pub fn remove(&mut self, name: &str) {
+        if let Some(index) = self.keys.get(name) {
+            let view = self.views[*index as usize].as_mut();
+            info!("pretending to delete the view {name}");
+        }
     }
 }
 
@@ -372,4 +379,131 @@ fn union(a: &Rectangle, b: &Rectangle) -> Rectangle {
 pub enum GuiEvent {
     KeyEvent(u8),
     PointerEvent(Point, Point),
+}
+
+
+pub struct Panel {
+    pub bounds: Rectangle,
+}
+
+impl View for Panel {
+    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
+        self.bounds.intersection(clip)
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::GREEN))
+            .draw(display)
+            .unwrap();
+    }
+
+    fn handle_input(&mut self, event: GuiEvent) {
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn bounds(&self) -> Rectangle {
+        self.bounds
+    }
+}
+
+impl Panel {
+    pub fn new(bounds: Rectangle) -> Box<dyn View> {
+        Box::new(Panel {
+            bounds,
+        })
+    }
+}
+
+pub struct Label {
+    text:String,
+    position:Point,
+}
+
+const base_font:MonoFont = FONT_9X15;
+const base_text_color: Rgb565 = Rgb565::BLACK;
+
+impl View for Label {
+    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
+        let style = MonoTextStyle::new(&base_font, base_text_color);
+        let text = Text::new(&self.text, self.position, style);
+        if !text.bounding_box().intersection(clip).is_zero_sized() {
+            text.draw(display).unwrap();
+        }
+    }
+
+    fn handle_input(&mut self, event: GuiEvent) {
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn bounds(&self) -> Rectangle {
+        Rectangle {
+            top_left:self.position,
+            size: Size::new(50,20),
+        }
+    }
+}
+
+impl Label {
+    pub fn new(text: &str, p1: Point) -> Box<Label> {
+        Box::new(Label {
+            text:text.to_string(),
+            position: p1,
+        })
+    }
+}
+
+pub struct Button {
+    text:String,
+    position:Point,
+}
+
+impl Button {
+    pub fn new(p0: &str, p1: Point) -> Box<Button> {
+        Box::new(Button {
+            text:p0.to_string(),
+            position:p1,
+        })
+    }
+}
+
+impl View for Button {
+    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
+        self.bounds().intersection(clip)
+            .into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_YELLOW))
+            .draw(display).unwrap();
+        let style = MonoTextStyle::new(&base_font, base_text_color);
+        let text = Text::new(&self.text, self.position, style);
+        if !text.bounding_box().intersection(clip).is_zero_sized() {
+            text.draw(display).unwrap();
+        }
+    }
+
+    fn handle_input(&mut self, event: GuiEvent) {
+        info!("button got input: {:?}", event);
+    }
+
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn bounds(&self) -> Rectangle {
+        let style = MonoTextStyle::new(&base_font, base_text_color);
+        let bounds = Text::new(&self.text, self.position, style).bounding_box();
+        bounds
+    }
 }

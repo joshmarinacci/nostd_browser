@@ -45,7 +45,7 @@ use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder};
 use nostd_browser::brickbreaker::GameView;
 use nostd_browser::common::TDeckDisplay;
-use nostd_browser::gui::{GuiEvent, MenuView, Scene, View};
+use nostd_browser::gui::{Button, GuiEvent, Label, MenuView, Panel, Scene, View};
 use nostd_browser::textview::TextView;
 use nostd_html_parser::blocks::{Block, BlockParser, BlockType};
 use nostd_html_parser::lines::{break_lines, TextLine};
@@ -477,6 +477,19 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                     }
                     if scene.menu_equals("main","Info") {
                         info!("showing the info panel");
+                        let panel = Panel::new(
+                            Rectangle::new(Point::new(50,50), Size::new(100,100))
+                        );
+                        let label1 = Label::new("Heap", Point::new(60,80));
+                        let label2 = Label::new("bytes", Point::new(100,80));
+                        let button = Button::new("done", Point::new(80,150));
+
+                        scene.add("info-panel",panel);
+                        scene.add("info-label1",label1);
+                        scene.add("info-label2",label2);
+                        scene.add("info-button",button);
+                        scene.hide_menu("main");
+                        scene.set_focused_by_name("info-button");
                     }
                     if scene.menu_equals("main", "Font") {
                         scene.show_menu("font");
@@ -493,6 +506,13 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                         // close
                         scene.hide_menu("main");
                     }
+                }
+                if scene.is_focused_by_name("info-button") {
+                    info!("clicked the button");
+                    scene.remove("info-panel");
+                    scene.remove("info-label1");
+                    scene.remove("info-label2");
+                    scene.remove("info-button");
                 }
                 if scene.is_focused_by_name("theme") {
                     // close
