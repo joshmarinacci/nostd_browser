@@ -196,6 +196,15 @@ pub struct Scene {
 
 
 impl Scene {
+    pub fn new() -> Scene {
+        Scene {
+            dirty: true,
+            views: vec![],
+            focused: None,
+            keys: HashMap::new(),
+            clip: Rectangle::zero(),
+        }
+    }
     pub fn add(&mut self, name: &str, main_menu: Box<dyn View>) {
         let bounds = main_menu.bounds();
         self.views.push(main_menu);
@@ -214,21 +223,6 @@ impl Scene {
 }
 
 impl Scene {
-    pub fn is_menu_selected(&self, index: i32, hi: usize) -> bool {
-        if let Some(menu) = self.views[index as usize]
-            .as_any()
-            .downcast_ref::<MenuView>()
-        {
-            return menu.highlighted_index == hi;
-        }
-        false
-    }
-    pub fn is_menu_selected_by_name(&self, name: &str, hi: usize) -> bool {
-        if let Some(index) = self.keys.get(name) {
-            return self.is_menu_selected(*index, hi);
-        }
-        false
-    }
     pub fn menu_equals(&self, name: &str, value:&str) -> bool {
         if let Some(index) = self.keys.get(name) {
             if let Some(menu) = self.views[*index as usize]
@@ -251,7 +245,7 @@ impl Scene {
             {
                 menu.visible = false;
                 self.dirty = true;
-                self.set_focused(0);
+                // self.set_focused(0);
             }
         }
     }
@@ -264,21 +258,19 @@ impl Scene {
                 let bounds = menu.bounds();
                 menu.visible = true;
                 self.dirty = true;
-                self.set_focused(*index);
+                self.set_focused(name);
+                // self.set_focused(*index);
                 self.mark_dirty(bounds);
             }
         } else {
             warn!("Missing menu by name '{}'", name);
         }
     }
-    pub fn get_menu_at(&self, index: i32) -> Option<&MenuView> {
-        self.views[index as usize]
-            .as_any()
-            .downcast_ref::<MenuView>()
-    }
     pub fn get_menu_by_name(&self, name: &str) -> Option<&MenuView> {
         if let Some(index) = self.keys.get(name) {
-            self.get_menu_at(*index)
+            self.views[*index as usize]
+                .as_any()
+                .downcast_ref::<MenuView>()
         } else {
             warn!("Missing menu by name '{}'", name);
             None
@@ -303,36 +295,22 @@ impl Scene {
             None
         }
     }
-    pub fn is_focused(&self, p0: i32) -> bool {
-        if let Some(f) = self.focused {
-            if f == p0 {
-                return true;
+    pub fn is_focused(&self, name: &str) -> bool {
+        if let Some(f) = self.keys.get(name) {
+            if let Some(f2) = self.focused {
+                if f2 == *f {
+                    return true;
+                }
             }
         }
         false
     }
-    pub fn is_focused_by_name(&self, name: &str) -> bool {
-        if let Some(f) = self.keys.get(name) {
-            return self.is_focused(*f);
-        }
-        false
-    }
-
     pub fn is_dirty(&self) -> bool {
         self.dirty
     }
     pub fn mark_dirty(&mut self, bounds: Rectangle) {
         self.dirty = true;
         self.clip = union(&self.clip, &bounds);
-    }
-    pub fn new() -> Scene {
-        Scene {
-            dirty: true,
-            views: vec![],
-            focused: None,
-            keys: HashMap::new(),
-            clip: Rectangle::zero(),
-        }
     }
     pub fn handle_event(&mut self, evt: GuiEvent) {
         if let Some(index) = self.focused {
@@ -344,21 +322,21 @@ impl Scene {
             }
         }
     }
-    pub fn set_focused(&mut self, index: i32) {
-        let view = &mut self.views[index as usize];
-        let bounds = view.bounds();
-        self.mark_dirty(bounds);
-        self.focused = Some(index);
-    }
-    pub fn set_focused_by_name(&mut self, name: &str) {
+    pub fn set_focused(&mut self, name: &str) {
         if let Some(index) = self.keys.get(name) {
-            self.set_focused(*index);
+            self.focused = Some(*index);
+            let view = &mut self.views[*index as usize];
+            let bounds = view.bounds();
+            self.mark_dirty(bounds);
         }
     }
 }
 
 impl Scene {
     pub fn draw(&mut self, display: &mut TDeckDisplay) {
+        if !self.is_dirty() {
+            return;
+        }
         self.views
             .iter_mut()
             .for_each(|v| v.draw(display, &self.clip));
