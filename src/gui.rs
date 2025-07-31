@@ -24,11 +24,11 @@ const base_text_color: Rgb565 = Rgb565::BLACK;
 const base_button_background_color: Rgb565 = Rgb565::GREEN;
 
 pub trait View {
-    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle);
-    fn handle_input(&mut self, event: GuiEvent);
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn bounds(&self) -> Rectangle;
+    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle);
+    fn handle_input(&mut self, event: GuiEvent);
 }
 impl Debug for Box<dyn View> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {

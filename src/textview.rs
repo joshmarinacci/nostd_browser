@@ -25,6 +25,15 @@ pub struct TextView {
     pub bounds: Rectangle,
 }
 impl View for TextView {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+    fn bounds(&self) -> Rectangle {
+        self.bounds.clone()
+    }
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
         if !self.visible {
             return;
@@ -88,16 +97,5 @@ impl View for TextView {
 
             }
         }
-    }
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-
-    fn bounds(&self) -> Rectangle {
-        self.bounds.clone()
     }
 }
