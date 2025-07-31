@@ -18,7 +18,7 @@ use hashbrown::HashMap;
 use log::{info, warn};
 
 
-const base_background_color: Rgb565 = Rgb565::CSS_GRAY;
+pub(crate) const base_background_color: Rgb565 = Rgb565::CSS_LIGHT_GRAY;
 pub(crate) const base_font:MonoFont = FONT_9X15;
 pub(crate) const base_text_color: Rgb565 = Rgb565::BLACK;
 pub(crate) const base_button_background_color: Rgb565 = Rgb565::GREEN;
@@ -33,15 +33,15 @@ pub trait View {
 impl Debug for Box<dyn View> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
         let val = self as &dyn Any;
-        info!("is menu {}", TypeId::of::<MenuView>() == val.type_id());
-        info!(
-            "is box menuview {}",
-            TypeId::of::<Box<MenuView>>() == val.type_id()
-        );
-        info!(
-            "is box view {}",
-            TypeId::of::<Box<dyn View>>() == val.type_id()
-        );
+        // info!("is menu {}", TypeId::of::<MenuView>() == val.type_id());
+        // info!(
+        //     "is box menuview {}",
+        //     TypeId::of::<Box<MenuView>>() == val.type_id()
+        // );
+        // info!(
+        //     "is box view {}",
+        //     TypeId::of::<Box<dyn View>>() == val.type_id()
+        // );
         match val.downcast_ref::<Box<MenuView>>() {
             Some(menu) => {
                 write!(f, "is a menu view")
@@ -174,7 +174,7 @@ impl View for MenuView {
                 _ => {}
             },
             GuiEvent::PointerEvent(pt,delta) => {
-                info!("menu got {pt} {delta}");
+                // info!("menu got {pt} {delta}");
                 if delta.y < 0 {
                     self.nav_next();
                 }
@@ -194,6 +194,15 @@ pub struct Scene {
     pub clip: Rectangle,
 }
 
+impl Scene {
+    pub fn info(&self) {
+        info!("Scene info:");
+        info!("focused: {:?}", self.focused);
+        info!("dirty: {:?}", self.dirty);
+        info!("clip: {:?}", self.clip);
+        info!("keys: {:?}", self.keys);
+    }
+}
 
 impl Scene {
     pub fn new() -> Scene {
@@ -232,10 +241,12 @@ impl Scene {
                 let item = &menu.items[menu.highlighted_index as usize];
                 if item == value {
                     return true;
+                } else {
+                    return false;
                 }
             }
         }
-        warn!("no view found for the name: {name}");
+        warn!("menu_equals: no view found for the name: {name}");
         false
     }
     pub fn hide_menu(&mut self, name: &str) {
@@ -247,9 +258,10 @@ impl Scene {
                 menu.visible = false;
                 self.dirty = true;
                 // self.set_focused(0);
+                return
             }
         }
-        warn!("no view found for the name: {name}");
+        warn!("hide_menu: no view found for the name: {name}");
     }
     pub fn show_menu(&mut self, name: &str) {
         if let Some(index) = self.keys.get(name) {
@@ -263,9 +275,10 @@ impl Scene {
                 self.set_focused(name);
                 // self.set_focused(*index);
                 self.mark_dirty(bounds);
+                return
             }
         }
-        warn!("no menu found for the name: {name}");
+        warn!("show_menu: no menu found for the name: {name}");
     }
     pub fn get_menu(&self, name: &str) -> Option<&MenuView> {
         if let Some(index) = self.keys.get(name) {
@@ -273,7 +286,7 @@ impl Scene {
                 .as_any()
                 .downcast_ref::<MenuView>()
         } else {
-            warn!("Missing menu by name '{}'", name);
+            warn!("get_menu: Missing menu by name '{}'", name);
             None
         }
     }
@@ -290,12 +303,15 @@ impl Scene {
     pub fn is_focused(&self, name: &str) -> bool {
         if let Some(f) = self.keys.get(name) {
             if let Some(f2) = self.focused {
-                if f2 == *f {
-                    return true;
+                return if f2 == *f {
+                    true
+                } else {
+                    false
                 }
             }
+        } else {
+            warn!("is_focused: Missing view by name '{}'", name);
         }
-        warn!("Missing view by name '{}'", name);
         false
     }
     pub fn is_dirty(&self) -> bool {
@@ -349,8 +365,8 @@ fn union(a: &Rectangle, b: &Rectangle) -> Rectangle {
     if b.is_zero_sized() {
         return a.clone();
     }
-    let x = a.top_left.x.max(b.top_left.x);
-    let y = a.top_left.y.max(b.top_left.y);
+    let x = a.top_left.x.min(b.top_left.x);
+    let y = a.top_left.y.min(b.top_left.y);
     let x2 = (a.top_left.x + a.size.width as i32).max(b.top_left.x + b.size.width as i32);
     let y2 = (a.top_left.y + a.size.height as i32).max(b.top_left.y + b.size.height as i32);
     Rectangle::with_corners(Point::new(x, y), Point::new(x2, y2))

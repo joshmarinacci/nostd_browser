@@ -10,7 +10,7 @@ use embedded_graphics::pixelcolor::{Rgb565, RgbColor};
 use embedded_graphics::prelude::Primitive;
 use embedded_graphics::Drawable;
 use crate::common::TDeckDisplay;
-use crate::gui::{base_button_background_color, base_font, base_text_color, GuiEvent, View};
+use crate::gui::{base_background_color, base_button_background_color, base_font, base_text_color, GuiEvent, View};
 
 pub struct Panel {
     pub bounds: Rectangle,
@@ -31,7 +31,7 @@ impl View for Panel {
 
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
         self.bounds.intersection(clip)
-            .into_styled(PrimitiveStyle::with_fill(Rgb565::GREEN))
+            .into_styled(PrimitiveStyle::with_fill(base_background_color))
             .draw(display)
             .unwrap();
     }

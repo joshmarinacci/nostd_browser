@@ -460,6 +460,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
     match event {
         GuiEvent::KeyEvent(key_event) => match key_event {
             13 => {
+                scene.info();
                 if scene.is_focused("main") {
                     if scene.menu_equals("main", "Theme") {
                         scene.show_menu("theme")
@@ -492,7 +493,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                     if scene.menu_equals("main","Info") {
                         info!("showing the info panel");
                         let panel = Panel::new(
-                            Rectangle::new(Point::new(50,50), Size::new(100,100))
+                            Rectangle::new(Point::new(20,20), Size::new(200,200))
                         );
                         let label1 = Label::new("Heap", Point::new(60,80));
                         let label2 = Label::new("bytes", Point::new(100,80));
@@ -516,7 +517,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                             page.visible = false;
                         }
                     }
-                    if scene.menu_equals("main", "Close") {
+                    if scene.menu_equals("main", "close") {
                         // close
                         scene.hide_menu("main");
                     }
@@ -539,20 +540,20 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                 }
                 if scene.is_focused("theme") {
                     // close
-                    if scene.menu_equals("theme", "Close") {
+                    if scene.menu_equals("theme", "close") {
                         scene.hide_menu("theme");
                         scene.set_focused("main")
                     }
                 }
                 if scene.is_focused("font") {
                     // close
-                    if scene.menu_equals("font", "Close") {
+                    if scene.menu_equals("font", "close") {
                         scene.hide_menu("font");
                         scene.set_focused("main")
                     }
                 }
                 if scene.is_focused("wifi") {
-                    if scene.menu_equals("wifi", "Close") {
+                    if scene.menu_equals("wifi", "close") {
                         scene.hide_menu("wifi");
                         scene.set_focused("main")
                     }
