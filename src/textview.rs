@@ -1,7 +1,6 @@
 use crate::common::TDeckDisplay;
 use crate::gui::{GuiEvent, View};
-use alloc::string::{String, ToString};
-use alloc::vec;
+use alloc::string::{ToString};
 use alloc::vec::Vec;
 use core::any::Any;
 use core::cmp::max;

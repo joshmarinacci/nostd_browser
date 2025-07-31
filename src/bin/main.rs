@@ -45,12 +45,13 @@ use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder};
 use nostd_browser::brickbreaker::GameView;
 use nostd_browser::common::TDeckDisplay;
-use nostd_browser::gui::{Button, GuiEvent, Label, MenuView, Panel, Scene, View};
+use nostd_browser::gui::{GuiEvent, MenuView, Scene, View};
 use nostd_browser::textview::TextView;
 use nostd_html_parser::blocks::{Block, BlockParser, BlockType};
 use nostd_html_parser::lines::{break_lines, TextLine};
 use nostd_html_parser::tags::TagParser;
 use static_cell::StaticCell;
+use nostd_browser::comps::{Button, Label, Panel};
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {

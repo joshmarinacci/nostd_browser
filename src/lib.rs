@@ -5,3 +5,4 @@ pub mod brickbreaker;
 pub mod common;
 pub mod gui;
 pub mod textview;
+pub mod comps;
