@@ -169,6 +169,15 @@ impl View for MenuView {
                 b'k' => self.nav_next(),
                 _ => {}
             },
+            GuiEvent::PointerEvent(pt,delta) => {
+                info!("menu got {pt} {delta}");
+                if delta.y < 0 {
+                    self.nav_next();
+                }
+                if delta.y > 0 {
+                    self.nav_prev();
+                }
+            }
         }
     }
 }
@@ -182,7 +191,7 @@ pub struct Scene {
 }
 
 impl Scene {
-    pub fn add(&mut self, name: &str, main_menu: Box<MenuView>) {
+    pub fn add(&mut self, name: &str, main_menu: Box<dyn View>) {
         let bounds = main_menu.bounds();
         self.views.push(main_menu);
         self.keys
@@ -354,4 +363,5 @@ fn union(a: &Rectangle, b: &Rectangle) -> Rectangle {
 #[derive(Debug, Copy, Clone)]
 pub enum GuiEvent {
     KeyEvent(u8),
+    PointerEvent(Point, Point),
 }

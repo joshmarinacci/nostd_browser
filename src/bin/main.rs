@@ -43,6 +43,7 @@ use reqwless::client::{HttpClient, TlsConfig};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder};
+use nostd_browser::brickbreaker::GameView;
 use nostd_browser::common::TDeckDisplay;
 use nostd_browser::gui::{GuiEvent, MenuView, Scene, View};
 use nostd_browser::textview::TextView;
@@ -80,6 +81,7 @@ pub const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
 static I2C: StaticCell<I2c<Blocking>> = StaticCell::new();
 
 static CHANNEL: Channel<CriticalSectionRawMutex, Vec<Block>, 2> = Channel::new();
+static TRACKBALL_CHANNEL: Channel<CriticalSectionRawMutex, (Point, Point), 2> = Channel::new();
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     esp_println::logger::init_logger_from_env();
@@ -166,24 +168,34 @@ async fn main(spawner: Spawner) {
 
     // setup trackball
     {
-        let tdeck_track_click = Input::new(
+        let trackball_click = Input::new(
             peripherals.GPIO0,
             InputConfig::default().with_pull(Pull::Up),
-        ); // .pins.gpio0.into_pull_up_input();
+        );
            // connect to the left and right trackball pins
-        let tdeck_trackball_right = Input::new(
-            peripherals.GPIO15,
-            InputConfig::default().with_pull(Pull::Down),
-        ); //.pins.gpio3.into_pull_up_input(); // G01  GS1
-        let tdeck_trackball_left = Input::new(
+        let trackball_right = Input::new(
+            peripherals.GPIO2,
+            InputConfig::default().with_pull(Pull::Up),
+        );
+        let trackball_left = Input::new(
             peripherals.GPIO1,
-            InputConfig::default().with_pull(Pull::Down),
-        ); //.pins.gpio3.into_pull_up_input(); // G01  GS1
+            InputConfig::default().with_pull(Pull::Up),
+        );
+        let trackball_up = Input::new(
+            peripherals.GPIO3,
+            InputConfig::default().with_pull(Pull::Up),
+        );
+        let trackball_down = Input::new(
+            peripherals.GPIO15,
+            InputConfig::default().with_pull(Pull::Up),
+        );
         spawner
             .spawn(handle_trackball(
-                tdeck_track_click,
-                tdeck_trackball_left,
-                tdeck_trackball_right,
+                trackball_click,
+                trackball_left,
+                trackball_right,
+                trackball_up,
+                trackball_down
             ))
             .ok();
     }
@@ -404,6 +416,12 @@ async fn update_display(
             }
         }
 
+        if let Ok((pt, delta)) = TRACKBALL_CHANNEL.try_receive() {
+            // info!("got a trackball event {pt} {delta}");
+            let evt: GuiEvent = GuiEvent::PointerEvent(pt, delta);
+            update_view_from_input(evt, &mut scene);
+        }
+
         if scene.is_dirty() {
             // display.clear(Rgb565::WHITE).unwrap();
             scene.draw(display);
@@ -433,6 +451,9 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                         }
                     }
                 }
+                _ => {
+                    scene.handle_event(event);
+                }
             }
         }
     }
@@ -451,8 +472,17 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                     if scene.is_menu_selected_by_name("main", 2) {
                         scene.show_menu_by_name("wifi");
                     }
+                    if scene.is_menu_selected_by_name("main", 3) {
+                        // show the bookmarks
+                    }
                     if scene.is_menu_selected_by_name("main", 4) {
-                        scene.hide_menu_by_name("main")
+                        scene.add("game", GameView::new());
+                        scene.hide_menu_by_name("main");
+                        scene.set_focused_by_name("game");
+                    }
+                    if scene.is_menu_selected_by_name("main", 5) {
+                        // close
+                        scene.hide_menu_by_name("main");
                     }
                 }
                 if scene.is_focused_by_name("theme") {
@@ -476,6 +506,8 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
             }
             _ => {}
         },
+        GuiEvent::PointerEvent(pt,size) => {
+        }
     }
 }
 
@@ -498,7 +530,14 @@ fn make_gui_scene<'a>() -> Scene {
         "main",
         MenuView::start_hidden(
             "main",
-            vec!["Theme", "Font", "Wifi", "Bookmarks", "close"],
+            vec![
+                "Theme",
+                "Font",
+                "Wifi",
+                "Bookmarks",
+                "Brick Breaker",
+                "close",
+            ],
             Point::new(0, 0),
         ),
     );
@@ -547,19 +586,40 @@ async fn handle_trackball(
     tdeck_track_click: Input<'static>,
     tdeck_trackball_left: Input<'static>,
     tdeck_trackball_right: Input<'static>,
+    tdeck_trackball_up: Input<'static>,
+    tdeck_trackball_down: Input<'static>,
 ) {
     let mut last_right_high = false;
     let mut last_left_high = false;
-    info!("running");
+    let mut last_up_high = false;
+    let mut last_down_high = false;
+    info!("monitoring the trackball");
+    let mut cursor = Point::new(50,50);
     loop {
-        info!("button pressed is {} ", tdeck_track_click.is_low());
+        // info!("button pressed is {} ", tdeck_track_click.is_low());
         if tdeck_trackball_right.is_high() != last_right_high {
-            info!("trackball right changed ");
+            // info!("right");
             last_right_high = tdeck_trackball_right.is_high();
+            cursor.x -= 1;
+            TRACKBALL_CHANNEL.send((cursor, Point::new(-1,0))).await;
         }
         if tdeck_trackball_left.is_high() != last_left_high {
-            info!("trackball left changed ");
+            // info!("left");
             last_left_high = tdeck_trackball_left.is_high();
+            cursor.x += 1;
+            TRACKBALL_CHANNEL.send((cursor, Point::new(1,0))).await;
+        }
+        if tdeck_trackball_up.is_high() != last_up_high {
+            // info!("up");
+            last_up_high = tdeck_trackball_up.is_high();
+            cursor.y -= 1;
+            TRACKBALL_CHANNEL.send((cursor, Point::new(0,-1))).await;
+        }
+        if tdeck_trackball_down.is_high() != last_down_high {
+            // info!("down");
+            last_down_high = tdeck_trackball_down.is_high();
+            cursor.y += 1;
+            TRACKBALL_CHANNEL.send((cursor,Point::new(0,1))).await;
         }
         // wait one msec
         Timer::after(Duration::from_millis(1)).await;

@@ -84,6 +84,9 @@ impl View for TextView {
                 info!("now scroll index {}", self.scroll_index);
                 self.dirty = true
             }
+            _ => {
+
+            }
         }
     }
     fn as_any(&self) -> &dyn Any {
