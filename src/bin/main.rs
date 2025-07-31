@@ -471,14 +471,14 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                     if scene.menu_equals("main", "Wifi") {
                         info!("showing the wifi panel");
                         let panel = Panel::new(
-                            Rectangle::new(Point::new(50,50), Size::new(100,100))
+                            Rectangle::new(Point::new(25,25), Size::new(200,200))
                         );
                         let label1a = Label::new("SSID", Point::new(60,80));
-                        let label1b = Label::new(SSID.unwrap_or("----"), Point::new(100,80));
+                        let label1b = Label::new(SSID.unwrap_or("----"), Point::new(150,80));
                         let label2a = Label::new("PASSWORD", Point::new(60,100));
-                        let label2b = Label::new(PASSWORD.unwrap_or("----"), Point::new(100,100));
+                        let label2b = Label::new(PASSWORD.unwrap_or("----"), Point::new(150,100));
 
-                        let button = Button::new("done", Point::new(80,150));
+                        let button = Button::new("done", Point::new(80,200));
 
                         scene.add("wifi-panel",panel);
                         scene.add("wifi-label1a",label1a);
