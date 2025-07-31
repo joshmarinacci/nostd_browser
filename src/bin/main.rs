@@ -396,7 +396,7 @@ async fn update_display(
                 lines.append(&mut txt);
             }
 
-            if let Some(tv) = scene.get_textview_at_mut_by_name("page") {
+            if let Some(tv) = scene.get_textview_mut("page") {
                 tv.lines = lines;
                 let bounds = tv.bounds();
                 scene.mark_dirty(bounds);
@@ -433,7 +433,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
     if scene.focused.is_none() {
         scene.focused = Some(0);
     }
-    if let Some(menu) = scene.get_menu_by_name("main") {
+    if let Some(menu) = scene.get_menu("main") {
         if menu.visible {
             scene.handle_event(event);
         } else {
@@ -442,7 +442,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                     if evt == b' ' {
                         scene.show_menu("main");
                     } else {
-                        if let Some(tv) = scene.get_textview_at_mut_by_name("page") {
+                        if let Some(tv) = scene.get_textview_mut("page") {
                             tv.handle_input(event);
                             let clip = tv.bounds();
                             scene.mark_dirty(clip);
@@ -512,7 +512,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                         scene.add("game", GameView::new());
                         scene.hide_menu("main");
                         scene.set_focused("game");
-                        if let Some(page) = scene.get_textview_at_mut_by_name("page") {
+                        if let Some(page) = scene.get_textview_mut("page") {
                             page.visible = false;
                         }
                     }
@@ -629,7 +629,7 @@ fn make_gui_scene<'a>() -> Scene {
         ),
         30,
     ));
-    if let Some(tv) = scene.get_textview_at_mut_by_name("page") {
+    if let Some(tv) = scene.get_textview_mut("page") {
         tv.lines = lines
     }
 

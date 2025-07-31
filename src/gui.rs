@@ -235,6 +235,7 @@ impl Scene {
                 }
             }
         }
+        warn!("no view found for the name: {name}");
         false
     }
     pub fn hide_menu(&mut self, name: &str) {
@@ -248,6 +249,7 @@ impl Scene {
                 // self.set_focused(0);
             }
         }
+        warn!("no view found for the name: {name}");
     }
     pub fn show_menu(&mut self, name: &str) {
         if let Some(index) = self.keys.get(name) {
@@ -262,11 +264,10 @@ impl Scene {
                 // self.set_focused(*index);
                 self.mark_dirty(bounds);
             }
-        } else {
-            warn!("Missing menu by name '{}'", name);
         }
+        warn!("no menu found for the name: {name}");
     }
-    pub fn get_menu_by_name(&self, name: &str) -> Option<&MenuView> {
+    pub fn get_menu(&self, name: &str) -> Option<&MenuView> {
         if let Some(index) = self.keys.get(name) {
             self.views[*index as usize]
                 .as_any()
@@ -276,22 +277,13 @@ impl Scene {
             None
         }
     }
-    pub fn get_textview_at(&self, index: i32) -> Option<&TextView> {
-        self.views[index as usize]
-            .as_any()
-            .downcast_ref::<TextView>()
-    }
-    pub fn get_textview_at_mut(&mut self, index: i32) -> Option<&mut TextView> {
-        self.views[index as usize]
-            .as_any_mut()
-            .downcast_mut::<TextView>()
-    }
-    pub fn get_textview_at_mut_by_name(&mut self, name: &str) -> Option<&mut TextView> {
+    pub fn get_textview_mut(&mut self, name: &str) -> Option<&mut TextView> {
         if let Some(index) = self.keys.get(name) {
             self.views[*index as usize]
                 .as_any_mut()
                 .downcast_mut::<TextView>()
         } else {
+            warn!("Missing textview by name '{}'", name);
             None
         }
     }
@@ -303,6 +295,7 @@ impl Scene {
                 }
             }
         }
+        warn!("Missing view by name '{}'", name);
         false
     }
     pub fn is_dirty(&self) -> bool {
@@ -320,6 +313,8 @@ impl Scene {
                 let bounds = view.bounds();
                 self.mark_dirty(bounds);
             }
+        } else {
+            warn!("no focused view found for event '{evt:?}'");
         }
     }
     pub fn set_focused(&mut self, name: &str) {
@@ -328,6 +323,8 @@ impl Scene {
             let view = &mut self.views[*index as usize];
             let bounds = view.bounds();
             self.mark_dirty(bounds);
+        } else {
+            warn!("Missing view by name '{}'", name);
         }
     }
 }
