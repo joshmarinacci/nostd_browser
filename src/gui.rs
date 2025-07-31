@@ -214,38 +214,46 @@ impl Scene {
         if let Some(index) = self.keys.get(name) {
             return self.is_menu_selected(*index, hi);
         }
-        return false;
+        false
     }
-    pub fn hide_menu(&mut self, index: i32) {
-        if let Some(menu) = self.views[index as usize]
-            .as_any_mut()
-            .downcast_mut::<MenuView>()
-        {
-            menu.visible = false;
-            self.dirty = true;
-            self.set_focused(0);
-        }
-    }
-    pub fn hide_menu_by_name(&mut self, name: &str) {
+    pub fn menu_equals(&self, name: &str, value:&str) -> bool {
         if let Some(index) = self.keys.get(name) {
-            self.hide_menu(*index);
+            if let Some(menu) = self.views[*index as usize]
+                .as_any()
+                .downcast_ref::<MenuView>()
+            {
+                let item = &menu.items[menu.highlighted_index as usize];
+                if item == value {
+                    return true;
+                }
+            }
         }
+        false
     }
-    pub fn show_menu(&mut self, index: i32) {
-        if let Some(menu) = self.views[index as usize]
-            .as_any_mut()
-            .downcast_mut::<MenuView>()
-        {
-            let bounds = menu.bounds();
-            menu.visible = true;
-            self.dirty = true;
-            self.set_focused(index);
-            self.mark_dirty(bounds);
-        }
-    }
-    pub fn show_menu_by_name(&mut self, name: &str) {
+    pub fn hide_menu(&mut self, name: &str) {
         if let Some(index) = self.keys.get(name) {
-            self.show_menu(*index);
+            if let Some(menu) = self.views[*index as usize]
+                .as_any_mut()
+                .downcast_mut::<MenuView>()
+            {
+                menu.visible = false;
+                self.dirty = true;
+                self.set_focused(0);
+            }
+        }
+    }
+    pub fn show_menu(&mut self, name: &str) {
+        if let Some(index) = self.keys.get(name) {
+            if let Some(menu) = self.views[*index as usize]
+                .as_any_mut()
+                .downcast_mut::<MenuView>()
+            {
+                let bounds = menu.bounds();
+                menu.visible = true;
+                self.dirty = true;
+                self.set_focused(*index);
+                self.mark_dirty(bounds);
+            }
         } else {
             warn!("Missing menu by name '{}'", name);
         }

@@ -442,7 +442,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
             match event {
                 GuiEvent::KeyEvent(evt) => {
                     if evt == b' ' {
-                        scene.show_menu_by_name("main");
+                        scene.show_menu("main");
                     } else {
                         if let Some(tv) = scene.get_textview_at_mut_by_name("page") {
                             tv.handle_input(event);
@@ -463,46 +463,54 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
         GuiEvent::KeyEvent(key_event) => match key_event {
             13 => {
                 if scene.is_focused_by_name("main") {
-                    if scene.is_menu_selected_by_name("main", 0) {
-                        scene.show_menu_by_name("theme")
+                    if scene.menu_equals("main", "Theme") {
+                        scene.show_menu("theme")
                     }
-                    if scene.is_menu_selected_by_name("main", 1) {
-                        scene.show_menu_by_name("font");
+                    if scene.menu_equals("main", "Font") {
+                        scene.show_menu("font");
                     }
-                    if scene.is_menu_selected_by_name("main", 2) {
-                        scene.show_menu_by_name("wifi");
+                    if scene.menu_equals("main", "Wifi") {
+                        scene.show_menu("wifi");
                     }
-                    if scene.is_menu_selected_by_name("main", 3) {
+                    if scene.menu_equals("main", "Bookmarks") {
                         // show the bookmarks
                     }
-                    if scene.is_menu_selected_by_name("main", 4) {
+                    if scene.menu_equals("main","Info") {
+                        info!("showing the info panel");
+                    }
+                    if scene.menu_equals("main", "Font") {
+                        scene.show_menu("font");
+                    }
+                    if scene.menu_equals("main", "Brick Breaker") {
                         scene.add("game", GameView::new());
-                        scene.hide_menu_by_name("main");
+                        scene.hide_menu("main");
                         scene.set_focused_by_name("game");
                         if let Some(page) = scene.get_textview_at_mut_by_name("page") {
                             page.visible = false;
                         }
                     }
-                    if scene.is_menu_selected_by_name("main", 5) {
+                    if scene.menu_equals("main", "Close") {
                         // close
-                        scene.hide_menu_by_name("main");
+                        scene.hide_menu("main");
                     }
                 }
                 if scene.is_focused_by_name("theme") {
-                    if scene.is_menu_selected_by_name("theme", 2) {
-                        scene.hide_menu_by_name("theme");
+                    // close
+                    if scene.menu_equals("theme", "Close") {
+                        scene.hide_menu("theme");
                         scene.set_focused_by_name("main")
                     }
                 }
                 if scene.is_focused_by_name("font") {
-                    if scene.is_menu_selected_by_name("font", 3) {
-                        scene.hide_menu_by_name("font");
+                    // close
+                    if scene.menu_equals("font", "Close") {
+                        scene.hide_menu("font");
                         scene.set_focused_by_name("main")
                     }
                 }
                 if scene.is_focused_by_name("wifi") {
-                    if scene.is_menu_selected_by_name("wifi", 2) {
-                        scene.hide_menu_by_name("wifi");
+                    if scene.menu_equals("wifi", "Close") {
+                        scene.hide_menu("wifi");
                         scene.set_focused_by_name("main")
                     }
                 }
@@ -539,6 +547,7 @@ fn make_gui_scene<'a>() -> Scene {
                 "Wifi",
                 "Bookmarks",
                 "Brick Breaker",
+                "Info",
                 "close",
             ],
             Point::new(0, 0),
