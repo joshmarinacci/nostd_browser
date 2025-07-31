@@ -429,9 +429,9 @@ async fn update_display(
 }
 
 fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
-    // info!("update view from input {:?}", event);
+    info!("update view from input {:?}", event);
     if scene.focused.is_none() {
-        scene.focused = Some(0);
+        scene.focused = Some("".to_string());
     }
     if let Some(menu) = scene.get_menu("main") {
         if menu.visible {
@@ -532,7 +532,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                     scene.remove("wifi-button");
                 }
                 if scene.is_focused("info-button") {
-                    info!("clicked the button");
+                    info!("clicked the info button");
                     scene.remove("info-panel");
                     scene.remove("info-label1");
                     scene.remove("info-label2");

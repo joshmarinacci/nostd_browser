@@ -188,7 +188,7 @@ impl View for MenuView {
 
 pub struct Scene {
     pub views: Vec<Box<dyn View>>,
-    pub focused: Option<i32>,
+    pub focused: Option<String>,
     pub keys: HashMap<String, i32>,
     dirty: bool,
     pub clip: Rectangle,
@@ -301,17 +301,12 @@ impl Scene {
         }
     }
     pub fn is_focused(&self, name: &str) -> bool {
-        if let Some(f) = self.keys.get(name) {
-            if let Some(f2) = self.focused {
-                return if f2 == *f {
-                    true
-                } else {
-                    false
-                }
+        if let Some(f2) = &self.focused {
+            if f2.eq_ignore_ascii_case(name) {
+                return true;
             }
-        } else {
-            warn!("is_focused: Missing view by name '{}'", name);
         }
+        warn!("is_focused: Missing view by name '{}'", name);
         false
     }
     pub fn is_dirty(&self) -> bool {
@@ -322,26 +317,51 @@ impl Scene {
         self.clip = union(&self.clip, &bounds);
     }
     pub fn handle_event(&mut self, evt: GuiEvent) {
-        if let Some(index) = self.focused {
-            if index < self.views.len() as i32 {
-                let view = &mut self.views[index as usize];
-                view.handle_input(evt);
-                let bounds = view.bounds();
-                self.mark_dirty(bounds);
-            }
+        // info!("=== handle_event: {evt:?}");
+        // info!("focused is {:?}", self.focused);
+        if let Some(view) = self.get_focused_view_as_mut() {
+            view.handle_input(evt);
+            let bounds = view.bounds();
+            self.mark_dirty(bounds);
         } else {
             warn!("no focused view found for event '{evt:?}'");
         }
     }
     pub fn set_focused(&mut self, name: &str) {
-        if let Some(index) = self.keys.get(name) {
-            self.focused = Some(*index);
-            let view = &mut self.views[*index as usize];
+        if let Some(view) = self.get_view(name) {
             let bounds = view.bounds();
             self.mark_dirty(bounds);
-        } else {
-            warn!("Missing view by name '{}'", name);
+            self.focused = Some(name.to_string());
         }
+        warn!("Missing view by name '{}'", name);
+    }
+
+    fn get_view(&self, name: &str) -> Option<&Box<dyn View>> {
+        if let Some(index) = self.keys.get(name) {
+            Some(&self.views[*index as usize])
+        } else {
+            None
+        }
+    }
+    fn get_focused_view(&self) -> Option<&Box<dyn View>> {
+        if let Some(name) = &self.focused {
+            return if let Some(index) = self.keys.get(name) {
+                Some(&self.views[*index as usize])
+            } else {
+                None
+            }
+        }
+        None
+    }
+    fn get_focused_view_as_mut(&mut self) -> Option<&mut (dyn View)> {
+        if let Some(name) = &self.focused {
+            return if let Some(index) = self.keys.get(name) {
+                Some(self.views[*index as usize].as_mut())
+            } else {
+                None
+            }
+        }
+        None
     }
 }
 
