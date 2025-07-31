@@ -409,7 +409,7 @@ async fn update_display(
             Ok(_) => {
                 if data[0] != 0x00 {
                     let evt: GuiEvent = GuiEvent::KeyEvent(data[0]);
-                    update_view_from_input(evt, &mut scene);
+                    update_view_from_input(evt, &mut scene, display);
                 }
             }
             Err(_) => {
@@ -420,7 +420,7 @@ async fn update_display(
         if let Ok((pt, delta)) = TRACKBALL_CHANNEL.try_receive() {
             // info!("got a trackball event {pt} {delta}");
             let evt: GuiEvent = GuiEvent::PointerEvent(pt, delta);
-            update_view_from_input(evt, &mut scene);
+            update_view_from_input(evt, &mut scene, display);
         }
 
         scene.draw(display);
@@ -431,7 +431,7 @@ async fn update_display(
 const MAIN_MENU:&'static str = "main";
 const THEME_MENU:&'static str = "theme";
 
-fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
+fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDisplay) {
     info!("update view from input {:?}", event);
     if scene.focused.is_none() {
         scene.focused = Some("".to_string());
@@ -459,7 +459,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
         }
     }
 
-    // scene.handle_event(event);
+    let PANEL_BOUNDS = Rectangle::new(Point::new(20,20), Size::new(display.bounding_box().size.width-40,display.bounding_box().size.height-40));
     match event {
         GuiEvent::KeyEvent(key_event) => match key_event {
             13 => {
@@ -474,16 +474,12 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                         return;
                     }
                     if scene.menu_equals(MAIN_MENU, "Wifi") {
-                        info!("showing the wifi panel");
-                        let panel = Panel::new(
-                            Rectangle::new(Point::new(25,25), Size::new(200,200))
-                        );
+                        let panel = Panel::new(PANEL_BOUNDS);
                         let label1a = Label::new("SSID", Point::new(60,80));
                         let label1b = Label::new(SSID.unwrap_or("----"), Point::new(150,80));
                         let label2a = Label::new("PASSWORD", Point::new(60,100));
                         let label2b = Label::new(PASSWORD.unwrap_or("----"), Point::new(150,100));
-
-                        let button = Button::new("done", Point::new(80,200));
+                        let button = Button::new("done", Point::new(160-20,200-20));
 
                         scene.add("wifi-panel",panel);
                         scene.add("wifi-label1a",label1a);
@@ -501,12 +497,10 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                     }
                     if scene.menu_equals(MAIN_MENU,"Info") {
                         info!("showing the info panel");
-                        let panel = Panel::new(
-                            Rectangle::new(Point::new(20,20), Size::new(200,200))
-                        );
+                        let panel = Panel::new(PANEL_BOUNDS);
                         let label1 = Label::new("Heap", Point::new(60,80));
                         let label2 = Label::new("bytes", Point::new(100,80));
-                        let button = Button::new("done", Point::new(80,150));
+                        let button = Button::new("done", Point::new(160-20,200-20));
 
                         scene.add("info-panel",panel);
                         scene.add("info-label1",label1);
