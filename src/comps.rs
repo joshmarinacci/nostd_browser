@@ -6,12 +6,13 @@ use embedded_graphics::text::Text;
 use log::info;
 use core::any::Any;
 use alloc::string::{String, ToString};
-use embedded_graphics::pixelcolor::{Rgb565, RgbColor, WebColors};
+use embedded_graphics::pixelcolor::{BinaryColor, Rgb565, RgbColor, WebColors};
 use embedded_graphics::prelude::Primitive;
 use embedded_graphics::Drawable;
 use alloc::vec::Vec;
 use embedded_graphics::mono_font::ascii::FONT_9X15;
 use core::ops::Add;
+use embedded_graphics::primitives::StrokeAlignment::Inside;
 use crate::common::TDeckDisplay;
 use crate::gui::{base_background_color, base_border_color, base_button_background_color, base_font, base_text_color, GuiEvent, View};
 
@@ -158,6 +159,7 @@ pub struct MenuView {
     pub dirty: bool,
 }
 
+const PAD:u32 = 5;
 impl MenuView {
     pub(crate) fn nav_prev(&mut self) {
         self.highlighted_index = (self.highlighted_index + 1) % self.items.len();
@@ -187,11 +189,12 @@ impl MenuView {
     }
     fn size(&self) -> Size {
         let font = FONT_9X15;
-        let line_height = (font.character_size.height + 2) as i32;
-        return Size::new(
-            100 + 2 * 2,
-            (self.items.len() as i32 * line_height + 2 * 2) as u32,
-        );
+        let line_height = (font.character_size.height + 2) as u32;
+        let len = self.items.len() as u32;
+        Size::new(
+            100 + PAD*2,
+            len * line_height + PAD * 2
+        )
     }
 }
 
@@ -213,46 +216,48 @@ impl View for MenuView {
             return;
         }
         let line_height = (base_font.character_size.height + 2) as i32;
-        let pad = 5;
+        let pad = PAD as i32;
 
         let xoff: i32 = 2;
-        let yoff: i32 = 2;
+        let yoff: i32 = 0;
         let menu_size = self.size();
         // menu background
-        let shadow =
-            Rectangle::new(self.position.add(Point::new(10, 10)), menu_size).intersection(clip);
-        shadow
-            .into_styled(PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_GRAY))
+        let shadow_style = PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_GRAY);
+        Rectangle::new(self.position.add(Point::new(5, 5)), menu_size)
+            .intersection(clip)
+            .into_styled(shadow_style)
             .draw(display)
             .unwrap();
-        let background =
-            Rectangle::new(self.position.add(Point::new(5, 5)), menu_size).intersection(clip);
-        background
-            .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
+
+        let panel_style = PrimitiveStyleBuilder::new()
+            .stroke_width(1).stroke_alignment(Inside).stroke_color(base_border_color)
+            .fill_color(base_background_color)
+            .build();
+        Rectangle::new(self.position, menu_size)
+            .intersection(clip)
+            .into_styled(panel_style)
             .draw(display)
             .unwrap();
         for (i, item) in self.items.iter().enumerate() {
-            let bg = if i == self.highlighted_index {
-                Rgb565::BLACK
-            } else {
-                Rgb565::WHITE
+            let line_y = (i as i32) * line_height + pad;
+
+            if i == self.highlighted_index {
+                Rectangle::new(
+                    Point::new(pad, line_y + yoff).add(self.position),
+                    Size::new(100, line_height as u32),
+                )
+                    .intersection(clip)
+                    .into_styled(PrimitiveStyle::with_fill(base_border_color))
+                    .draw(display)
+                    .unwrap();
             };
             let fg = if i == self.highlighted_index {
                 Rgb565::WHITE
             } else {
                 base_text_color
             };
-            let line_y = (i as i32) * line_height + pad;
-            Rectangle::new(
-                Point::new(pad + xoff, line_y + yoff).add(self.position),
-                Size::new(100, line_height as u32),
-            )
-            .intersection(clip)
-            .into_styled(PrimitiveStyle::with_fill(bg))
-            .draw(display)
-            .unwrap();
             let text_style = MonoTextStyle::new(&base_font, fg);
-            let pos = Point::new(pad + xoff, line_y + line_height - 2 + yoff).add(self.position);
+            let pos = Point::new(pad + xoff, line_y + line_height - 3 + yoff ).add(self.position);
             let text_bounds = Text::new(item, pos, text_style).bounding_box();
             if !text_bounds.intersection(clip).is_zero_sized() {
                 Text::new(&item, pos, text_style).draw(display).unwrap();
