@@ -479,6 +479,9 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene) {
                         scene.add("game", GameView::new());
                         scene.hide_menu_by_name("main");
                         scene.set_focused_by_name("game");
+                        if let Some(page) = scene.get_textview_at_mut_by_name("page") {
+                            page.visible = false;
+                        }
                     }
                     if scene.is_menu_selected_by_name("main", 5) {
                         // close
@@ -600,14 +603,14 @@ async fn handle_trackball(
         if tdeck_trackball_right.is_high() != last_right_high {
             // info!("right");
             last_right_high = tdeck_trackball_right.is_high();
-            cursor.x -= 1;
-            TRACKBALL_CHANNEL.send((cursor, Point::new(-1,0))).await;
+            cursor.x += 1;
+            TRACKBALL_CHANNEL.send((cursor, Point::new(1,0))).await;
         }
         if tdeck_trackball_left.is_high() != last_left_high {
             // info!("left");
             last_left_high = tdeck_trackball_left.is_high();
-            cursor.x += 1;
-            TRACKBALL_CHANNEL.send((cursor, Point::new(1,0))).await;
+            cursor.x -= 1;
+            TRACKBALL_CHANNEL.send((cursor, Point::new(-1,0))).await;
         }
         if tdeck_trackball_up.is_high() != last_up_high {
             // info!("up");
