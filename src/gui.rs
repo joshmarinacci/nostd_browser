@@ -18,7 +18,8 @@ use hashbrown::HashMap;
 use log::{info, warn};
 use crate::comps::MenuView;
 
-pub(crate) const base_background_color: Rgb565 = Rgb565::CSS_LIGHT_GRAY;
+pub(crate) const base_background_color: Rgb565 = Rgb565::WHITE;
+pub(crate) const base_border_color: Rgb565 = Rgb565::BLACK;
 pub(crate) const base_font:MonoFont = FONT_9X15;
 pub(crate) const base_text_color: Rgb565 = Rgb565::BLACK;
 pub(crate) const base_button_background_color: Rgb565 = Rgb565::GREEN;

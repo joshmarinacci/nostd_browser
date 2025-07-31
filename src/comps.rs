@@ -1,6 +1,6 @@
-use embedded_graphics::geometry::{Dimensions, Point, Size};
+use embedded_graphics::geometry::{AnchorPoint, Dimensions, Point, Size};
 use alloc::boxed::Box;
-use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
+use embedded_graphics::primitives::{PrimitiveStyle, PrimitiveStyleBuilder, Rectangle, StrokeAlignment};
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::text::Text;
 use log::info;
@@ -13,7 +13,7 @@ use alloc::vec::Vec;
 use embedded_graphics::mono_font::ascii::FONT_9X15;
 use core::ops::Add;
 use crate::common::TDeckDisplay;
-use crate::gui::{base_background_color, base_button_background_color, base_font, base_text_color, GuiEvent, View};
+use crate::gui::{base_background_color, base_border_color, base_button_background_color, base_font, base_text_color, GuiEvent, View};
 
 pub struct Panel {
     pub bounds: Rectangle,
@@ -33,8 +33,13 @@ impl View for Panel {
     }
 
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
+        let style = PrimitiveStyleBuilder::new()
+            .stroke_color(base_border_color)
+            .stroke_width(1)
+            .stroke_alignment(StrokeAlignment::Inside)
+            .fill_color(base_background_color).build();
         self.bounds.intersection(clip)
-            .into_styled(PrimitiveStyle::with_fill(base_background_color))
+            .into_styled(style)
             .draw(display)
             .unwrap();
     }
@@ -119,12 +124,19 @@ impl View for Button {
     fn bounds(&self) -> Rectangle {
         let style = MonoTextStyle::new(&base_font, base_text_color);
         let bounds = Text::new(&self.text, self.position, style).bounding_box();
-        bounds
+        let bigger = bounds.size.add(Size::new(20,20));
+        bounds.resized(bigger,AnchorPoint::Center)
     }
 
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
+        let style = PrimitiveStyleBuilder::new()
+            .stroke_color(base_border_color)
+            .stroke_width(1)
+            .stroke_alignment(StrokeAlignment::Inside)
+            .fill_color(base_background_color).build();
+
         self.bounds().intersection(clip)
-            .into_styled(PrimitiveStyle::with_fill(base_button_background_color))
+            .into_styled(style)
             .draw(display).unwrap();
         let style = MonoTextStyle::new(&base_font, base_text_color);
         let text = Text::new(&self.text, self.position, style);
