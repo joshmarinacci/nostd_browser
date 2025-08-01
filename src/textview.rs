@@ -1,5 +1,5 @@
 use crate::common::TDeckDisplay;
-use crate::gui::{GuiEvent, View};
+use crate::gui::{GuiEvent, Theme, View};
 use alloc::string::{ToString};
 use alloc::vec::Vec;
 use core::any::Any;
@@ -7,8 +7,7 @@ use core::cmp::max;
 use embedded_graphics::geometry::{OriginDimensions, Point};
 use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::MonoTextStyle;
-use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::{Dimensions, Primitive, RgbColor};
+use embedded_graphics::prelude::{Dimensions, Primitive};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
@@ -33,7 +32,7 @@ impl View for TextView {
     fn bounds(&self) -> Rectangle {
         self.bounds.clone()
     }
-    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
+    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
         if !self.visible {
             return;
         }
@@ -45,7 +44,7 @@ impl View for TextView {
 
         self.bounds
             .intersection(clip)
-            .into_styled(PrimitiveStyle::with_fill(Rgb565::WHITE))
+            .into_styled(PrimitiveStyle::with_fill(theme.base_bg))
             .draw(display)
             .unwrap();
 
@@ -65,9 +64,9 @@ impl View for TextView {
             let mut inset_chars: usize = 0;
             let y = j as i32 * (line_height as i32) + 10;
             let style = match line.block_type {
-                BlockType::Paragraph => MonoTextStyle::new(&FONT_9X15, Rgb565::BLACK),
-                BlockType::ListItem => MonoTextStyle::new(&FONT_9X15, Rgb565::RED),
-                BlockType::Header => MonoTextStyle::new(&FONT_9X15_BOLD, Rgb565::BLACK),
+                BlockType::Paragraph => MonoTextStyle::new(&FONT_9X15, theme.base_fg),
+                BlockType::ListItem => MonoTextStyle::new(&FONT_9X15, theme.base_fg),
+                BlockType::Header => MonoTextStyle::new(&FONT_9X15_BOLD, theme.base_fg),
             };
             for (i, run) in line.runs.iter().enumerate() {
                 let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);

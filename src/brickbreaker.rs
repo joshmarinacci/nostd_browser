@@ -1,5 +1,5 @@
 use crate::common::TDeckDisplay;
-use crate::gui::{GuiEvent, View};
+use crate::gui::{GuiEvent, Theme, View};
 use alloc::boxed::Box;
 use core::any::Any;
 use embedded_graphics::Drawable;
@@ -28,7 +28,7 @@ impl GameView {
 }
 
 impl View for GameView {
-    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle) {
+    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
         // info!("drawing the game view");
         let screen = Rectangle::new(Point::new(0,0), Size::new(200, 200));
         screen.into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK)).draw(display).unwrap();

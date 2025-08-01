@@ -1,4 +1,5 @@
 use crate::common::TDeckDisplay;
+use crate::comps::MenuView;
 use crate::textview::TextView;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
@@ -16,19 +17,32 @@ use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
 use hashbrown::HashMap;
 use log::{info, warn};
-use crate::comps::MenuView;
 
-pub(crate) const base_background_color: Rgb565 = Rgb565::WHITE;
-pub(crate) const base_border_color: Rgb565 = Rgb565::BLACK;
-pub(crate) const base_font:MonoFont = FONT_9X15;
-pub(crate) const base_text_color: Rgb565 = Rgb565::BLACK;
-pub(crate) const base_button_background_color: Rgb565 = Rgb565::GREEN;
+pub struct Theme {
+    pub base_bg: Rgb565,
+    pub base_bd: Rgb565,
+    pub base_fg: Rgb565,
+    pub shadow: bool,
+}
+pub const LIGHT_THEME: Theme = Theme {
+    base_bg: Rgb565::WHITE,
+    base_bd: Rgb565::BLACK,
+    base_fg: Rgb565::BLACK,
+    shadow: false,
+};
+pub const DARK_THEME: Theme = Theme {
+    base_bg: Rgb565::BLACK,
+    base_bd: Rgb565::WHITE,
+    base_fg: Rgb565::WHITE,
+    shadow: false,
+};
+pub const base_font: MonoFont = FONT_9X15;
 
 pub trait View {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn bounds(&self) -> Rectangle;
-    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle);
+    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme);
     fn handle_input(&mut self, event: GuiEvent);
 }
 impl Debug for Box<dyn View> {
@@ -59,6 +73,14 @@ pub struct Scene {
     pub keys: HashMap<String, Box<dyn View>>,
     dirty: bool,
     pub clip: Rectangle,
+    pub theme: Theme,
+}
+
+impl Scene {
+    pub fn set_theme(&mut self, theme: Theme) {
+        self.theme = theme;
+        self.mark_dirty(Rectangle::new(Point::new(0,0), Size::new(320,240)))
+    }
 }
 
 impl Scene {
@@ -79,12 +101,12 @@ impl Scene {
             focused: None,
             keys: HashMap::new(),
             clip: Rectangle::zero(),
+            theme: LIGHT_THEME,
         }
     }
     pub fn add(&mut self, name: &str, view: Box<dyn View>) {
         let bounds = view.bounds();
-        self.keys
-            .insert(name.to_string(), view);
+        self.keys.insert(name.to_string(), view);
         self.draw_order.push(name.to_string());
         self.mark_dirty(bounds);
     }
@@ -141,14 +163,10 @@ impl Scene {
         }
     }
 
-    pub fn menu_equals(&self, name: &str, value:&str) -> bool {
+    pub fn menu_equals(&self, name: &str, value: &str) -> bool {
         if let Some(menu) = self.get_menu(name) {
             let item = &menu.items[menu.highlighted_index];
-            return if item == value {
-                true
-            } else {
-                false
-            }
+            return if item == value { true } else { false };
         }
         warn!("menu_equals: no view found for the name: {name}");
         false
@@ -241,7 +259,7 @@ impl Scene {
         }
         for name in &self.draw_order {
             if let Some(view) = self.keys.get_mut(name) {
-                view.draw(display, &self.clip);
+                view.draw(display, &self.clip, &self.theme);
             }
         }
         self.dirty = false;
@@ -268,4 +286,3 @@ pub enum GuiEvent {
     KeyEvent(u8),
     PointerEvent(Point, Point),
 }
-

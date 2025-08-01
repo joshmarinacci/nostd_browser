@@ -45,7 +45,7 @@ use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder};
 use nostd_browser::brickbreaker::GameView;
 use nostd_browser::common::TDeckDisplay;
-use nostd_browser::gui::{GuiEvent, Scene, View};
+use nostd_browser::gui::{GuiEvent, Scene, View, DARK_THEME, LIGHT_THEME};
 use nostd_browser::textview::TextView;
 use nostd_html_parser::blocks::{Block, BlockParser, BlockType};
 use nostd_html_parser::lines::{break_lines, TextLine};
@@ -559,6 +559,14 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDis
                     return;
                 }
                 if scene.is_focused("theme") {
+                    if scene.menu_equals(THEME_MENU, "Dark") {
+                        scene.set_theme(DARK_THEME);
+                        return;
+                    }
+                    if scene.menu_equals(THEME_MENU, "Light") {
+                        scene.set_theme(LIGHT_THEME);
+                        return;
+                    }
                     if scene.menu_equals(THEME_MENU, "close") {
                         scene.hide_menu(THEME_MENU);
                         scene.set_focused(MAIN_MENU);
