@@ -31,6 +31,7 @@ use esp_hal::spi::master::{Config as SpiConfig, Spi};
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::Blocking;
+use esp_hal::spi::Mode;
 use esp_wifi::wifi::ScanTypeConfig::Active;
 use esp_wifi::wifi::{
     ClientConfiguration, Configuration, ScanConfig, WifiController, WifiDevice, WifiEvent,
@@ -134,7 +135,9 @@ async fn main(spawner: Spawner) {
         info!("creating spi device");
         let spi = Spi::new(
             peripherals.SPI2,
-            SpiConfig::default().with_frequency(Rate::from_mhz(80)), // .with_mode(Mode::_0)
+            SpiConfig::default()
+                .with_mode(Mode::_3)
+                .with_frequency(Rate::from_mhz(80)), // .with_mode(Mode::_0)
         )
         .unwrap()
         .with_sck(tft_sck)
