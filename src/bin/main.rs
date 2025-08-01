@@ -134,7 +134,7 @@ async fn main(spawner: Spawner) {
         info!("creating spi device");
         let spi = Spi::new(
             peripherals.SPI2,
-            SpiConfig::default().with_frequency(Rate::from_mhz(40)), // .with_mode(Mode::_0)
+            SpiConfig::default().with_frequency(Rate::from_mhz(80)), // .with_mode(Mode::_0)
         )
         .unwrap()
         .with_sck(tft_sck)
@@ -424,7 +424,7 @@ async fn update_display(
         }
 
         scene.draw(display);
-        Timer::after(Duration::from_millis(10)).await;
+        Timer::after(Duration::from_millis(1)).await;
     }
 }
 
