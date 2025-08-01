@@ -8,7 +8,7 @@
 extern crate alloc;
 use alloc::boxed::Box;
 use alloc::string::ToString;
-use alloc::vec;
+use alloc::{format, vec};
 use alloc::vec::Vec;
 use embassy_executor::Spawner;
 use embassy_net::dns::DnsSocket;
@@ -498,13 +498,15 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDis
                     if scene.menu_equals(MAIN_MENU,"Info") {
                         info!("showing the info panel");
                         let panel = Panel::new(PANEL_BOUNDS);
-                        let label1 = Label::new("Heap", Point::new(60,80));
-                        let label2 = Label::new("bytes", Point::new(100,80));
-                        let button = Button::new("done", Point::new(160-20,200-20));
-
                         scene.add("info-panel",panel);
-                        scene.add("info-label1",label1);
-                        scene.add("info-label2",label2);
+
+                        scene.add("info-label1",Label::new("Heap",           Point::new(120,50)));
+                        scene.add("info-label2a",Label::new("Free memory",   Point::new(60,80)));
+                        scene.add("info-label2b",Label::new(&format!("{:?}",esp_alloc::HEAP.free()), Point::new(170,80)));
+                        scene.add("info-label3a",Label::new("Used memory", Point::new(60,100)));
+                        scene.add("info-label3b",Label::new(&format!("{:?}",esp_alloc::HEAP.free()), Point::new(170,100)));
+
+                        let button = Button::new("done", Point::new(160-20,200-20));
                         scene.add("info-button",button);
                         scene.hide_menu(MAIN_MENU);
                         scene.set_focused("info-button");
@@ -543,7 +545,10 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDis
                     info!("clicked the info button");
                     scene.remove("info-panel");
                     scene.remove("info-label1");
-                    scene.remove("info-label2");
+                    scene.remove("info-label2a");
+                    scene.remove("info-label2b");
+                    scene.remove("info-label3a");
+                    scene.remove("info-label3b");
                     scene.remove("info-button");
                     return;
                 }
