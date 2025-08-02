@@ -18,6 +18,7 @@ use crate::gui::{base_font, GuiEvent, Theme, View};
 
 pub struct Panel {
     pub bounds: Rectangle,
+    visible: bool,
 }
 
 impl View for Panel {
@@ -47,12 +48,21 @@ impl View for Panel {
 
     fn handle_input(&mut self, event: GuiEvent) {
     }
+
+    fn visible(&self) -> bool {
+        self.visible
+    }
+
+    fn set_visible(&mut self, visible: bool) {
+        self.visible = visible;
+    }
 }
 
 impl Panel {
     pub fn new(bounds: Rectangle) -> Box<dyn View> {
         Box::new(Panel {
             bounds,
+            visible: true,
         })
     }
 }
@@ -60,6 +70,7 @@ impl Panel {
 pub struct Label {
     text:String,
     position:Point,
+    visible: bool,
 }
 
 impl View for Label {
@@ -69,6 +80,14 @@ impl View for Label {
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn visible(&self) -> bool {
+        self.visible
+    }
+
+    fn set_visible(&mut self, visible: bool) {
+        self.visible = visible;
     }
 
     fn bounds(&self) -> Rectangle {
@@ -95,6 +114,7 @@ impl Label {
         Box::new(Label {
             text:text.to_string(),
             position: p1,
+            visible: true,
         })
     }
 }
@@ -102,6 +122,7 @@ impl Label {
 pub struct Button {
     text:String,
     position:Point,
+    visible: bool,
 }
 
 impl Button {
@@ -109,6 +130,7 @@ impl Button {
         Box::new(Button {
             text: text.to_string(),
             position,
+            visible: true,
         })
     }
 }
@@ -122,6 +144,13 @@ impl View for Button {
         self
     }
 
+    fn visible(&self) -> bool {
+        self.visible
+    }
+
+    fn set_visible(&mut self, visible: bool) {
+        self.visible = visible;
+    }
     fn bounds(&self) -> Rectangle {
         let style = MonoTextStyle::new(&base_font, Rgb565::BLACK);
         let bounds = Text::new(&self.text, self.position, style).bounding_box();
@@ -204,6 +233,14 @@ impl View for MenuView {
     }
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn visible(&self) -> bool {
+        self.visible
+    }
+
+    fn set_visible(&mut self, visible: bool) {
+        self.visible = visible;
     }
     fn bounds(&self) -> Rectangle {
         Rectangle {

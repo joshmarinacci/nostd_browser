@@ -107,4 +107,12 @@ impl View for GameView {
     fn bounds(&self) -> Rectangle {
         self.bounds.clone()
     }
+
+    fn visible(&self) -> bool {
+        self.visible
+    }
+
+    fn set_visible(&mut self, visible: bool) {
+        self.visible = visible;
+    }
 }

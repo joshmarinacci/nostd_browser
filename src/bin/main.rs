@@ -448,7 +448,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDis
                     if evt == b' ' {
                         scene.show_menu(MAIN_MENU);
                     } else {
-                        if let Some(tv) = scene.get_textview_mut("page") {
+                        if let Some(tv) = scene.get_view_mut("page") {
                             tv.handle_input(event);
                             let clip = tv.bounds();
                             scene.mark_dirty(clip);
@@ -490,7 +490,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDis
                         scene.add("wifi-label2a",label2a);
                         scene.add("wifi-label2b",label2b);
                         scene.add("wifi-button",button);
-                        scene.hide_menu(MAIN_MENU);
+                        scene.hide(MAIN_MENU);
                         scene.set_focused("wifi-button");
                         return;
                     }
@@ -515,7 +515,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDis
 
                         let button = Button::new("done", Point::new(160-20,200-20));
                         scene.add("info-button",button);
-                        scene.hide_menu(MAIN_MENU);
+                        scene.hide(MAIN_MENU);
                         scene.set_focused("info-button");
                         return;
                     }
@@ -525,15 +525,14 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDis
                     }
                     if scene.menu_equals(MAIN_MENU, "Bricks") {
                         scene.add("game", GameView::new());
-                        scene.hide_menu(MAIN_MENU);
+                        scene.hide(MAIN_MENU);
                         scene.set_focused("game");
-                        if let Some(page) = scene.get_textview_mut("page") {
-                            page.visible = false;
-                        }
+                        scene.set_auto_redraw(true);
+                        scene.hide("page");
                         return;
                     }
                     if scene.menu_equals(MAIN_MENU, "close") {
-                        scene.hide_menu(MAIN_MENU);
+                        scene.hide(MAIN_MENU);
                         return;
                     }
                     return;
@@ -571,7 +570,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDis
                         return;
                     }
                     if scene.menu_equals(THEME_MENU, "close") {
-                        scene.hide_menu(THEME_MENU);
+                        scene.hide(THEME_MENU);
                         scene.set_focused(MAIN_MENU);
                         return;
                     }
@@ -579,14 +578,14 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDis
                 if scene.is_focused("font") {
                     // close
                     if scene.menu_equals("font", "close") {
-                        scene.hide_menu("font");
+                        scene.hide("font");
                         scene.set_focused(MAIN_MENU);
                         return;
                     }
                 }
                 if scene.is_focused("wifi") {
                     if scene.menu_equals("wifi", "close") {
-                        scene.hide_menu("wifi");
+                        scene.hide("wifi");
                         scene.set_focused(MAIN_MENU);
                         return;
                     }

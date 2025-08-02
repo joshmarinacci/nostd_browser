@@ -44,6 +44,8 @@ pub trait View {
     fn bounds(&self) -> Rectangle;
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme);
     fn handle_input(&mut self, event: GuiEvent);
+    fn visible(&self) -> bool;
+    fn set_visible(&mut self, visible: bool);
 }
 impl Debug for Box<dyn View> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
@@ -74,12 +76,17 @@ pub struct Scene {
     dirty: bool,
     pub clip: Rectangle,
     pub theme: Theme,
+    pub auto_redraw: bool,
 }
 
 impl Scene {
     pub fn set_theme(&mut self, theme: Theme) {
         self.theme = theme;
         self.mark_dirty(Rectangle::new(Point::new(0,0), Size::new(320,240)))
+    }
+    pub fn set_auto_redraw(&mut self, auto_redraw: bool) {
+        self.auto_redraw = auto_redraw;
+        self.mark_dirty(Rectangle::new(Point::new(0,0),Size::new(320,240)))
     }
 }
 
@@ -102,6 +109,7 @@ impl Scene {
             keys: HashMap::new(),
             clip: Rectangle::zero(),
             theme: LIGHT_THEME,
+            auto_redraw: false,
         }
     }
     pub fn add(&mut self, name: &str, view: Box<dyn View>) {
@@ -171,9 +179,9 @@ impl Scene {
         warn!("menu_equals: no view found for the name: {name}");
         false
     }
-    pub fn hide_menu(&mut self, name: &str) {
-        if let Some(menu) = self.get_menu_mut(name) {
-            menu.visible = false;
+    pub fn hide(&mut self, name: &str) {
+        if let Some(menu) = self.get_view_mut(name) {
+            menu.set_visible(false);
             let bounds = menu.bounds();
             self.mark_dirty(bounds);
         } else {
@@ -181,9 +189,9 @@ impl Scene {
         }
     }
     pub fn show_menu(&mut self, name: &str) {
-        if let Some(menu) = self.get_menu_mut(name) {
+        if let Some(menu) = self.get_view_mut(name) {
             let bounds = menu.bounds();
-            menu.visible = true;
+            menu.set_visible(true);
             self.set_focused(name);
             self.mark_dirty(bounds);
         } else {
@@ -211,9 +219,6 @@ impl Scene {
         warn!("is_focused: Missing view by name '{}'", name);
         false
     }
-    pub fn is_dirty(&self) -> bool {
-        self.dirty
-    }
     pub fn mark_dirty(&mut self, bounds: Rectangle) {
         self.dirty = true;
         self.clip = union(&self.clip, &bounds);
@@ -237,7 +242,6 @@ impl Scene {
         }
         warn!("Missing view by name '{}'", name);
     }
-
     pub fn get_focused_view(&self) -> Option<&Box<dyn View>> {
         if let Some(name) = &self.focused {
             return self.get_view(name);
@@ -254,7 +258,7 @@ impl Scene {
 
 impl Scene {
     pub fn draw(&mut self, display: &mut TDeckDisplay) {
-        if !self.is_dirty() {
+        if !self.dirty {
             return;
         }
         for name in &self.draw_order {
@@ -262,8 +266,13 @@ impl Scene {
                 view.draw(display, &self.clip, &self.theme);
             }
         }
-        self.dirty = false;
-        self.clip = Rectangle::zero();
+        if self.auto_redraw {
+            self.dirty = true;
+            self.clip = Rectangle::new(Point::new(0,0),Size::new(display.bounding_box().size.width, display.bounding_box().size.height));
+        } else {
+            self.dirty = false;
+            self.clip = Rectangle::zero();
+        }
     }
 }
 
