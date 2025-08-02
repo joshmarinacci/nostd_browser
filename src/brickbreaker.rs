@@ -31,7 +31,7 @@ impl GameView {
             visible: true,
             count: 0,
             ball_bounds: Rectangle::new(Point::new(58, 90), Size::new(20, 20)),
-            ball_velocity: Point::new(3,2),
+            ball_velocity: Point::new(2,1),
         })
     }
 }
@@ -39,7 +39,7 @@ impl GameView {
 impl View for GameView {
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
         self.count = self.count + 1;
-        if self.count % 10 == 0 {
+        if self.count < 10 {
             let screen = Rectangle::new(Point::new(0,0), Size::new(320, 240));
             screen.into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK)).draw(display).unwrap();
         }

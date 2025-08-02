@@ -427,7 +427,7 @@ async fn update_display(
         }
 
         scene.draw(display);
-        Timer::after(Duration::from_millis(1)).await;
+        Timer::after(Duration::from_millis(20)).await;
     }
 }
 
@@ -435,7 +435,7 @@ const MAIN_MENU:&'static str = "main";
 const THEME_MENU:&'static str = "theme";
 
 fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDisplay) {
-    info!("update view from input {:?}", event);
+    // info!("update view from input {:?}", event);
     if scene.focused.is_none() {
         scene.focused = Some("".to_string());
     }
@@ -625,7 +625,7 @@ fn make_gui_scene<'a>() -> Scene {
             Point::new(0, 0),
         ),
     );
-    scene.add(THEME_MENU, MenuView::start_hidden(vec!["Dark", "Light", "close"], Point::new(20, 20)));
+    scene.add(THEME_MENU, MenuView::start_hidden(vec!["Light","Dark", "close"], Point::new(20, 20)));
     scene.add(
         "font",
         MenuView::start_hidden(
