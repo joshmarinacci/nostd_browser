@@ -6,15 +6,14 @@ use core::ops::Add;
 use embedded_graphics::Drawable;
 use embedded_graphics::geometry::{Point, Size};
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::{Primitive, RgbColor};
+use embedded_graphics::prelude::{Primitive, RgbColor, Transform};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle, StyledDrawable};
 use log::info;
 
 pub struct GameView {
     pub bounds: Rectangle,
-    pub paddle_pos: Point,
-    pub old_paddle_pos: Point,
-    pub paddle_size: i32,
+    pub paddle: Rectangle,
+    pub old_paddle: Rectangle,
     pub visible: bool,
     pub count: i32,
     pub ball_bounds: Rectangle,
@@ -25,12 +24,11 @@ impl GameView {
     pub fn new() -> Box<Self> {
         Box::new(GameView {
             bounds: Rectangle::new(Point::new(0, 0), Size::new(200, 200)),
-            paddle_pos: Point::new(100,100),
-            old_paddle_pos: Point::new(100,0),
-            paddle_size: 30,
+            paddle: Rectangle::new(Point::new(100, 100), Size::new(50, 10)),
+            old_paddle: Rectangle::new(Point::new(100, 100), Size::new(50, 10)),
             visible: true,
             count: 0,
-            ball_bounds: Rectangle::new(Point::new(58, 90), Size::new(20, 20)),
+            ball_bounds: Rectangle::new(Point::new(58, 90), Size::new(10, 10)),
             ball_velocity: Point::new(2,1),
         })
     }
@@ -39,14 +37,12 @@ impl GameView {
 impl View for GameView {
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
         self.count = self.count + 1;
-        if self.count < 10 {
-            let screen = Rectangle::new(Point::new(0,0), Size::new(320, 240));
-            screen.into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK)).draw(display).unwrap();
-        }
 
         let old_ball_bounds = self.ball_bounds;
-        self.ball_bounds = Rectangle::new(old_ball_bounds.top_left + self.ball_velocity, old_ball_bounds.size);
+        // self.ball_bounds = Rectangle::new(old_ball_bounds.top_left + self.ball_velocity, old_ball_bounds.size);
+        self.ball_bounds = self.ball_bounds.translate(self.ball_velocity);
 
+        // if off right edge
         if self.ball_bounds.top_left.y >= 240-20 {
             self.ball_velocity = Point::new(self.ball_velocity.x, -self.ball_velocity.y);
         }
@@ -60,36 +56,38 @@ impl View for GameView {
             self.ball_velocity = Point::new(-self.ball_velocity.x, self.ball_velocity.y);
         }
 
+        let inter = self.ball_bounds.intersection(&self.paddle);
+        if !inter.is_zero_sized() {
+            self.ball_velocity = Point::new(self.ball_velocity.x, -self.ball_velocity.y);
+        }
 
+        // draw background
+        if self.count < 10 {
+            let screen = Rectangle::new(Point::new(0,0), Size::new(320, 240));
+            screen.into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK)).draw(display).unwrap();
+        }
+
+        // draw the ball
         old_ball_bounds.into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK)).draw(display).unwrap();
         self.ball_bounds.into_styled(PrimitiveStyle::with_fill(Rgb565::MAGENTA)).draw(display).unwrap();
 
-        // info!("drawing the game view");
-        let old = Rectangle::with_center(self.old_paddle_pos, Size::new(self.paddle_size as u32, 20));
-        old.into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK)).draw(display).unwrap();
-
-        let rect = Rectangle::with_center(self.paddle_pos, Size::new(self.paddle_size as u32, 20));
-        rect.into_styled(PrimitiveStyle::with_fill(Rgb565::RED)).draw(display).unwrap();
+        // draw the paddle
+        self.old_paddle.into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK)).draw(display).unwrap();
+        self.paddle.into_styled(PrimitiveStyle::with_fill(Rgb565::RED)).draw(display).unwrap();
     }
 
     fn handle_input(&mut self, event: GuiEvent) {
-        // info!("received event: {:?}", event);
         match event {
             GuiEvent::PointerEvent(pt,delta) => {
-                // info!("GAME: pointer event {pt} {delta}");
-                self.old_paddle_pos.x = self.paddle_pos.x;
-                self.old_paddle_pos.y = self.paddle_pos.y;
-                let mut nx = self.paddle_pos.x + delta.x * 20;
-                if nx < self.paddle_size as i32 {
-                    nx = self.paddle_size
+                self.old_paddle = self.paddle;
+                self.paddle = self.paddle.translate(Point::new(delta.x*20, 0));
+                if self.paddle.top_left.x < 0 {
+                    self.paddle.top_left.x = 0;
                 }
-                if nx > 320-self.paddle_size as i32 {
-                    nx = 320-self.paddle_size
+                if self.paddle.top_left.x + (self.paddle.size.width as i32) > 320 {
+                    self.paddle.top_left.x = 320 - self.paddle.size.width as i32;
                 }
-                self.paddle_pos.x = nx;
-                self.paddle_pos.y = 200;
-                // self.paddle_pos.x = self.paddle_pos.x.max(self.paddle_size);
-                // self.paddle_pos.x = self.paddle_pos.x.min(200-self.paddle_size);
+                self.paddle.top_left.y = 200;
             }
             GuiEvent::KeyEvent(key) => {
                 info!("GAME: key event: {:?}", key);
