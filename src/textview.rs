@@ -68,7 +68,7 @@ impl TextView {
     }
     pub fn next_link(&mut self) {
         self.page.selection += 1;
-        if self.page.selection > self.link_count {
+        if self.page.selection >= self.link_count {
             self.page.selection = 0;
         }
     }

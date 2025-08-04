@@ -83,7 +83,7 @@ pub const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
 
 static I2C: StaticCell<I2c<Blocking>> = StaticCell::new();
 
-static PAGE_BYTES: &[u8] = include_bytes!("../../../nostd_html_parser/tests/apps.josh.earth.html");
+static PAGE_BYTES: &[u8] = include_bytes!("homepage.html");
 
 static CHANNEL: Channel<CriticalSectionRawMutex, Page, 2> = Channel::new();
 static TRACKBALL_CHANNEL: Channel<CriticalSectionRawMutex, (Point, Point), 2> = Channel::new();
