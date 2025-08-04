@@ -53,6 +53,7 @@ use nostd_html_parser::lines::{break_lines, TextLine};
 use nostd_html_parser::tags::TagParser;
 use static_cell::StaticCell;
 use nostd_browser::comps::{Button, Label, MenuView, Panel};
+use nostd_browser::page::Page;
 
 #[panic_handler]
 fn panic(_: &core::panic::PanicInfo) -> ! {
@@ -82,7 +83,9 @@ pub const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
 
 static I2C: StaticCell<I2c<Blocking>> = StaticCell::new();
 
-static CHANNEL: Channel<CriticalSectionRawMutex, Vec<Block>, 2> = Channel::new();
+static PAGE_BYTES: &[u8] = include_bytes!("../../../nostd_html_parser/tests/apps.josh.earth.html");
+
+static CHANNEL: Channel<CriticalSectionRawMutex, Page, 2> = Channel::new();
 static TRACKBALL_CHANNEL: Channel<CriticalSectionRawMutex, (Point, Point), 2> = Channel::new();
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
@@ -274,8 +277,25 @@ async fn main(spawner: Spawner) {
             let tags = TagParser::new(res);
             let block_parser = BlockParser::new(tags);
             let blocks = block_parser.collect();
-            CHANNEL.sender().send(blocks).await;
+            let page = Page {
+                url: "some url".to_string(),
+                links: vec![],
+                selection: 0,
+                blocks:blocks,
+            };
+            CHANNEL.sender().send(page).await;
         }
+    } else {
+        let tags = TagParser::new(PAGE_BYTES);
+        let block_parser = BlockParser::new(tags);
+        let blocks = block_parser.collect();
+        let page = Page {
+            url: "some url".to_string(),
+            links: vec![],
+            selection: 0,
+            blocks:blocks,
+        };
+        CHANNEL.sender().send(page).await;
     }
 }
 async fn wait_for_connection(stack: Stack<'_>) {
@@ -391,16 +411,9 @@ async fn update_display(
         let char_width = font.character_size.width as i32;
         let columns = ((display_width as i32) / char_width) as u32;
         // info!("width is {} char width = {} columns is {}", display_width, char_width, columns);
-        if let Ok(blocks) = CHANNEL.try_receive() {
-            info!("got new page blocks");
-            let mut lines: Vec<TextLine> = vec![];
-            for block in blocks {
-                let mut txt = break_lines(&block, columns);
-                lines.append(&mut txt);
-            }
-
+        if let Ok(page) = CHANNEL.try_receive() {
             if let Some(tv) = scene.get_textview_mut("page") {
-                tv.lines = lines;
+                tv.load_page(page, columns);
                 let bounds = tv.bounds();
                 scene.mark_dirty(bounds);
             }
@@ -605,13 +618,19 @@ fn make_gui_scene<'a>() -> Scene {
         visible: true,
         lines: vec![],
         scroll_index: 0,
+        link_count: 0,
+        page: Page {
+            selection:0,
+            blocks: vec![],
+            links: vec![],
+            url: "".to_string(),
+        },
         bounds: Rectangle {
             top_left: Point::new(0, 0),
             size: Size::new(320, 240),
         },
     };
     scene.add("page",Box::new(textview));
-
     scene.add(MAIN_MENU, MenuView::start_hidden(
             vec![
                 "Theme",
@@ -638,24 +657,22 @@ fn make_gui_scene<'a>() -> Scene {
         MenuView::start_hidden(vec!["status", "scan", "close"], Point::new(20, 20)),
     );
 
-    let mut lines: Vec<TextLine> = vec![];
-    lines.append(&mut break_lines(
-        &Block::new_of_type(BlockType::Header, "Header Text"),
-        30,
-    ));
-    lines.append(&mut break_lines(
-        &Block::new_of_type(BlockType::ListItem, "list item"),
-        30,
-    ));
-    lines.append(&mut break_lines(
-        &Block::new_of_type(
+
+    if let Some(tv) = scene.get_textview_mut("page") {
+        let mut blocks = vec![];
+        blocks.push(Block::new_of_type(BlockType::Header, "Header Text"));
+        blocks.push(Block::new_of_type(BlockType::ListItem, "list item"));
+        blocks.push(Block::new_of_type(
             BlockType::Paragraph,
             "This is some long body text that needs to be broken into multiple lines",
-        ),
-        30,
-    ));
-    if let Some(tv) = scene.get_textview_mut("page") {
-        tv.lines = lines
+        ));
+        let page = Page {
+            selection:0,
+            blocks: blocks,
+            links: vec![],
+            url: "".to_string(),
+        };
+        tv.load_page(page, 30);
     }
 
     scene

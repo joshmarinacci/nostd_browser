@@ -1,26 +1,103 @@
 use crate::common::TDeckDisplay;
 use crate::gui::{GuiEvent, Theme, View};
 use alloc::string::{ToString};
+use alloc::vec;
 use alloc::vec::Vec;
 use core::any::Any;
 use core::cmp::max;
 use embedded_graphics::geometry::{OriginDimensions, Point};
 use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
-use embedded_graphics::mono_font::MonoTextStyle;
-use embedded_graphics::prelude::{Dimensions, Primitive};
+use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
+use embedded_graphics::prelude::{Dimensions, Primitive, RgbColor};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
+use embedded_graphics::pixelcolor::Rgb565;
 use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
-use nostd_html_parser::lines::TextLine;
+use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
+use crate::page::Page;
 
 pub struct TextView {
     pub dirty: bool,
     pub lines: Vec<TextLine>,
+    pub link_count: i32,
     pub visible: bool,
     pub scroll_index: i32,
     pub bounds: Rectangle,
+    pub page: Page
+}
+
+impl TextView {
+}
+
+impl TextView {
+    pub fn load_page(&mut self, page: Page, columns: u32) {
+        let mut lines: Vec<TextLine> = vec![];
+        let mut link_count = 0;
+        for block in &page.blocks {
+            let mut some_lines = break_lines(&block, columns);
+            for line in &some_lines {
+                for run in &line.runs {
+                    // info!("Run: {:?}", run);
+                    match &run.style {
+                        RunStyle::Link(href) => {
+                            info!("found a link: {:?}", href);
+                            link_count += 1;
+                        }
+                        _ => {
+
+                        }
+                    }
+                }
+            }
+            lines.append(&mut some_lines);
+        }
+        self.link_count = link_count;
+        self.lines = lines;
+        self.page = page;
+    }
+}
+
+impl TextView {
+    pub fn prev_link(&mut self) {
+        self.page.selection -= 1;
+        if self.page.selection < 0 {
+            self.page.selection = self.link_count-1;
+        }
+    }
+    pub fn next_link(&mut self) {
+        self.page.selection += 1;
+        if self.page.selection > self.link_count {
+            self.page.selection = 0;
+        }
+    }
+    pub fn find_href_by_index(&self, index: i32) -> Option<&str> {
+        // info!("find_href_by_index: {}", index);
+        // // blocks of spans -> text lines of text runs
+        let mut count = 0;
+        for line in &self.lines {
+            for run in &line.runs {
+                match &run.style {
+                    RunStyle::Link(href) => {
+                        // info!("link is {}", href);
+                        if count == index {
+                            info!("found the right link");
+                            return Some(&href);
+                        }
+                        count += 1;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        None
+    }
+    pub(crate) fn nav_current_link(&self) {
+        if let Some(href) = self.find_href_by_index(self.page.selection) {
+            info!("loading the href {}", href);
+        }
+    }
 }
 impl View for TextView {
     fn as_any(&self) -> &dyn Any {
@@ -59,6 +136,7 @@ impl View for TextView {
         let x_inset = 5;
         let y_inset = 5;
 
+        let mut link_count = -1;
         // draw the lines
         for (j, line) in viewport_lines.iter().enumerate() {
             let mut inset_chars: usize = 0;
@@ -70,7 +148,25 @@ impl View for TextView {
             };
             for (i, run) in line.runs.iter().enumerate() {
                 let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
-                let text = Text::new(&run.text, pos, style);
+                let text_style = match &run.style {
+                    RunStyle::Link(href) => {
+                        // info!("found a link: {:?}", href);
+                        link_count += 1;
+                        let builder = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::BLUE).underline();
+                        if self.page.selection == link_count {
+                            builder.background_color(Rgb565::RED).build()
+                        } else {
+                            builder.build()
+                        }
+                    }
+                    RunStyle::Plain => {
+                        style
+                    },
+                    RunStyle::Bold => {
+                        style
+                    }
+                };
+                let text = Text::new(&run.text, pos, text_style);
                 if !text.bounding_box().intersection(clip).is_zero_sized() {
                     text.draw(display).unwrap();
                 }
@@ -84,6 +180,9 @@ impl View for TextView {
                 match key {
                     b'j' => self.scroll_index = (self.scroll_index + 1) % (self.lines.len() as i32),
                     b'k' => self.scroll_index = max(self.scroll_index - 1, 0),
+                    b'a' => self.prev_link(),
+                    b's' => self.next_link(),
+                    13 => self.nav_current_link(),
                     _ => {
                         warn!("Unhandled key {:?}", key);
                     }
