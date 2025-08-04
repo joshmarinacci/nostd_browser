@@ -206,6 +206,7 @@ async fn main(spawner: Spawner) {
             ))
             .ok();
     }
+    info!("AUTO_CONNECT is {:?}", AUTO_CONNECT);
     if AUTO_CONNECT.is_some() {
         let mut rng = Rng::new(peripherals.RNG);
         let timer_g0 = TimerGroup::new(peripherals.TIMG0);
@@ -261,41 +262,23 @@ async fn main(spawner: Spawner) {
             // let mut client = HttpClient::new(&tcp, &dns);
             let mut buffer = [0u8; 4096 * 5];
             info!("making the actual request");
+            let url = "https://joshondesign.com/2023/07/12/css_text_style_builder";
             let mut http_req = client
                 .request(
                     reqwless::request::Method::GET,
-                    "https://joshondesign.com/2023/07/12/css_text_style_builder",
+                    url,
                     // "https://jsonplaceholder.typicode.com/posts/1",
                     // "https://apps.josh.earth/",
                 )
                 .await
                 .unwrap();
             let response = http_req.send(&mut buffer).await.unwrap();
-
             info!("Got response");
             let res = response.body().read_to_end().await.unwrap();
-            let tags = TagParser::new(res);
-            let block_parser = BlockParser::new(tags);
-            let blocks = block_parser.collect();
-            let page = Page {
-                url: "some url".to_string(),
-                links: vec![],
-                selection: 0,
-                blocks:blocks,
-            };
-            CHANNEL.sender().send(page).await;
+            CHANNEL.sender().send(Page::from_bytes(res,url)).await;
         }
     } else {
-        let tags = TagParser::new(PAGE_BYTES);
-        let block_parser = BlockParser::new(tags);
-        let blocks = block_parser.collect();
-        let page = Page {
-            url: "some url".to_string(),
-            links: vec![],
-            selection: 0,
-            blocks:blocks,
-        };
-        CHANNEL.sender().send(page).await;
+        CHANNEL.sender().send(Page::from_bytes(PAGE_BYTES, "homepage.html")).await;
     }
 }
 async fn wait_for_connection(stack: Stack<'_>) {
