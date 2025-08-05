@@ -27,10 +27,10 @@ use esp_hal::gpio::{Input, InputConfig, Output, OutputConfig, Pull};
 use esp_hal::i2c::master::{BusTimeout, Config, I2c};
 use esp_hal::rng::Rng;
 use esp_hal::spi::master::{Config as SpiConfig, Spi};
+use esp_hal::spi::Mode;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::Blocking;
-use esp_hal::spi::Mode;
 use esp_wifi::wifi::ScanTypeConfig::Active;
 use esp_wifi::wifi::{
     ClientConfiguration, Configuration, ScanConfig, WifiController, WifiDevice, WifiEvent,
@@ -44,17 +44,17 @@ use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder};
 use nostd_browser::brickbreaker::GameView;
-use nostd_browser::common::TDeckDisplay;
+use nostd_browser::common::{NetCommand, TDeckDisplay, NET_COMMANDS, PAGE_CHANNEL};
+use nostd_browser::comps::{Button, Label, MenuView, Panel};
 use nostd_browser::gui::{GuiEvent, Scene, View, DARK_THEME, LIGHT_THEME};
+use nostd_browser::page::Page;
 use nostd_browser::textview::TextView;
 use nostd_html_parser::blocks::{Block, BlockType};
 use static_cell::StaticCell;
-use nostd_browser::comps::{Button, Label, MenuView, Panel};
-use nostd_browser::page::Page;
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {
-    error!("PANIC: {:?}",nfo);
+    error!("PANIC: {:?}", nfo);
     loop {}
 }
 
@@ -83,7 +83,6 @@ static I2C: StaticCell<I2c<Blocking>> = StaticCell::new();
 
 static PAGE_BYTES: &[u8] = include_bytes!("homepage.html");
 
-static CHANNEL: Channel<CriticalSectionRawMutex, Page, 2> = Channel::new();
 static TRACKBALL_CHANNEL: Channel<CriticalSectionRawMutex, (Point, Point), 2> = Channel::new();
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
@@ -177,7 +176,7 @@ async fn main(spawner: Spawner) {
             peripherals.GPIO0,
             InputConfig::default().with_pull(Pull::Up),
         );
-           // connect to the left and right trackball pins
+        // connect to the left and right trackball pins
         let trackball_right = Input::new(
             peripherals.GPIO2,
             InputConfig::default().with_pull(Pull::Up),
@@ -200,7 +199,7 @@ async fn main(spawner: Spawner) {
                 trackball_left,
                 trackball_right,
                 trackball_up,
-                trackball_down
+                trackball_down,
             ))
             .ok();
     }
@@ -241,10 +240,13 @@ async fn main(spawner: Spawner) {
 
         wait_for_connection(network_stack).await;
 
-        spawner.spawn(download_page(network_stack, tls_seed)).ok();
+        spawner.spawn(page_downloader(network_stack, tls_seed)).ok();
         info!("we are connected. on to the HTTP request");
     } else {
-        CHANNEL.sender().send(Page::from_bytes(PAGE_BYTES, "homepage.html")).await;
+        PAGE_CHANNEL
+            .sender()
+            .send(Page::from_bytes(PAGE_BYTES, "homepage.html"))
+            .await;
     }
 }
 async fn wait_for_connection(stack: Stack<'_>) {
@@ -360,7 +362,7 @@ async fn update_display(
         let char_width = font.character_size.width as i32;
         let columns = ((display_width as i32) / char_width) as u32;
         // info!("width is {} char width = {} columns is {}", display_width, char_width, columns);
-        if let Ok(page) = CHANNEL.try_receive() {
+        if let Ok(page) = PAGE_CHANNEL.try_receive() {
             if let Some(tv) = scene.get_textview_mut("page") {
                 tv.load_page(page, columns);
                 let bounds = tv.bounds();
@@ -374,7 +376,7 @@ async fn update_display(
             Ok(_) => {
                 if data[0] != 0x00 {
                     let evt: GuiEvent = GuiEvent::KeyEvent(data[0]);
-                    update_view_from_input(evt, &mut scene, display);
+                    update_view_from_input(evt, &mut scene, display).await;
                 }
             }
             Err(_) => {
@@ -385,7 +387,7 @@ async fn update_display(
         if let Ok((pt, delta)) = TRACKBALL_CHANNEL.try_receive() {
             // info!("got a trackball event {pt} {delta}");
             let evt: GuiEvent = GuiEvent::PointerEvent(pt, delta);
-            update_view_from_input(evt, &mut scene, display);
+            update_view_from_input(evt, &mut scene, display).await;
         }
 
         scene.draw(display);
@@ -393,10 +395,10 @@ async fn update_display(
     }
 }
 
-const MAIN_MENU:&'static str = "main";
-const THEME_MENU:&'static str = "theme";
+const MAIN_MENU: &'static str = "main";
+const THEME_MENU: &'static str = "theme";
 
-fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDisplay) {
+async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDisplay) {
     // info!("update view from input {:?}", event);
     if scene.focused.is_none() {
         scene.focused = Some("".to_string());
@@ -424,11 +426,17 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDis
         }
     }
 
-    let PANEL_BOUNDS = Rectangle::new(Point::new(20,20), Size::new(display.bounding_box().size.width-40,display.bounding_box().size.height-40));
+    let PANEL_BOUNDS = Rectangle::new(
+        Point::new(20, 20),
+        Size::new(
+            display.bounding_box().size.width - 40,
+            display.bounding_box().size.height - 40,
+        ),
+    );
     match event {
         GuiEvent::KeyEvent(key_event) => match key_event {
             13 => {
-                scene.info();
+                // scene.info();
                 if scene.is_focused(MAIN_MENU) {
                     if scene.menu_equals(MAIN_MENU, "Theme") {
                         scene.show_menu(THEME_MENU);
@@ -440,43 +448,62 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDis
                     }
                     if scene.menu_equals(MAIN_MENU, "Wifi") {
                         let panel = Panel::new(PANEL_BOUNDS);
-                        let label1a = Label::new("SSID", Point::new(60,80));
-                        let label1b = Label::new(SSID.unwrap_or("----"), Point::new(150,80));
-                        let label2a = Label::new("PASSWORD", Point::new(60,100));
-                        let label2b = Label::new(PASSWORD.unwrap_or("----"), Point::new(150,100));
-                        let button = Button::new("done", Point::new(160-20,200-20));
+                        let label1a = Label::new("SSID", Point::new(60, 80));
+                        let label1b = Label::new(SSID.unwrap_or("----"), Point::new(150, 80));
+                        let label2a = Label::new("PASSWORD", Point::new(60, 100));
+                        let label2b = Label::new(PASSWORD.unwrap_or("----"), Point::new(150, 100));
+                        let button = Button::new("done", Point::new(160 - 20, 200 - 20));
 
-                        scene.add("wifi-panel",panel);
-                        scene.add("wifi-label1a",label1a);
-                        scene.add("wifi-label1b",label1b);
-                        scene.add("wifi-label2a",label2a);
-                        scene.add("wifi-label2b",label2b);
-                        scene.add("wifi-button",button);
+                        scene.add("wifi-panel", panel);
+                        scene.add("wifi-label1a", label1a);
+                        scene.add("wifi-label1b", label1b);
+                        scene.add("wifi-label2a", label2a);
+                        scene.add("wifi-label2b", label2b);
+                        scene.add("wifi-button", button);
                         scene.hide(MAIN_MENU);
                         scene.set_focused("wifi-button");
                         return;
                     }
                     if scene.menu_equals(MAIN_MENU, "Bookmarks") {
                         // show the bookmarks
+                        NET_COMMANDS.send(NetCommand::Load("bookmarks.html".to_string())).await;
                         return;
                     }
-                    if scene.menu_equals(MAIN_MENU,"Info") {
+                    if scene.menu_equals(MAIN_MENU, "Info") {
                         info!("showing the info panel");
                         let panel = Panel::new(PANEL_BOUNDS);
-                        scene.add("info-panel",panel);
+                        scene.add("info-panel", panel);
 
                         let free = esp_alloc::HEAP.free();
                         let used = esp_alloc::HEAP.used();
-                        scene.add("info-label1",Label::new("Heap",           Point::new(120,50)));
-                        scene.add("info-label2a",Label::new("Free  memory ",   Point::new(60,80)));
-                        scene.add("info-label2b",Label::new(&format!("{:?}",free), Point::new(200,80)));
-                        scene.add("info-label3a",Label::new("Used  memory ", Point::new(60,100)));
-                        scene.add("info-label3b",Label::new(&format!("{:?}",used), Point::new(200,100)));
-                        scene.add("info-label4a",Label::new("Total memory", Point::new(60,120)));
-                        scene.add("info-label4b",Label::new(&format!("{:?}",free+used), Point::new(200,120)));
+                        scene.add("info-label1", Label::new("Heap", Point::new(120, 50)));
+                        scene.add(
+                            "info-label2a",
+                            Label::new("Free  memory ", Point::new(60, 80)),
+                        );
+                        scene.add(
+                            "info-label2b",
+                            Label::new(&format!("{:?}", free), Point::new(200, 80)),
+                        );
+                        scene.add(
+                            "info-label3a",
+                            Label::new("Used  memory ", Point::new(60, 100)),
+                        );
+                        scene.add(
+                            "info-label3b",
+                            Label::new(&format!("{:?}", used), Point::new(200, 100)),
+                        );
+                        scene.add(
+                            "info-label4a",
+                            Label::new("Total memory", Point::new(60, 120)),
+                        );
+                        scene.add(
+                            "info-label4b",
+                            Label::new(&format!("{:?}", free + used), Point::new(200, 120)),
+                        );
 
-                        let button = Button::new("done", Point::new(160-20,200-20));
-                        scene.add("info-button",button);
+                        let button = Button::new("done", Point::new(160 - 20, 200 - 20));
+                        scene.add("info-button", button);
                         scene.hide(MAIN_MENU);
                         scene.set_focused("info-button");
                         return;
@@ -555,8 +582,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDis
             }
             _ => {}
         },
-        GuiEvent::PointerEvent(_,_) => {
-        }
+        GuiEvent::PointerEvent(_, _) => {}
     }
 }
 
@@ -569,7 +595,7 @@ fn make_gui_scene<'a>() -> Scene {
         scroll_index: 0,
         link_count: 0,
         page: Page {
-            selection:0,
+            selection: 0,
             blocks: vec![],
             links: vec![],
             url: "".to_string(),
@@ -579,8 +605,10 @@ fn make_gui_scene<'a>() -> Scene {
             size: Size::new(320, 240),
         },
     };
-    scene.add("page",Box::new(textview));
-    scene.add(MAIN_MENU, MenuView::start_hidden(
+    scene.add("page", Box::new(textview));
+    scene.add(
+        MAIN_MENU,
+        MenuView::start_hidden(
             vec![
                 "Theme",
                 "Font",
@@ -593,19 +621,18 @@ fn make_gui_scene<'a>() -> Scene {
             Point::new(0, 0),
         ),
     );
-    scene.add(THEME_MENU, MenuView::start_hidden(vec!["Light","Dark", "close"], Point::new(20, 20)));
+    scene.add(
+        THEME_MENU,
+        MenuView::start_hidden(vec!["Light", "Dark", "close"], Point::new(20, 20)),
+    );
     scene.add(
         "font",
-        MenuView::start_hidden(
-            vec!["small", "medium", "big", "close"],
-            Point::new(20, 20),
-        ),
+        MenuView::start_hidden(vec!["small", "medium", "big", "close"], Point::new(20, 20)),
     );
     scene.add(
         "wifi",
         MenuView::start_hidden(vec!["status", "scan", "close"], Point::new(20, 20)),
     );
-
 
     if let Some(tv) = scene.get_textview_mut("page") {
         let mut blocks = vec![];
@@ -616,7 +643,7 @@ fn make_gui_scene<'a>() -> Scene {
             "This is some long body text that needs to be broken into multiple lines",
         ));
         let page = Page {
-            selection:0,
+            selection: 0,
             blocks: blocks,
             links: vec![],
             url: "".to_string(),
@@ -640,32 +667,32 @@ async fn handle_trackball(
     let mut last_up_high = false;
     let mut last_down_high = false;
     info!("monitoring the trackball");
-    let mut cursor = Point::new(50,50);
+    let mut cursor = Point::new(50, 50);
     loop {
         // info!("button pressed is {} ", tdeck_track_click.is_low());
         if tdeck_trackball_right.is_high() != last_right_high {
             // info!("right");
             last_right_high = tdeck_trackball_right.is_high();
             cursor.x += 1;
-            TRACKBALL_CHANNEL.send((cursor, Point::new(1,0))).await;
+            TRACKBALL_CHANNEL.send((cursor, Point::new(1, 0))).await;
         }
         if tdeck_trackball_left.is_high() != last_left_high {
             // info!("left");
             last_left_high = tdeck_trackball_left.is_high();
             cursor.x -= 1;
-            TRACKBALL_CHANNEL.send((cursor, Point::new(-1,0))).await;
+            TRACKBALL_CHANNEL.send((cursor, Point::new(-1, 0))).await;
         }
         if tdeck_trackball_up.is_high() != last_up_high {
             // info!("up");
             last_up_high = tdeck_trackball_up.is_high();
             cursor.y -= 1;
-            TRACKBALL_CHANNEL.send((cursor, Point::new(0,-1))).await;
+            TRACKBALL_CHANNEL.send((cursor, Point::new(0, -1))).await;
         }
         if tdeck_trackball_down.is_high() != last_down_high {
             // info!("down");
             last_down_high = tdeck_trackball_down.is_high();
             cursor.y += 1;
-            TRACKBALL_CHANNEL.send((cursor,Point::new(0,1))).await;
+            TRACKBALL_CHANNEL.send((cursor, Point::new(0, 1))).await;
         }
         // wait one msec
         Timer::after(Duration::from_millis(1)).await;
@@ -673,36 +700,54 @@ async fn handle_trackball(
 }
 
 #[embassy_executor::task]
-async fn download_page(network_stack: Stack<'static>, tls_seed:u64) {
-        let mut rx_buffer = [0; 4096 * 2];
-        let mut tx_buffer = [0; 4096 * 2];
-        let dns = DnsSocket::new(network_stack);
-        let tcp_state = TcpClientState::<1, 4096, 4096>::new();
-        let tcp = TcpClient::new(network_stack, &tcp_state);
+async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
+    loop {
+        if let Ok(cmd) = NET_COMMANDS.try_receive() {
+            info!("Network command: {:?}", cmd);
+            match cmd {
+                NetCommand::Load(href) => {
+                    info!("Loading page: {}", href);
+                    if href == "bookmarks.html" {
+                        PAGE_CHANNEL.sender().send(Page::from_bytes(PAGE_BYTES, &href)).await;
+                    } else {
+                        if !href.starts_with("http") {
+                            info!("relative url");
+                        }
+                        let mut rx_buffer = [0; 4096 * 2];
+                        let mut tx_buffer = [0; 4096 * 2];
+                        let dns = DnsSocket::new(network_stack);
+                        let tcp_state = TcpClientState::<1, 4096, 4096>::new();
+                        let tcp = TcpClient::new(network_stack, &tcp_state);
 
-        let tls = TlsConfig::new(
-            tls_seed,
-            &mut rx_buffer,
-            &mut tx_buffer,
-            reqwless::client::TlsVerify::None,
-        );
+                        let tls = TlsConfig::new(
+                            tls_seed,
+                            &mut rx_buffer,
+                            &mut tx_buffer,
+                            reqwless::client::TlsVerify::None,
+                        );
 
-        let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
-        // let mut client = HttpClient::new(&tcp, &dns);
-        let mut buffer = [0u8; 4096 * 5];
-        info!("making the actual request");
-        let url = "https://joshondesign.com/2023/07/12/css_text_style_builder";
-        let mut http_req = client
-            .request(
-                reqwless::request::Method::GET,
-                url,
-                // "https://jsonplaceholder.typicode.com/posts/1",
-                // "https://apps.josh.earth/",
-            )
-            .await
-            .unwrap();
-        let response = http_req.send(&mut buffer).await.unwrap();
-        info!("Got response");
-        let res = response.body().read_to_end().await.unwrap();
-        CHANNEL.sender().send(Page::from_bytes(res,url)).await;
+                        let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
+                        // let mut client = HttpClient::new(&tcp, &dns);
+                        let mut buffer = [0u8; 4096 * 5];
+                        info!("making the actual request");
+                        // let url = "https://joshondesign.com/2023/07/12/css_text_style_builder";
+                        let mut http_req = client
+                            .request(
+                                reqwless::request::Method::GET,
+                                &href,
+                                // "https://jsonplaceholder.typicode.com/posts/1",
+                                // "https://apps.josh.earth/",
+                            )
+                            .await
+                            .unwrap();
+                        let response = http_req.send(&mut buffer).await.unwrap();
+                        info!("Got response");
+                        let res = response.body().read_to_end().await.unwrap();
+                        PAGE_CHANNEL.sender().send(Page::from_bytes(res, &href)).await;
+                    }
+                }
+            }
+        }
+        Timer::after(Duration::from_millis(100)).await;
+    }
 }

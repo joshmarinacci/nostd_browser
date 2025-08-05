@@ -1,6 +1,7 @@
-use crate::common::TDeckDisplay;
+use alloc::string::ToString;
+use crate::common::{NetCommand, TDeckDisplay, NET_COMMANDS};
 use crate::gui::{GuiEvent, Theme, View};
-use alloc::vec;
+use alloc::{format, vec};
 use alloc::vec::Vec;
 use core::any::Any;
 use core::cmp::max;
@@ -70,6 +71,7 @@ impl TextView {
         if self.page.selection >= self.link_count {
             self.page.selection = 0;
         }
+        info!("selected link: {:?}", self.find_href_by_index(self.page.selection));
     }
     pub fn find_href_by_index(&self, index: i32) -> Option<&str> {
         // info!("find_href_by_index: {}", index);
@@ -81,7 +83,7 @@ impl TextView {
                     RunStyle::Link(href) => {
                         // info!("link is {}", href);
                         if count == index {
-                            info!("found the right link");
+                            // info!("found the right link");
                             return Some(&href);
                         }
                         count += 1;
@@ -95,6 +97,13 @@ impl TextView {
     pub(crate) fn nav_current_link(&self) {
         if let Some(href) = self.find_href_by_index(self.page.selection) {
             info!("loading the href {}", href);
+            let mut href = href.to_string();
+            if !href.starts_with("http") {
+                info!("doing a relative link. base is {}",self.page.url);
+                href = format!("{}{}",self.page.url, href);
+                info!("final url is {}", href);
+            }
+            NET_COMMANDS.try_send(NetCommand::Load(href.to_string())).unwrap()
         }
     }
 }
