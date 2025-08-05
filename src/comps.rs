@@ -107,6 +107,7 @@ impl View for Label {
 
     fn handle_input(&mut self, _: GuiEvent) {
     }
+
 }
 
 impl Label {
@@ -116,6 +117,9 @@ impl Label {
             position: p1,
             visible: true,
         })
+    }
+    pub fn set_text(&mut self, text: &str) {
+        self.text = text.to_string();
     }
 }
 
@@ -132,6 +136,9 @@ impl Button {
             position,
             visible: true,
         })
+    }
+    pub fn set_text(&mut self, text: &str) {
+        self.text = text.to_string();
     }
 }
 

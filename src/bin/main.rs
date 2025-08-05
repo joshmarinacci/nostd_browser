@@ -44,7 +44,7 @@ use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder};
 use nostd_browser::brickbreaker::GameView;
-use nostd_browser::common::{NetCommand, TDeckDisplay, NET_COMMANDS, PAGE_CHANNEL};
+use nostd_browser::common::{NetCommand, NetStatus, TDeckDisplay, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
 use nostd_browser::comps::{Button, Label, MenuView, Panel};
 use nostd_browser::gui::{GuiEvent, Scene, View, DARK_THEME, LIGHT_THEME};
 use nostd_browser::page::Page;
@@ -281,27 +281,34 @@ async fn connection(mut controller: WifiController<'static>) {
             }
             _ => {}
         }
+        // DISCONNECTED
         if !matches!(controller.is_started(), Ok(true)) {
             if SSID.is_none() {
                 warn!("SSID is none. did you forget to set the SSID environment variables");
+                NET_STATUS.send(NetStatus::Info("SSID is missing".to_string())).await;
             }
             if PASSWORD.is_none() {
                 warn!("PASSWORD is none. did you forget to set the PASSWORD environment variables");
+                NET_STATUS.send(NetStatus::Info("PASSWORD is missing".to_string())).await;
             }
             let client_config = Configuration::Client(ClientConfiguration {
                 ..Default::default()
             });
             controller.set_configuration(&client_config).unwrap();
             info!("Starting wifi");
+            // initializing stack
+            NET_STATUS.send(NetStatus::InitializingStack()).await;
             controller.start_async().await.unwrap();
             info!("Wifi started!");
 
             info!("Scan");
+            NET_STATUS.send(NetStatus::Scanning()).await;
             // scan for longer and show hidden
             let active = Active {
                 min: core::time::Duration::from_millis(50),
                 max: core::time::Duration::from_millis(100),
             };
+            // scanning
             let mut result = controller
                 .scan_with_config_async(ScanConfig {
                     show_hidden: true,
@@ -333,8 +340,12 @@ async fn connection(mut controller: WifiController<'static>) {
                     .unwrap();
 
                 info!("About to connect");
+                NET_STATUS.send(NetStatus::Connecting()).await;
                 match controller.connect_async().await {
-                    Ok(_) => info!("Wifi connected!"),
+                    Ok(_) => {
+                        info!("Wifi connected!");
+                        NET_STATUS.send(NetStatus::Connected()).await;
+                    },
                     Err(e) => {
                         info!("Failed to connect to wifi: {e:?}");
                         Timer::after(Duration::from_millis(5000)).await
@@ -388,6 +399,17 @@ async fn update_display(
             // info!("got a trackball event {pt} {delta}");
             let evt: GuiEvent = GuiEvent::PointerEvent(pt, delta);
             update_view_from_input(evt, &mut scene, display).await;
+        }
+
+        if let Ok(status) = NET_STATUS.try_receive() {
+            info!("setting the label text to {:?}",status);
+            if let Some(view) = scene.get_view_mut("status") {
+                if let Some(button) = view.as_any_mut().downcast_mut::<Button>() {
+                    button.set_text(&format!("{:?}", status));
+                    let bounds = button.bounds();
+                    scene.mark_dirty(bounds);
+                }
+            }
         }
 
         scene.draw(display);
@@ -651,6 +673,8 @@ fn make_gui_scene<'a>() -> Scene {
         tv.load_page(page, 30);
     }
 
+    scene.add("status", Button::new("some info", Point::new(200, 200)));
+
     scene
 }
 
@@ -713,6 +737,7 @@ async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
                         if !href.starts_with("http") {
                             info!("relative url");
                         }
+                        NET_STATUS.send(NetStatus::LoadingPage()).await;
                         let mut rx_buffer = [0; 4096 * 2];
                         let mut tx_buffer = [0; 4096 * 2];
                         let dns = DnsSocket::new(network_stack);
@@ -744,6 +769,7 @@ async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
                         info!("Got response");
                         let res = response.body().read_to_end().await.unwrap();
                         PAGE_CHANNEL.sender().send(Page::from_bytes(res, &href)).await;
+                        NET_STATUS.send(NetStatus::PageLoaded()).await;
                     }
                 }
             }

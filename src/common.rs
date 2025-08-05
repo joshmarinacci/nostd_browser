@@ -31,6 +31,16 @@ pub enum NetCommand {
 pub static NET_COMMANDS: Channel<CriticalSectionRawMutex, NetCommand, 2> = Channel::new();
 
 
-pub enum NetInfo {
-    Offline()
+#[derive(Debug)]
+pub enum NetStatus {
+    Offline(),
+    InitializingStack(),
+    Scanning(),
+    Connecting(),
+    Connected(),
+    LoadingPage(),
+    PageLoaded(),
+    Info(String)
 }
+
+pub static NET_STATUS: Channel<CriticalSectionRawMutex, NetStatus, 2> = Channel::new();
