@@ -44,8 +44,10 @@ use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder};
 use nostd_browser::brickbreaker::GameView;
-use nostd_browser::common::{NetCommand, NetStatus, TDeckDisplay, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
-use nostd_browser::comps::{Button, Label, MenuView, Panel};
+use nostd_browser::common::{
+    NetCommand, NetStatus, TDeckDisplay, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL,
+};
+use nostd_browser::comps::{Button, Label, MenuView, OverlayLabel, Panel};
 use nostd_browser::gui::{GuiEvent, Scene, View, DARK_THEME, LIGHT_THEME};
 use nostd_browser::page::Page;
 use nostd_browser::textview::TextView;
@@ -273,23 +275,31 @@ async fn connection(mut controller: WifiController<'static>) {
     info!("start connection task");
     info!("Device capabilities: {:?}", controller.capabilities());
     loop {
+
         match esp_wifi::wifi::wifi_state() {
             WifiState::StaConnected => {
                 // wait until we're no longer connected
+                info!("waiting to be disconnected");
                 controller.wait_for_event(WifiEvent::StaDisconnected).await;
                 Timer::after(Duration::from_millis(5000)).await
             }
             _ => {}
         }
+        info!("wifi state is {:?}",esp_wifi::wifi::wifi_state());
         // DISCONNECTED
+        info!("we are disconnected. is started = {:?}", controller.is_started());
         if !matches!(controller.is_started(), Ok(true)) {
             if SSID.is_none() {
                 warn!("SSID is none. did you forget to set the SSID environment variables");
-                NET_STATUS.send(NetStatus::Info("SSID is missing".to_string())).await;
+                NET_STATUS
+                    .send(NetStatus::Info("SSID is missing".to_string()))
+                    .await;
             }
             if PASSWORD.is_none() {
                 warn!("PASSWORD is none. did you forget to set the PASSWORD environment variables");
-                NET_STATUS.send(NetStatus::Info("PASSWORD is missing".to_string())).await;
+                NET_STATUS
+                    .send(NetStatus::Info("PASSWORD is missing".to_string()))
+                    .await;
             }
             let client_config = Configuration::Client(ClientConfiguration {
                 ..Default::default()
@@ -300,59 +310,78 @@ async fn connection(mut controller: WifiController<'static>) {
             NET_STATUS.send(NetStatus::InitializingStack()).await;
             controller.start_async().await.unwrap();
             info!("Wifi started!");
-
-            info!("Scan");
-            NET_STATUS.send(NetStatus::Scanning()).await;
-            // scan for longer and show hidden
-            let active = Active {
-                min: core::time::Duration::from_millis(50),
-                max: core::time::Duration::from_millis(100),
-            };
-            // scanning
-            let mut result = controller
-                .scan_with_config_async(ScanConfig {
-                    show_hidden: true,
-                    scan_type: active,
+        }
+        info!("Scan");
+        NET_STATUS.send(NetStatus::Scanning()).await;
+        // scan for longer and show hidden
+        let active = Active {
+            min: core::time::Duration::from_millis(50),
+            max: core::time::Duration::from_millis(100),
+        };
+        // scanning
+        let mut result = controller
+            .scan_with_config_async(ScanConfig {
+                show_hidden: true,
+                scan_type: active,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        // sort by best signal strength first
+        result.sort_by(|a, b| a.signal_strength.cmp(&b.signal_strength));
+        result.reverse();
+        // for ap in result.iter() {
+        //     // info!("found AP: {:?}", ap);
+        // }
+        // pick the first that matches the passed in SSID
+        let ap = result
+            .iter()
+            .filter(|ap| ap.ssid.eq_ignore_ascii_case(SSID.unwrap()))
+            .next();
+        if let Some(ap) = ap {
+            info!("using the AP {:?}", ap);
+            // set the config to use for connecting
+            controller
+                .set_configuration(&Configuration::Client(ClientConfiguration {
+                    ssid: ap.ssid.to_string(),
+                    password: PASSWORD.unwrap().into(),
                     ..Default::default()
-                })
-                .await
+                }))
                 .unwrap();
-            // sort by best signal strength first
-            result.sort_by(|a, b| a.signal_strength.cmp(&b.signal_strength));
-            result.reverse();
-            // for ap in result.iter() {
-            //     // info!("found AP: {:?}", ap);
-            // }
-            // pick the first that matches the passed in SSID
-            let ap = result
-                .iter()
-                .filter(|ap| ap.ssid.eq_ignore_ascii_case(SSID.unwrap()))
-                .next();
-            if let Some(ap) = ap {
-                info!("using the AP {:?}", ap);
-                // set the config to use for connecting
-                controller
-                    .set_configuration(&Configuration::Client(ClientConfiguration {
-                        ssid: ap.ssid.to_string(),
-                        password: PASSWORD.unwrap().into(),
-                        ..Default::default()
-                    }))
-                    .unwrap();
 
-                info!("About to connect");
-                NET_STATUS.send(NetStatus::Connecting()).await;
-                match controller.connect_async().await {
-                    Ok(_) => {
-                        info!("Wifi connected!");
-                        NET_STATUS.send(NetStatus::Connected()).await;
-                    },
-                    Err(e) => {
-                        info!("Failed to connect to wifi: {e:?}");
-                        Timer::after(Duration::from_millis(5000)).await
+            info!("About to connect");
+            NET_STATUS.send(NetStatus::Connecting()).await;
+            match controller.connect_async().await {
+                Ok(_) => {
+                    info!("Wifi connected!");
+                    NET_STATUS.send(NetStatus::Connected()).await;
+                    loop {
+                        info!("checking if we are still connected");
+                        if let Ok(con) = controller.is_connected() {
+                            if (con) {
+                                info!("Connected successfully");
+                                info!("sleep until we aren't connected anymore");
+                                Timer::after(Duration::from_millis(5000)).await
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
                     }
                 }
+                Err(e) => {
+                    info!("Failed to connect to wifi: {e:?}");
+                    Timer::after(Duration::from_millis(5000)).await
+                }
             }
+        } else {
+            let ssid = SSID.unwrap();
+            info!("did not find the ap for {ssid}");
+            NET_STATUS.send(NetStatus::Info(format!("{ssid} not found"))).await;
+            info!("looping around");
         }
+        Timer::after(Duration::from_millis(1000)).await;
     }
 }
 
@@ -402,11 +431,15 @@ async fn update_display(
         }
 
         if let Ok(status) = NET_STATUS.try_receive() {
-            info!("setting the label text to {:?}",status);
+            // info!("got the status {status:?}");
+            let txt = match &status {
+                NetStatus::Info(txt) => txt,
+                _ => &format!("{:?}", status).to_string(),
+            };
             if let Some(view) = scene.get_view_mut("status") {
-                if let Some(button) = view.as_any_mut().downcast_mut::<Button>() {
-                    button.set_text(&format!("{:?}", status));
-                    let bounds = button.bounds();
+                if let Some(overlay) = view.as_any_mut().downcast_mut::<OverlayLabel>() {
+                    overlay.set_text(txt);
+                    let bounds = overlay.bounds();
                     scene.mark_dirty(bounds);
                 }
             }
@@ -488,7 +521,9 @@ async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TD
                     }
                     if scene.menu_equals(MAIN_MENU, "Bookmarks") {
                         // show the bookmarks
-                        NET_COMMANDS.send(NetCommand::Load("bookmarks.html".to_string())).await;
+                        NET_COMMANDS
+                            .send(NetCommand::Load("bookmarks.html".to_string()))
+                            .await;
                         return;
                     }
                     if scene.menu_equals(MAIN_MENU, "Info") {
@@ -673,8 +708,8 @@ fn make_gui_scene<'a>() -> Scene {
         tv.load_page(page, 30);
     }
 
-    scene.add("status", Button::new("some info", Point::new(200, 200)));
-
+    let info_panel_bounds = Rectangle::new(Point::new(120, 210), Size::new(200, 30));
+    scene.add("status", OverlayLabel::new("some info", info_panel_bounds));
     scene
 }
 
@@ -732,7 +767,10 @@ async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
                 NetCommand::Load(href) => {
                     info!("Loading page: {}", href);
                     if href == "bookmarks.html" {
-                        PAGE_CHANNEL.sender().send(Page::from_bytes(PAGE_BYTES, &href)).await;
+                        PAGE_CHANNEL
+                            .sender()
+                            .send(Page::from_bytes(PAGE_BYTES, &href))
+                            .await;
                     } else {
                         if !href.starts_with("http") {
                             info!("relative url");
@@ -768,7 +806,10 @@ async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
                         let response = http_req.send(&mut buffer).await.unwrap();
                         info!("Got response");
                         let res = response.body().read_to_end().await.unwrap();
-                        PAGE_CHANNEL.sender().send(Page::from_bytes(res, &href)).await;
+                        PAGE_CHANNEL
+                            .sender()
+                            .send(Page::from_bytes(res, &href))
+                            .await;
                         NET_STATUS.send(NetStatus::PageLoaded()).await;
                     }
                 }

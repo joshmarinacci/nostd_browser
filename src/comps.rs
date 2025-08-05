@@ -1,8 +1,8 @@
 use embedded_graphics::geometry::{AnchorPoint, Dimensions, Point, Size};
 use alloc::boxed::Box;
 use embedded_graphics::primitives::{PrimitiveStyle, PrimitiveStyleBuilder, Rectangle, StrokeAlignment};
-use embedded_graphics::mono_font::MonoTextStyle;
-use embedded_graphics::text::Text;
+use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
+use embedded_graphics::text::{Alignment, Text};
 use log::info;
 use core::any::Any;
 use alloc::string::{String, ToString};
@@ -328,5 +328,62 @@ impl View for MenuView {
                 }
             }
         }
+    }
+}
+
+
+pub struct OverlayLabel {
+    text:String,
+    bounds: Rectangle,
+    visible: bool,
+}
+impl OverlayLabel {
+    pub fn new(text: &str, bounds:Rectangle) -> Box<OverlayLabel> {
+        Box::new(OverlayLabel {
+            text: text.to_string(),
+            bounds,
+            visible: true,
+        })
+    }
+    pub fn set_text(&mut self, text: &str) {
+        self.text = text.to_string();
+    }
+}
+impl View for OverlayLabel {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn visible(&self) -> bool {
+        self.visible
+    }
+
+    fn set_visible(&mut self, visible: bool) {
+        self.visible = visible;
+    }
+    fn bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
+        let style = PrimitiveStyleBuilder::new()
+            .fill_color(theme.base_fg).build();
+
+        self.bounds().intersection(clip)
+            .into_styled(style)
+            .draw(display).unwrap();
+        let style = MonoTextStyle::new(&base_font, theme.base_bg);
+        let text = Text::with_alignment(&self.text, self.bounds().center(), style, Alignment::Center);
+        if !text.bounding_box().intersection(clip).is_zero_sized() {
+            text.draw(display).unwrap();
+        }
+    }
+
+    fn handle_input(&mut self, event: GuiEvent) {
+        info!("button got input: {:?}", event);
     }
 }
