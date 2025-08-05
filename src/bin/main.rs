@@ -9,7 +9,6 @@ extern crate alloc;
 use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::{format, vec};
-use alloc::vec::Vec;
 use embassy_executor::Spawner;
 use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
@@ -38,7 +37,7 @@ use esp_wifi::wifi::{
     WifiState,
 };
 use esp_wifi::{init, EspWifiController};
-use log::{info, warn};
+use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
 use mipidsi::interface::SpiInterface;
@@ -48,15 +47,14 @@ use nostd_browser::brickbreaker::GameView;
 use nostd_browser::common::TDeckDisplay;
 use nostd_browser::gui::{GuiEvent, Scene, View, DARK_THEME, LIGHT_THEME};
 use nostd_browser::textview::TextView;
-use nostd_html_parser::blocks::{Block, BlockParser, BlockType};
-use nostd_html_parser::lines::{break_lines, TextLine};
-use nostd_html_parser::tags::TagParser;
+use nostd_html_parser::blocks::{Block, BlockType};
 use static_cell::StaticCell;
 use nostd_browser::comps::{Button, Label, MenuView, Panel};
 use nostd_browser::page::Page;
 
 #[panic_handler]
-fn panic(_: &core::panic::PanicInfo) -> ! {
+fn panic(nfo: &core::panic::PanicInfo) -> ! {
+    error!("PANIC: {:?}",nfo);
     loop {}
 }
 
@@ -243,40 +241,8 @@ async fn main(spawner: Spawner) {
 
         wait_for_connection(network_stack).await;
 
+        spawner.spawn(download_page(network_stack, tls_seed)).ok();
         info!("we are connected. on to the HTTP request");
-        {
-            let mut rx_buffer = [0; 4096 * 2];
-            let mut tx_buffer = [0; 4096 * 2];
-            let dns = DnsSocket::new(network_stack);
-            let tcp_state = TcpClientState::<1, 4096, 4096>::new();
-            let tcp = TcpClient::new(network_stack, &tcp_state);
-
-            let tls = TlsConfig::new(
-                tls_seed,
-                &mut rx_buffer,
-                &mut tx_buffer,
-                reqwless::client::TlsVerify::None,
-            );
-
-            let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
-            // let mut client = HttpClient::new(&tcp, &dns);
-            let mut buffer = [0u8; 4096 * 5];
-            info!("making the actual request");
-            let url = "https://joshondesign.com/2023/07/12/css_text_style_builder";
-            let mut http_req = client
-                .request(
-                    reqwless::request::Method::GET,
-                    url,
-                    // "https://jsonplaceholder.typicode.com/posts/1",
-                    // "https://apps.josh.earth/",
-                )
-                .await
-                .unwrap();
-            let response = http_req.send(&mut buffer).await.unwrap();
-            info!("Got response");
-            let res = response.body().read_to_end().await.unwrap();
-            CHANNEL.sender().send(Page::from_bytes(res,url)).await;
-        }
     } else {
         CHANNEL.sender().send(Page::from_bytes(PAGE_BYTES, "homepage.html")).await;
     }
@@ -589,7 +555,7 @@ fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDis
             }
             _ => {}
         },
-        GuiEvent::PointerEvent(pt,size) => {
+        GuiEvent::PointerEvent(_,_) => {
         }
     }
 }
@@ -704,4 +670,39 @@ async fn handle_trackball(
         // wait one msec
         Timer::after(Duration::from_millis(1)).await;
     }
+}
+
+#[embassy_executor::task]
+async fn download_page(network_stack: Stack<'static>, tls_seed:u64) {
+        let mut rx_buffer = [0; 4096 * 2];
+        let mut tx_buffer = [0; 4096 * 2];
+        let dns = DnsSocket::new(network_stack);
+        let tcp_state = TcpClientState::<1, 4096, 4096>::new();
+        let tcp = TcpClient::new(network_stack, &tcp_state);
+
+        let tls = TlsConfig::new(
+            tls_seed,
+            &mut rx_buffer,
+            &mut tx_buffer,
+            reqwless::client::TlsVerify::None,
+        );
+
+        let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
+        // let mut client = HttpClient::new(&tcp, &dns);
+        let mut buffer = [0u8; 4096 * 5];
+        info!("making the actual request");
+        let url = "https://joshondesign.com/2023/07/12/css_text_style_builder";
+        let mut http_req = client
+            .request(
+                reqwless::request::Method::GET,
+                url,
+                // "https://jsonplaceholder.typicode.com/posts/1",
+                // "https://apps.josh.earth/",
+            )
+            .await
+            .unwrap();
+        let response = http_req.send(&mut buffer).await.unwrap();
+        info!("Got response");
+        let res = response.body().read_to_end().await.unwrap();
+        CHANNEL.sender().send(Page::from_bytes(res,url)).await;
 }

@@ -6,7 +6,7 @@ use embedded_graphics::text::Text;
 use log::info;
 use core::any::Any;
 use alloc::string::{String, ToString};
-use embedded_graphics::pixelcolor::{BinaryColor, Rgb565, RgbColor, WebColors};
+use embedded_graphics::pixelcolor::{Rgb565, RgbColor, WebColors};
 use embedded_graphics::prelude::Primitive;
 use embedded_graphics::Drawable;
 use alloc::vec::Vec;
@@ -46,7 +46,7 @@ impl View for Panel {
             .unwrap();
     }
 
-    fn handle_input(&mut self, event: GuiEvent) {
+    fn handle_input(&mut self, _event: GuiEvent) {
     }
 
     fn visible(&self) -> bool {
@@ -105,7 +105,7 @@ impl View for Label {
         }
     }
 
-    fn handle_input(&mut self, event: GuiEvent) {
+    fn handle_input(&mut self, _: GuiEvent) {
     }
 }
 
@@ -311,7 +311,7 @@ impl View for MenuView {
                 b'k' => self.nav_next(),
                 _ => {}
             },
-            GuiEvent::PointerEvent(pt,delta) => {
+            GuiEvent::PointerEvent(_,delta) => {
                 // info!("menu got {pt} {delta}");
                 if delta.y < 0 {
                     self.nav_next();

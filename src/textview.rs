@@ -1,6 +1,5 @@
 use crate::common::TDeckDisplay;
 use crate::gui::{GuiEvent, Theme, View};
-use alloc::string::{ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 use core::any::Any;
@@ -146,10 +145,10 @@ impl View for TextView {
                 BlockType::ListItem => MonoTextStyle::new(&FONT_9X15, theme.base_fg),
                 BlockType::Header => MonoTextStyle::new(&FONT_9X15_BOLD, theme.base_fg),
             };
-            for (i, run) in line.runs.iter().enumerate() {
+            for run in &line.runs {
                 let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
                 let text_style = match &run.style {
-                    RunStyle::Link(href) => {
+                    RunStyle::Link(_) => {
                         // info!("found a link: {:?}", href);
                         link_count += 1;
                         let builder = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::BLUE).underline();

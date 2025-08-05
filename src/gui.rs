@@ -3,18 +3,14 @@ use crate::comps::MenuView;
 use crate::textview::TextView;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
-use alloc::vec;
 use alloc::vec::Vec;
-use core::any::{Any, TypeId};
+use core::any::{Any};
 use core::fmt::{Debug, Formatter};
-use core::ops::Add;
 use embedded_graphics::mono_font::ascii::FONT_9X15;
-use embedded_graphics::mono_font::{MonoFont, MonoTextStyle};
+use embedded_graphics::mono_font::{MonoFont};
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::{Dimensions, Point, Primitive, RgbColor, Size, WebColors};
-use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
-use embedded_graphics::text::Text;
-use embedded_graphics::Drawable;
+use embedded_graphics::prelude::{Dimensions, Point, RgbColor, Size};
+use embedded_graphics::primitives::{Rectangle};
 use hashbrown::HashMap;
 use log::{info, warn};
 
@@ -60,7 +56,7 @@ impl Debug for Box<dyn View> {
         //     TypeId::of::<Box<dyn View>>() == val.type_id()
         // );
         match val.downcast_ref::<Box<MenuView>>() {
-            Some(menu) => {
+            Some(_menu) => {
                 write!(f, "is a menu view")
             }
             None => {

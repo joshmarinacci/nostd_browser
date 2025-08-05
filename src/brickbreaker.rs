@@ -2,12 +2,11 @@ use crate::common::TDeckDisplay;
 use crate::gui::{GuiEvent, Theme, View};
 use alloc::boxed::Box;
 use core::any::Any;
-use core::ops::Add;
 use embedded_graphics::Drawable;
 use embedded_graphics::geometry::{Point, Size};
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{Primitive, RgbColor, Transform};
-use embedded_graphics::primitives::{PrimitiveStyle, Rectangle, StyledDrawable};
+use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use log::info;
 
 pub struct GameView {
@@ -35,7 +34,7 @@ impl GameView {
 }
 
 impl View for GameView {
-    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, display: &mut TDeckDisplay, _clip: &Rectangle, _theme: &Theme) {
         self.count = self.count + 1;
 
         let old_ball_bounds = self.ball_bounds;
@@ -78,7 +77,7 @@ impl View for GameView {
 
     fn handle_input(&mut self, event: GuiEvent) {
         match event {
-            GuiEvent::PointerEvent(pt,delta) => {
+            GuiEvent::PointerEvent(_pt, delta) => {
                 self.old_paddle = self.paddle;
                 self.paddle = self.paddle.translate(Point::new(delta.x*20, 0));
                 if self.paddle.top_left.x < 0 {
