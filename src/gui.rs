@@ -255,8 +255,9 @@ impl Scene {
             let bounds = view.bounds();
             self.mark_dirty(bounds);
             self.focused = Some(name.to_string());
+        } else {
+            warn!("Missing view by name '{}'", name);
         }
-        warn!("Missing view by name '{}'", name);
     }
     pub fn get_focused_view(&self) -> Option<&Box<dyn View>> {
         if let Some(name) = &self.focused {

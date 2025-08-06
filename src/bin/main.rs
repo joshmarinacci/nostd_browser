@@ -616,7 +616,7 @@ async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
         scene.remove("info-button");
         return;
     }
-    if scene.is_focused("theme") {
+    if scene.is_focused(THEME_MENU) {
         if scene.menu_equals(THEME_MENU, "Dark") {
             scene.set_theme(DARK_THEME);
             return;
@@ -716,6 +716,7 @@ fn make_gui_scene<'a>() -> Scene {
         tv.load_page(page, 30);
     }
 
+    scene.set_focused(PAGE_VIEW);
     let info_panel_bounds = Rectangle::new(Point::new(120, 210), Size::new(200, 30));
     scene.add("status", OverlayLabel::new("some info", info_panel_bounds));
     scene

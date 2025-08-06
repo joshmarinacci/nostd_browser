@@ -150,7 +150,7 @@ impl View for PageView {
         let start = max(self.scroll_index, 0) as usize;
         let viewport_lines = &self.lines[start..end];
 
-        let x_inset = 5;
+        let x_inset = 8;
         let y_inset = 5;
 
         let mut link_count = -1;
@@ -165,7 +165,7 @@ impl View for PageView {
             };
             // draw a bullet
             if line.block_type == BlockType::ListItem {
-                Rectangle::new(Point::new(0, y), Size::new(8, 8))
+                Rectangle::new(Point::new(2, y), Size::new(4, 3))
                     .into_styled(PrimitiveStyle::with_fill(theme.base_fg))
                     .draw(display)
                     .unwrap();
@@ -217,11 +217,9 @@ impl View for PageView {
             }
             GuiEvent::ScrollEvent(pt, delta) => {
                 if (delta.x < 0) || (delta.y < 0) {
-                    info!("scrolling to prev link");
                     self.prev_link();
                 };
                 if (delta.x > 0) || (delta.y > 0) {
-                    info!("scrolling to next link");
                     self.next_link();
                 };
             }
