@@ -50,7 +50,7 @@ use nostd_browser::common::{
 use nostd_browser::comps::{Button, Label, MenuView, OverlayLabel, Panel};
 use nostd_browser::gui::{GuiEvent, Scene, View, DARK_THEME, LIGHT_THEME};
 use nostd_browser::page::Page;
-use nostd_browser::textview::TextView;
+use nostd_browser::pageview::PageView;
 use nostd_html_parser::blocks::{Block, BlockType};
 use static_cell::StaticCell;
 
@@ -425,7 +425,6 @@ async fn update_display(
         }
 
         if let Ok(evt) = TRACKBALL_CHANNEL.try_receive() {
-            // info!("got a trackball event {pt} {delta}");
             update_view_from_input(evt, &mut scene, display).await;
         }
 
@@ -435,13 +434,11 @@ async fn update_display(
                 NetStatus::Info(txt) => txt,
                 _ => &format!("{:?}", status).to_string(),
             };
-            if let Some(view) = scene.get_view_mut("status") {
+            scene.mutate_view("status",|view|{
                 if let Some(overlay) = view.as_any_mut().downcast_mut::<OverlayLabel>() {
                     overlay.set_text(txt);
-                    let bounds = overlay.bounds();
-                    scene.mark_dirty(bounds);
-                }
-            }
+                };
+            });
         }
 
         scene.draw(display);
@@ -451,6 +448,7 @@ async fn update_display(
 
 const MAIN_MENU: &'static str = "main";
 const THEME_MENU: &'static str = "theme";
+const PAGE_VIEW: &'static str = "page";
 
 async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDisplay) {
     // info!("update view from input {:?}", event);
@@ -466,11 +464,9 @@ async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TD
                     if evt == b' ' {
                         scene.show_menu(MAIN_MENU);
                     } else {
-                        if let Some(tv) = scene.get_view_mut("page") {
-                            tv.handle_input(event);
-                            let clip = tv.bounds();
-                            scene.mark_dirty(clip);
-                        }
+                        scene.mutate_view(PAGE_VIEW, |view| {
+                            view.handle_input(event);
+                        });
                     }
                 }
                 _ => {
@@ -573,7 +569,7 @@ async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TD
                         scene.hide(MAIN_MENU);
                         scene.set_focused("game");
                         scene.set_auto_redraw(true);
-                        scene.hide("page");
+                        scene.hide(PAGE_VIEW);
                         return;
                     }
                     if scene.menu_equals(MAIN_MENU, "close") {
@@ -647,24 +643,12 @@ async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TD
 
 fn make_gui_scene<'a>() -> Scene {
     let mut scene = Scene::new();
-    let textview = TextView {
-        dirty: true,
-        visible: true,
-        lines: vec![],
-        scroll_index: 0,
-        link_count: 0,
-        page: Page {
-            selection: 0,
-            blocks: vec![],
-            links: vec![],
-            url: "".to_string(),
-        },
-        bounds: Rectangle {
+    let full_screen_bounds = Rectangle {
             top_left: Point::new(0, 0),
             size: Size::new(320, 240),
-        },
-    };
-    scene.add("page", Box::new(textview));
+        };
+    let textview = PageView::new(full_screen_bounds,  Page::new() );
+    scene.add(PAGE_VIEW, Box::new(textview));
     scene.add(
         MAIN_MENU,
         MenuView::start_hidden(
@@ -693,7 +677,8 @@ fn make_gui_scene<'a>() -> Scene {
         MenuView::start_hidden(vec!["status", "scan", "close"], Point::new(20, 20)),
     );
 
-    if let Some(tv) = scene.get_textview_mut("page") {
+    // set up a fake page
+    if let Some(tv) = scene.get_textview_mut(PAGE_VIEW) {
         let mut blocks = vec![];
         blocks.push(Block::new_of_type(BlockType::Header, "Header Text"));
         blocks.push(Block::new_of_type(BlockType::ListItem, "list item"));
@@ -703,7 +688,7 @@ fn make_gui_scene<'a>() -> Scene {
         ));
         let page = Page {
             selection: 0,
-            blocks: blocks,
+            blocks,
             links: vec![],
             url: "".to_string(),
         };

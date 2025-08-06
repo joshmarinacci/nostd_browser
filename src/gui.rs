@@ -1,6 +1,6 @@
 use crate::common::TDeckDisplay;
 use crate::comps::MenuView;
-use crate::textview::TextView;
+use crate::pageview::PageView;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -142,6 +142,16 @@ impl Scene {
             None
         }
     }
+    pub fn mutate_view<F:Fn(&mut Box<dyn View>)>(&mut self, name: &str, callback: F) {
+        if let Some(view) = self.keys.get_mut(name) {
+            callback(view);
+            let bounds = view.bounds();
+            self.mark_dirty(bounds);
+        } else {
+            warn!("mutate_view: Missing view with name '{}'", name);
+        }
+    }
+
     pub fn get_menu(&self, name: &str) -> Option<&MenuView> {
         if let Some(view) = self.keys.get(name) {
             if let Some(menu) = view.as_any().downcast_ref::<MenuView>() {
@@ -194,9 +204,9 @@ impl Scene {
             warn!("show_menu: no menu found for the name: {name}");
         }
     }
-    pub fn get_textview_mut(&mut self, name: &str) -> Option<&mut TextView> {
+    pub fn get_textview_mut(&mut self, name: &str) -> Option<&mut PageView> {
         if let Some(view) = self.keys.get_mut(name) {
-            if let Some(menu) = view.as_any_mut().downcast_mut::<TextView>() {
+            if let Some(menu) = view.as_any_mut().downcast_mut::<PageView>() {
                 Some(menu)
             } else {
                 None

@@ -13,6 +13,17 @@ pub struct Page {
 }
 
 impl Page {
+    pub fn new() -> Page {
+        Page {
+            selection: 0,
+            blocks: vec![],
+            links: vec![],
+            url: "".to_string(),
+        }
+    }
+}
+
+impl Page {
     pub fn from_bytes(bytes: &[u8], url:&str) -> Page {
         let tags = TagParser::new(bytes);
         let block_parser = BlockParser::new(tags);

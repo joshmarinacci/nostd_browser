@@ -5,7 +5,7 @@ use alloc::{format, vec};
 use alloc::vec::Vec;
 use core::any::Any;
 use core::cmp::max;
-use embedded_graphics::geometry::{OriginDimensions, Point};
+use embedded_graphics::geometry::{OriginDimensions, Point, Size};
 use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
 use embedded_graphics::prelude::{Dimensions, Primitive, RgbColor};
@@ -18,7 +18,7 @@ use nostd_html_parser::blocks::BlockType;
 use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
 use crate::page::Page;
 
-pub struct TextView {
+pub struct PageView {
     pub dirty: bool,
     pub lines: Vec<TextLine>,
     pub link_count: i32,
@@ -28,10 +28,18 @@ pub struct TextView {
     pub page: Page
 }
 
-impl TextView {
-}
-
-impl TextView {
+impl PageView {
+    pub fn new(bounds: Rectangle, page: Page) -> PageView {
+        PageView {
+            dirty: true,
+            visible: true,
+            lines: vec![],
+            scroll_index: 0,
+            link_count: 0,
+            page,
+            bounds,
+        }
+    }
     pub fn load_page(&mut self, page: Page, columns: u32) {
         let mut lines: Vec<TextLine> = vec![];
         let mut link_count = 0;
@@ -57,9 +65,7 @@ impl TextView {
         self.lines = lines;
         self.page = page;
     }
-}
 
-impl TextView {
     pub fn prev_link(&mut self) {
         self.page.selection -= 1;
         if self.page.selection < 0 {
@@ -107,7 +113,7 @@ impl TextView {
         }
     }
 }
-impl View for TextView {
+impl View for PageView {
     fn as_any(&self) -> &dyn Any {
         self
     }

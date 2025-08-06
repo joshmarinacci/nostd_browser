@@ -4,6 +4,6 @@ extern crate alloc;
 pub mod brickbreaker;
 pub mod common;
 pub mod gui;
-pub mod textview;
+pub mod pageview;
 pub mod comps;
 pub mod page;
