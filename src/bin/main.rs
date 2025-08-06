@@ -538,6 +538,8 @@ async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
             NET_COMMANDS
                 .send(NetCommand::Load("bookmarks.html".to_string()))
                 .await;
+            scene.hide(MAIN_MENU);
+            scene.set_focused(PAGE_VIEW);
             return;
         }
         if scene.menu_equals(MAIN_MENU, "Info") {
