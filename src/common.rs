@@ -38,6 +38,7 @@ pub enum NetStatus {
     Connected(),
     LoadingPage(),
     PageLoaded(),
+    Error(String),
     Info(String),
 }
 

@@ -815,25 +815,28 @@ async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
                         let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
                         // let mut client = HttpClient::new(&tcp, &dns);
                         let mut buffer = [0u8; 4096 * 5];
-                        info!("making the actual request");
+                        info!("making the actual request to {}", href);
                         // let url = "https://joshondesign.com/2023/07/12/css_text_style_builder";
                         let mut http_req = client
-                            .request(
-                                reqwless::request::Method::GET,
-                                &href,
-                                // "https://jsonplaceholder.typicode.com/posts/1",
-                                // "https://apps.josh.earth/",
-                            )
+                            .request(reqwless::request::Method::GET, &href)
                             .await
                             .unwrap();
-                        let response = http_req.send(&mut buffer).await.unwrap();
-                        info!("Got response");
-                        let res = response.body().read_to_end().await.unwrap();
-                        PAGE_CHANNEL
-                            .sender()
-                            .send(Page::from_bytes(res, &href))
-                            .await;
-                        NET_STATUS.send(NetStatus::PageLoaded()).await;
+                        let resp = http_req.send(&mut buffer).await;
+                        match resp {
+                            Ok(response) => {
+                                info!("Got response");
+                                let res = response.body().read_to_end().await.unwrap();
+                                PAGE_CHANNEL
+                                    .sender()
+                                    .send(Page::from_bytes(res, &href))
+                                    .await;
+                                NET_STATUS.send(NetStatus::PageLoaded()).await;
+                            },
+                            Err(err) => {
+                                info!("Got error: {:?}", err);
+                                NET_STATUS.send(NetStatus::Error(format!("{:?}",err))).await;
+                            }
+                        }
                     }
                 }
             }
