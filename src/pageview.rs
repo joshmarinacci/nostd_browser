@@ -160,6 +160,10 @@ impl View for PageView {
                 BlockType::ListItem => MonoTextStyle::new(&FONT_9X15, theme.base_fg),
                 BlockType::Header => MonoTextStyle::new(&FONT_9X15_BOLD, theme.base_fg),
             };
+            // draw a bullet
+            if line.block_type == BlockType::ListItem {
+                Rectangle::new(Point::new(0,y),Size::new(8,8)).into_styled(PrimitiveStyle::with_fill(theme.base_fg)).draw(display).unwrap();
+            }
             for run in &line.runs {
                 let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
                 let text_style = match &run.style {
