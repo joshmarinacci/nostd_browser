@@ -85,7 +85,7 @@ static I2C: StaticCell<I2c<Blocking>> = StaticCell::new();
 
 static PAGE_BYTES: &[u8] = include_bytes!("homepage.html");
 
-static TRACKBALL_CHANNEL: Channel<CriticalSectionRawMutex, (Point, Point), 2> = Channel::new();
+static TRACKBALL_CHANNEL: Channel<CriticalSectionRawMutex, GuiEvent, 2> = Channel::new();
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     esp_println::logger::init_logger_from_env();
@@ -357,8 +357,8 @@ async fn connection(mut controller: WifiController<'static>) {
                     NET_STATUS.send(NetStatus::Connected()).await;
                     loop {
                         info!("checking if we are still connected");
-                        if let Ok(con) = controller.is_connected() {
-                            if (con) {
+                        if let Ok(conn) = controller.is_connected() {
+                            if conn {
                                 info!("Connected successfully");
                                 info!("sleep until we aren't connected anymore");
                                 Timer::after(Duration::from_millis(5000)).await
@@ -424,9 +424,8 @@ async fn update_display(
             }
         }
 
-        if let Ok((pt, delta)) = TRACKBALL_CHANNEL.try_receive() {
+        if let Ok(evt) = TRACKBALL_CHANNEL.try_receive() {
             // info!("got a trackball event {pt} {delta}");
-            let evt: GuiEvent = GuiEvent::PointerEvent(pt, delta);
             update_view_from_input(evt, &mut scene, display).await;
         }
 
@@ -481,7 +480,7 @@ async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TD
         }
     }
 
-    let PANEL_BOUNDS = Rectangle::new(
+    let panel_bounds = Rectangle::new(
         Point::new(20, 20),
         Size::new(
             display.bounding_box().size.width - 40,
@@ -502,7 +501,7 @@ async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TD
                         return;
                     }
                     if scene.menu_equals(MAIN_MENU, "Wifi") {
-                        let panel = Panel::new(PANEL_BOUNDS);
+                        let panel = Panel::new(panel_bounds);
                         let label1a = Label::new("SSID", Point::new(60, 80));
                         let label1b = Label::new(SSID.unwrap_or("----"), Point::new(150, 80));
                         let label2a = Label::new("PASSWORD", Point::new(60, 100));
@@ -528,7 +527,7 @@ async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TD
                     }
                     if scene.menu_equals(MAIN_MENU, "Info") {
                         info!("showing the info panel");
-                        let panel = Panel::new(PANEL_BOUNDS);
+                        let panel = Panel::new(panel_bounds);
                         scene.add("info-panel", panel);
 
                         let free = esp_alloc::HEAP.free();
@@ -639,7 +638,10 @@ async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TD
             }
             _ => {}
         },
-        GuiEvent::PointerEvent(_, _) => {}
+        GuiEvent::ScrollEvent(_, _) => {}
+        GuiEvent::ClickEvent() => {
+            info!("clicked the button");
+        }
     }
 }
 
@@ -721,6 +723,7 @@ async fn handle_trackball(
     tdeck_trackball_up: Input<'static>,
     tdeck_trackball_down: Input<'static>,
 ) {
+    let mut last_click_low = false;
     let mut last_right_high = false;
     let mut last_left_high = false;
     let mut last_up_high = false;
@@ -728,30 +731,35 @@ async fn handle_trackball(
     info!("monitoring the trackball");
     let mut cursor = Point::new(50, 50);
     loop {
+        if tdeck_track_click.is_low() != last_click_low {
+            info!("click");
+            last_click_low = tdeck_track_click.is_low();
+            TRACKBALL_CHANNEL.send(GuiEvent::ClickEvent()).await;
+        }
         // info!("button pressed is {} ", tdeck_track_click.is_low());
         if tdeck_trackball_right.is_high() != last_right_high {
             // info!("right");
             last_right_high = tdeck_trackball_right.is_high();
             cursor.x += 1;
-            TRACKBALL_CHANNEL.send((cursor, Point::new(1, 0))).await;
+            TRACKBALL_CHANNEL.send(GuiEvent::ScrollEvent(cursor, Point::new(1, 0))).await;
         }
         if tdeck_trackball_left.is_high() != last_left_high {
             // info!("left");
             last_left_high = tdeck_trackball_left.is_high();
             cursor.x -= 1;
-            TRACKBALL_CHANNEL.send((cursor, Point::new(-1, 0))).await;
+            TRACKBALL_CHANNEL.send(GuiEvent::ScrollEvent(cursor, Point::new(-1, 0))).await;
         }
         if tdeck_trackball_up.is_high() != last_up_high {
             // info!("up");
             last_up_high = tdeck_trackball_up.is_high();
             cursor.y -= 1;
-            TRACKBALL_CHANNEL.send((cursor, Point::new(0, -1))).await;
+            TRACKBALL_CHANNEL.send(GuiEvent::ScrollEvent(cursor, Point::new(0, -1))).await;
         }
         if tdeck_trackball_down.is_high() != last_down_high {
             // info!("down");
             last_down_high = tdeck_trackball_down.is_high();
             cursor.y += 1;
-            TRACKBALL_CHANNEL.send((cursor, Point::new(0, 1))).await;
+            TRACKBALL_CHANNEL.send(GuiEvent::ScrollEvent(cursor, Point::new(0, 1))).await;
         }
         // wait one msec
         Timer::after(Duration::from_millis(1)).await;

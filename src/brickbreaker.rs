@@ -77,7 +77,7 @@ impl View for GameView {
 
     fn handle_input(&mut self, event: GuiEvent) {
         match event {
-            GuiEvent::PointerEvent(_pt, delta) => {
+            GuiEvent::ScrollEvent(_pt, delta) => {
                 self.old_paddle = self.paddle;
                 self.paddle = self.paddle.translate(Point::new(delta.x*20, 0));
                 if self.paddle.top_left.x < 0 {
@@ -91,6 +91,7 @@ impl View for GameView {
             GuiEvent::KeyEvent(key) => {
                 info!("GAME: key event: {:?}", key);
             }
+            _ => {}
         }
     }
 

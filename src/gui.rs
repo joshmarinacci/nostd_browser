@@ -289,5 +289,6 @@ fn union(a: &Rectangle, b: &Rectangle) -> Rectangle {
 #[derive(Debug, Copy, Clone)]
 pub enum GuiEvent {
     KeyEvent(u8),
-    PointerEvent(Point, Point),
+    ScrollEvent(Point, Point),
+    ClickEvent(),
 }

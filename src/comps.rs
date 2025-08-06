@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use embedded_graphics::primitives::{PrimitiveStyle, PrimitiveStyleBuilder, Rectangle, StrokeAlignment};
 use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
 use embedded_graphics::text::{Alignment, Text};
-use log::info;
+use log::{info, warn};
 use core::any::Any;
 use alloc::string::{String, ToString};
 use embedded_graphics::pixelcolor::{Rgb565, RgbColor, WebColors};
@@ -318,7 +318,7 @@ impl View for MenuView {
                 b'k' => self.nav_next(),
                 _ => {}
             },
-            GuiEvent::PointerEvent(_,delta) => {
+            GuiEvent::ScrollEvent(_, delta) => {
                 // info!("menu got {pt} {delta}");
                 if delta.y < 0 {
                     self.nav_next();
@@ -326,6 +326,9 @@ impl View for MenuView {
                 if delta.y > 0 {
                     self.nav_prev();
                 }
+            }
+            _ => {
+                warn!("unhandled event: {:?}", event);
             }
         }
     }
