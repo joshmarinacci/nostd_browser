@@ -16,7 +16,8 @@ use embassy_net::{Runner, Stack, StackResources};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
-use embedded_graphics::mono_font::ascii::{FONT_6X10, FONT_7X13, FONT_8X13, FONT_9X15};
+use embedded_graphics::mono_font::ascii::{FONT_6X10, FONT_8X13, FONT_9X15};
+use embedded_graphics::mono_font::iso_8859_14::FONT_10X20;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::Rectangle;
 use embedded_hal_bus::spi::ExclusiveDevice;
@@ -510,7 +511,7 @@ async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
             scene.show_menu(THEME_MENU);
             return;
         }
-        if scene.menu_equals(MAIN_MENU, FONT_MENU) {
+        if scene.menu_equals(MAIN_MENU, "Font") {
             scene.show_menu(FONT_MENU);
             return;
         }
@@ -578,10 +579,6 @@ async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
             scene.set_focused("info-button");
             return;
         }
-        if scene.menu_equals(MAIN_MENU, FONT_MENU) {
-            scene.show_menu(FONT_MENU);
-            return;
-        }
         if scene.menu_equals(MAIN_MENU, "Bricks") {
             scene.add("game", GameView::new());
             scene.hide(MAIN_MENU);
@@ -644,6 +641,9 @@ async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
         if scene.menu_equals(FONT_MENU, "Large") {
             scene.set_font(FONT_9X15);
         }
+        if scene.menu_equals(FONT_MENU, "Huge") {
+            scene.set_font(FONT_10X20);
+        }
         // close
         if scene.menu_equals(FONT_MENU, "close") {
             scene.hide(FONT_MENU);
@@ -689,7 +689,7 @@ fn make_gui_scene<'a>() -> Scene {
     );
     scene.add(
         FONT_MENU,
-        MenuView::start_hidden(vec!["Small", "Medium", "Large", "close"], Point::new(20, 20)),
+        MenuView::start_hidden(vec!["Small", "Medium", "Large", "Huge", "close"], Point::new(20, 20)),
     );
     scene.add(
         "wifi",
