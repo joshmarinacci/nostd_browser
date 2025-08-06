@@ -192,8 +192,8 @@ impl View for PageView {
         match event {
             GuiEvent::KeyEvent(key) => {
                 match key {
-                    b'j' => self.scroll_index = (self.scroll_index + 1) % (self.lines.len() as i32),
-                    b'k' => self.scroll_index = max(self.scroll_index - 1, 0),
+                    b'j' => self.scroll_index = (self.scroll_index + 10) % (self.lines.len() as i32),
+                    b'k' => self.scroll_index = max(self.scroll_index - 10, 0),
                     b'a' => self.prev_link(),
                     b's' => self.next_link(),
                     13 => self.nav_current_link(),
