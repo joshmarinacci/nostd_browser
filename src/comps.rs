@@ -101,7 +101,7 @@ impl View for Label {
     }
 
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
-        let style = MonoTextStyle::new(&base_font, theme.base_fg);
+        let style = MonoTextStyle::new(&theme.font, theme.base_fg);
         let text = Text::new(&self.text, self.position, style);
         if !text.bounding_box().intersection(clip).is_zero_sized() {
             text.draw(display).unwrap();
@@ -179,7 +179,7 @@ impl View for Button {
             .into_styled(style)
             .draw(display)
             .unwrap();
-        let style = MonoTextStyle::new(&base_font, theme.base_fg);
+        let style = MonoTextStyle::new(&theme.font, theme.base_fg);
         let text = Text::new(&self.text, self.position, style);
         if !text.bounding_box().intersection(clip).is_zero_sized() {
             text.draw(display).unwrap();
@@ -260,7 +260,7 @@ impl View for MenuView {
         if !self.visible {
             return;
         }
-        let line_height = (base_font.character_size.height + 2) as i32;
+        let line_height = (theme.font.character_size.height + 2) as i32;
         let pad = PAD as i32;
 
         let xoff: i32 = 2;
@@ -305,7 +305,7 @@ impl View for MenuView {
             } else {
                 theme.base_fg
             };
-            let text_style = MonoTextStyle::new(&base_font, fg);
+            let text_style = MonoTextStyle::new(&theme.font, fg);
             let pos = Point::new(pad + xoff, line_y + line_height - 3 + yoff).add(self.position);
             let text_bounds = Text::new(item, pos, text_style).bounding_box();
             if !text_bounds.intersection(clip).is_zero_sized() {
@@ -384,7 +384,7 @@ impl View for OverlayLabel {
             .into_styled(style)
             .draw(display)
             .unwrap();
-        let style = MonoTextStyle::new(&base_font, theme.base_bg);
+        let style = MonoTextStyle::new(&theme.font, theme.base_bg);
         let text =
             Text::with_alignment(&self.text, self.bounds().center(), style, Alignment::Center);
         if !text.bounding_box().intersection(clip).is_zero_sized() {

@@ -14,25 +14,28 @@ use embedded_graphics::primitives::Rectangle;
 use hashbrown::HashMap;
 use log::{info, warn};
 
+pub const base_font: MonoFont = FONT_9X15;
 pub struct Theme {
     pub base_bg: Rgb565,
     pub base_bd: Rgb565,
     pub base_fg: Rgb565,
     pub shadow: bool,
+    pub font: MonoFont<'static>,
 }
 pub const LIGHT_THEME: Theme = Theme {
     base_bg: Rgb565::WHITE,
     base_bd: Rgb565::BLACK,
     base_fg: Rgb565::BLACK,
     shadow: false,
+    font: base_font,
 };
 pub const DARK_THEME: Theme = Theme {
     base_bg: Rgb565::BLACK,
     base_bd: Rgb565::WHITE,
     base_fg: Rgb565::WHITE,
+    font: base_font,
     shadow: false,
 };
-pub const base_font: MonoFont = FONT_9X15;
 
 pub trait View {
     fn as_any(&self) -> &dyn Any;
@@ -73,6 +76,13 @@ pub struct Scene {
     pub clip: Rectangle,
     pub theme: Theme,
     pub auto_redraw: bool,
+}
+
+impl Scene {
+    pub fn set_font(&mut self, font: MonoFont<'static>) {
+        self.theme.font = font;
+        self.mark_dirty(Rectangle::new(Point::new(0, 0), Size::new(320, 240)))
+    }
 }
 
 impl Scene {
