@@ -1,3 +1,4 @@
+use crate::page::Page;
 use alloc::string::String;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
@@ -9,7 +10,6 @@ use esp_hal::Blocking;
 use mipidsi::interface::SpiInterface;
 use mipidsi::models::ST7789;
 use mipidsi::{Display, NoResetPin};
-use crate::page::Page;
 
 pub type TDeckDisplay = Display<
     SpiInterface<
@@ -22,14 +22,12 @@ pub type TDeckDisplay = Display<
 >;
 pub static PAGE_CHANNEL: Channel<CriticalSectionRawMutex, Page, 2> = Channel::new();
 
-
 #[derive(Debug)]
 pub enum NetCommand {
-    Load(String)
+    Load(String),
 }
 
 pub static NET_COMMANDS: Channel<CriticalSectionRawMutex, NetCommand, 2> = Channel::new();
-
 
 #[derive(Debug)]
 pub enum NetStatus {
@@ -40,7 +38,7 @@ pub enum NetStatus {
     Connected(),
     LoadingPage(),
     PageLoaded(),
-    Info(String)
+    Info(String),
 }
 
 pub static NET_STATUS: Channel<CriticalSectionRawMutex, NetStatus, 2> = Channel::new();

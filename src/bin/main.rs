@@ -275,7 +275,6 @@ async fn connection(mut controller: WifiController<'static>) {
     info!("start connection task");
     info!("Device capabilities: {:?}", controller.capabilities());
     loop {
-
         match esp_wifi::wifi::wifi_state() {
             WifiState::StaConnected => {
                 // wait until we're no longer connected
@@ -285,9 +284,12 @@ async fn connection(mut controller: WifiController<'static>) {
             }
             _ => {}
         }
-        info!("wifi state is {:?}",esp_wifi::wifi::wifi_state());
+        info!("wifi state is {:?}", esp_wifi::wifi::wifi_state());
         // DISCONNECTED
-        info!("we are disconnected. is started = {:?}", controller.is_started());
+        info!(
+            "we are disconnected. is started = {:?}",
+            controller.is_started()
+        );
         if !matches!(controller.is_started(), Ok(true)) {
             if SSID.is_none() {
                 warn!("SSID is none. did you forget to set the SSID environment variables");
@@ -378,7 +380,9 @@ async fn connection(mut controller: WifiController<'static>) {
         } else {
             let ssid = SSID.unwrap();
             info!("did not find the ap for {ssid}");
-            NET_STATUS.send(NetStatus::Info(format!("{ssid} not found"))).await;
+            NET_STATUS
+                .send(NetStatus::Info(format!("{ssid} not found")))
+                .await;
             info!("looping around");
         }
         Timer::after(Duration::from_millis(1000)).await;
@@ -434,7 +438,7 @@ async fn update_display(
                 NetStatus::Info(txt) => txt,
                 _ => &format!("{:?}", status).to_string(),
             };
-            scene.mutate_view("status",|view|{
+            scene.mutate_view("status", |view| {
                 if let Some(overlay) = view.as_any_mut().downcast_mut::<OverlayLabel>() {
                     overlay.set_text(txt);
                 };
@@ -447,6 +451,7 @@ async fn update_display(
 }
 
 const MAIN_MENU: &'static str = "main";
+const FONT_MENU: &'static str = "font";
 const THEME_MENU: &'static str = "theme";
 const PAGE_VIEW: &'static str = "page";
 
@@ -505,8 +510,8 @@ async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
             scene.show_menu(THEME_MENU);
             return;
         }
-        if scene.menu_equals(MAIN_MENU, "Font") {
-            scene.show_menu("font");
+        if scene.menu_equals(MAIN_MENU, FONT_MENU) {
+            scene.show_menu(FONT_MENU);
             return;
         }
         if scene.menu_equals(MAIN_MENU, "Wifi") {
@@ -573,8 +578,8 @@ async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
             scene.set_focused("info-button");
             return;
         }
-        if scene.menu_equals(MAIN_MENU, "Font") {
-            scene.show_menu("font");
+        if scene.menu_equals(MAIN_MENU, FONT_MENU) {
+            scene.show_menu(FONT_MENU);
             return;
         }
         if scene.menu_equals(MAIN_MENU, "Bricks") {
@@ -629,10 +634,10 @@ async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
             return;
         }
     }
-    if scene.is_focused("font") {
+    if scene.is_focused(FONT_MENU) {
         // close
-        if scene.menu_equals("font", "close") {
-            scene.hide("font");
+        if scene.menu_equals(FONT_MENU, "close") {
+            scene.hide(FONT_MENU);
             scene.set_focused(MAIN_MENU);
             return;
         }
@@ -649,10 +654,10 @@ async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
 fn make_gui_scene<'a>() -> Scene {
     let mut scene = Scene::new();
     let full_screen_bounds = Rectangle {
-            top_left: Point::new(0, 0),
-            size: Size::new(320, 240),
-        };
-    let textview = PageView::new(full_screen_bounds,  Page::new() );
+        top_left: Point::new(0, 0),
+        size: Size::new(320, 240),
+    };
+    let textview = PageView::new(full_screen_bounds, Page::new());
     scene.add(PAGE_VIEW, Box::new(textview));
     scene.add(
         MAIN_MENU,
@@ -674,7 +679,7 @@ fn make_gui_scene<'a>() -> Scene {
         MenuView::start_hidden(vec!["Light", "Dark", "close"], Point::new(20, 20)),
     );
     scene.add(
-        "font",
+        FONT_MENU,
         MenuView::start_hidden(vec!["small", "medium", "big", "close"], Point::new(20, 20)),
     );
     scene.add(
@@ -733,25 +738,33 @@ async fn handle_trackball(
             // info!("right");
             last_right_high = tdeck_trackball_right.is_high();
             cursor.x += 1;
-            TRACKBALL_CHANNEL.send(GuiEvent::ScrollEvent(cursor, Point::new(1, 0))).await;
+            TRACKBALL_CHANNEL
+                .send(GuiEvent::ScrollEvent(cursor, Point::new(1, 0)))
+                .await;
         }
         if tdeck_trackball_left.is_high() != last_left_high {
             // info!("left");
             last_left_high = tdeck_trackball_left.is_high();
             cursor.x -= 1;
-            TRACKBALL_CHANNEL.send(GuiEvent::ScrollEvent(cursor, Point::new(-1, 0))).await;
+            TRACKBALL_CHANNEL
+                .send(GuiEvent::ScrollEvent(cursor, Point::new(-1, 0)))
+                .await;
         }
         if tdeck_trackball_up.is_high() != last_up_high {
             // info!("up");
             last_up_high = tdeck_trackball_up.is_high();
             cursor.y -= 1;
-            TRACKBALL_CHANNEL.send(GuiEvent::ScrollEvent(cursor, Point::new(0, -1))).await;
+            TRACKBALL_CHANNEL
+                .send(GuiEvent::ScrollEvent(cursor, Point::new(0, -1)))
+                .await;
         }
         if tdeck_trackball_down.is_high() != last_down_high {
             // info!("down");
             last_down_high = tdeck_trackball_down.is_high();
             cursor.y += 1;
-            TRACKBALL_CHANNEL.send(GuiEvent::ScrollEvent(cursor, Point::new(0, 1))).await;
+            TRACKBALL_CHANNEL
+                .send(GuiEvent::ScrollEvent(cursor, Point::new(0, 1)))
+                .await;
         }
         // wait one msec
         Timer::after(Duration::from_millis(1)).await;

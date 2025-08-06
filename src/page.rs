@@ -24,7 +24,7 @@ impl Page {
 }
 
 impl Page {
-    pub fn from_bytes(bytes: &[u8], url:&str) -> Page {
+    pub fn from_bytes(bytes: &[u8], url: &str) -> Page {
         let tags = TagParser::new(bytes);
         let block_parser = BlockParser::new(tags);
         let blocks = block_parser.collect();
@@ -36,4 +36,3 @@ impl Page {
         }
     }
 }
-

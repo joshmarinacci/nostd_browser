@@ -1,20 +1,22 @@
-use embedded_graphics::geometry::{AnchorPoint, Dimensions, Point, Size};
-use alloc::boxed::Box;
-use embedded_graphics::primitives::{PrimitiveStyle, PrimitiveStyleBuilder, Rectangle, StrokeAlignment};
-use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
-use embedded_graphics::text::{Alignment, Text};
-use log::{info, warn};
-use core::any::Any;
-use alloc::string::{String, ToString};
-use embedded_graphics::pixelcolor::{Rgb565, RgbColor, WebColors};
-use embedded_graphics::prelude::Primitive;
-use embedded_graphics::Drawable;
-use alloc::vec::Vec;
-use embedded_graphics::mono_font::ascii::FONT_9X15;
-use core::ops::Add;
-use embedded_graphics::primitives::StrokeAlignment::Inside;
 use crate::common::TDeckDisplay;
 use crate::gui::{base_font, GuiEvent, Theme, View};
+use alloc::boxed::Box;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
+use core::any::Any;
+use core::ops::Add;
+use embedded_graphics::geometry::{AnchorPoint, Dimensions, Point, Size};
+use embedded_graphics::mono_font::ascii::FONT_9X15;
+use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
+use embedded_graphics::pixelcolor::{Rgb565, RgbColor, WebColors};
+use embedded_graphics::prelude::Primitive;
+use embedded_graphics::primitives::StrokeAlignment::Inside;
+use embedded_graphics::primitives::{
+    PrimitiveStyle, PrimitiveStyleBuilder, Rectangle, StrokeAlignment,
+};
+use embedded_graphics::text::{Alignment, Text};
+use embedded_graphics::Drawable;
+use log::{info, warn};
 
 pub struct Panel {
     pub bounds: Rectangle,
@@ -39,15 +41,16 @@ impl View for Panel {
             .stroke_color(theme.base_bd)
             .stroke_width(1)
             .stroke_alignment(StrokeAlignment::Inside)
-            .fill_color(theme.base_bg).build();
-        self.bounds.intersection(clip)
+            .fill_color(theme.base_bg)
+            .build();
+        self.bounds
+            .intersection(clip)
             .into_styled(style)
             .draw(display)
             .unwrap();
     }
 
-    fn handle_input(&mut self, _event: GuiEvent) {
-    }
+    fn handle_input(&mut self, _event: GuiEvent) {}
 
     fn visible(&self) -> bool {
         self.visible
@@ -68,8 +71,8 @@ impl Panel {
 }
 
 pub struct Label {
-    text:String,
-    position:Point,
+    text: String,
+    position: Point,
     visible: bool,
 }
 
@@ -92,8 +95,8 @@ impl View for Label {
 
     fn bounds(&self) -> Rectangle {
         Rectangle {
-            top_left:self.position,
-            size: Size::new(50,20),
+            top_left: self.position,
+            size: Size::new(50, 20),
         }
     }
 
@@ -105,15 +108,13 @@ impl View for Label {
         }
     }
 
-    fn handle_input(&mut self, _: GuiEvent) {
-    }
-
+    fn handle_input(&mut self, _: GuiEvent) {}
 }
 
 impl Label {
     pub fn new(text: &str, p1: Point) -> Box<Label> {
         Box::new(Label {
-            text:text.to_string(),
+            text: text.to_string(),
             position: p1,
             visible: true,
         })
@@ -124,8 +125,8 @@ impl Label {
 }
 
 pub struct Button {
-    text:String,
-    position:Point,
+    text: String,
+    position: Point,
     visible: bool,
 }
 
@@ -161,8 +162,8 @@ impl View for Button {
     fn bounds(&self) -> Rectangle {
         let style = MonoTextStyle::new(&base_font, Rgb565::BLACK);
         let bounds = Text::new(&self.text, self.position, style).bounding_box();
-        let bigger = bounds.size.add(Size::new(20,20));
-        bounds.resized(bigger,AnchorPoint::Center)
+        let bigger = bounds.size.add(Size::new(20, 20));
+        bounds.resized(bigger, AnchorPoint::Center)
     }
 
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
@@ -170,11 +171,14 @@ impl View for Button {
             .stroke_color(theme.base_bd)
             .stroke_width(1)
             .stroke_alignment(StrokeAlignment::Inside)
-            .fill_color(theme.base_bg).build();
+            .fill_color(theme.base_bg)
+            .build();
 
-        self.bounds().intersection(clip)
+        self.bounds()
+            .intersection(clip)
             .into_styled(style)
-            .draw(display).unwrap();
+            .draw(display)
+            .unwrap();
         let style = MonoTextStyle::new(&base_font, theme.base_fg);
         let text = Text::new(&self.text, self.position, style);
         if !text.bounding_box().intersection(clip).is_zero_sized() {
@@ -195,7 +199,7 @@ pub struct MenuView {
     pub dirty: bool,
 }
 
-const PAD:u32 = 5;
+const PAD: u32 = 5;
 impl MenuView {
     pub(crate) fn nav_prev(&mut self) {
         self.highlighted_index = (self.highlighted_index + 1) % self.items.len();
@@ -227,10 +231,7 @@ impl MenuView {
         let font = FONT_9X15;
         let line_height = (font.character_size.height + 2) as u32;
         let len = self.items.len() as u32;
-        Size::new(
-            100 + PAD*2,
-            len * line_height + PAD * 2
-        )
+        Size::new(100 + PAD * 2, len * line_height + PAD * 2)
     }
 }
 
@@ -276,7 +277,9 @@ impl View for MenuView {
         }
 
         let panel_style = PrimitiveStyleBuilder::new()
-            .stroke_width(1).stroke_alignment(Inside).stroke_color(theme.base_bd)
+            .stroke_width(1)
+            .stroke_alignment(Inside)
+            .stroke_color(theme.base_bd)
             .fill_color(theme.base_bg)
             .build();
         Rectangle::new(self.position, menu_size)
@@ -292,10 +295,10 @@ impl View for MenuView {
                     Point::new(pad, line_y + yoff).add(self.position),
                     Size::new(100, line_height as u32),
                 )
-                    .intersection(clip)
-                    .into_styled(PrimitiveStyle::with_fill(theme.base_bd))
-                    .draw(display)
-                    .unwrap();
+                .intersection(clip)
+                .into_styled(PrimitiveStyle::with_fill(theme.base_bd))
+                .draw(display)
+                .unwrap();
             };
             let fg = if i == self.highlighted_index {
                 theme.base_bg
@@ -303,7 +306,7 @@ impl View for MenuView {
                 theme.base_fg
             };
             let text_style = MonoTextStyle::new(&base_font, fg);
-            let pos = Point::new(pad + xoff, line_y + line_height - 3 + yoff ).add(self.position);
+            let pos = Point::new(pad + xoff, line_y + line_height - 3 + yoff).add(self.position);
             let text_bounds = Text::new(item, pos, text_style).bounding_box();
             if !text_bounds.intersection(clip).is_zero_sized() {
                 Text::new(&item, pos, text_style).draw(display).unwrap();
@@ -334,14 +337,13 @@ impl View for MenuView {
     }
 }
 
-
 pub struct OverlayLabel {
-    text:String,
+    text: String,
     bounds: Rectangle,
     visible: bool,
 }
 impl OverlayLabel {
-    pub fn new(text: &str, bounds:Rectangle) -> Box<OverlayLabel> {
+    pub fn new(text: &str, bounds: Rectangle) -> Box<OverlayLabel> {
         Box::new(OverlayLabel {
             text: text.to_string(),
             bounds,
@@ -374,13 +376,17 @@ impl View for OverlayLabel {
 
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
         let style = PrimitiveStyleBuilder::new()
-            .fill_color(theme.base_fg).build();
+            .fill_color(theme.base_fg)
+            .build();
 
-        self.bounds().intersection(clip)
+        self.bounds()
+            .intersection(clip)
             .into_styled(style)
-            .draw(display).unwrap();
+            .draw(display)
+            .unwrap();
         let style = MonoTextStyle::new(&base_font, theme.base_bg);
-        let text = Text::with_alignment(&self.text, self.bounds().center(), style, Alignment::Center);
+        let text =
+            Text::with_alignment(&self.text, self.bounds().center(), style, Alignment::Center);
         if !text.bounding_box().intersection(clip).is_zero_sized() {
             text.draw(display).unwrap();
         }

@@ -1,22 +1,22 @@
-use alloc::string::ToString;
 use crate::common::{NetCommand, TDeckDisplay, NET_COMMANDS};
 use crate::gui::{GuiEvent, Theme, View};
-use alloc::{format, vec};
+use crate::page::Page;
+use alloc::string::ToString;
 use alloc::vec::Vec;
+use alloc::{format, vec};
 use core::any::Any;
 use core::cmp::max;
 use embedded_graphics::geometry::{OriginDimensions, Point, Size};
 use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
+use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{Dimensions, Primitive, RgbColor};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
-use embedded_graphics::pixelcolor::Rgb565;
 use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
 use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
-use crate::page::Page;
 
 pub struct PageView {
     pub dirty: bool,
@@ -25,7 +25,7 @@ pub struct PageView {
     pub visible: bool,
     pub scroll_index: i32,
     pub bounds: Rectangle,
-    pub page: Page
+    pub page: Page,
 }
 
 impl PageView {
@@ -53,9 +53,7 @@ impl PageView {
                             info!("found a link: {:?}", href);
                             link_count += 1;
                         }
-                        _ => {
-
-                        }
+                        _ => {}
                     }
                 }
             }
@@ -69,7 +67,7 @@ impl PageView {
     pub fn prev_link(&mut self) {
         self.page.selection -= 1;
         if self.page.selection < 0 {
-            self.page.selection = self.link_count-1;
+            self.page.selection = self.link_count - 1;
         }
     }
     pub fn next_link(&mut self) {
@@ -77,7 +75,10 @@ impl PageView {
         if self.page.selection >= self.link_count {
             self.page.selection = 0;
         }
-        info!("selected link: {:?}", self.find_href_by_index(self.page.selection));
+        info!(
+            "selected link: {:?}",
+            self.find_href_by_index(self.page.selection)
+        );
     }
     pub fn find_href_by_index(&self, index: i32) -> Option<&str> {
         // info!("find_href_by_index: {}", index);
@@ -105,11 +106,13 @@ impl PageView {
             info!("loading the href {}", href);
             let mut href = href.to_string();
             if !href.starts_with("http") {
-                info!("doing a relative link. base is {}",self.page.url);
-                href = format!("{}{}",self.page.url, href);
+                info!("doing a relative link. base is {}", self.page.url);
+                href = format!("{}{}", self.page.url, href);
                 info!("final url is {}", href);
             }
-            NET_COMMANDS.try_send(NetCommand::Load(href.to_string())).unwrap()
+            NET_COMMANDS
+                .try_send(NetCommand::Load(href.to_string()))
+                .unwrap()
         }
     }
 }
@@ -162,7 +165,10 @@ impl View for PageView {
             };
             // draw a bullet
             if line.block_type == BlockType::ListItem {
-                Rectangle::new(Point::new(0,y),Size::new(8,8)).into_styled(PrimitiveStyle::with_fill(theme.base_fg)).draw(display).unwrap();
+                Rectangle::new(Point::new(0, y), Size::new(8, 8))
+                    .into_styled(PrimitiveStyle::with_fill(theme.base_fg))
+                    .draw(display)
+                    .unwrap();
             }
             for run in &line.runs {
                 let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
@@ -170,19 +176,18 @@ impl View for PageView {
                     RunStyle::Link(_) => {
                         // info!("found a link: {:?}", href);
                         link_count += 1;
-                        let builder = MonoTextStyleBuilder::new().font(&FONT_9X15).text_color(Rgb565::BLUE).underline();
+                        let builder = MonoTextStyleBuilder::new()
+                            .font(&FONT_9X15)
+                            .text_color(Rgb565::BLUE)
+                            .underline();
                         if self.page.selection == link_count {
                             builder.background_color(Rgb565::RED).build()
                         } else {
                             builder.build()
                         }
                     }
-                    RunStyle::Plain => {
-                        style
-                    },
-                    RunStyle::Bold => {
-                        style
-                    }
+                    RunStyle::Plain => style,
+                    RunStyle::Bold => style,
                 };
                 let text = Text::new(&run.text, pos, text_style);
                 if !text.bounding_box().intersection(clip).is_zero_sized() {
@@ -196,7 +201,9 @@ impl View for PageView {
         match event {
             GuiEvent::KeyEvent(key) => {
                 match key {
-                    b'j' => self.scroll_index = (self.scroll_index + 10) % (self.lines.len() as i32),
+                    b'j' => {
+                        self.scroll_index = (self.scroll_index + 10) % (self.lines.len() as i32)
+                    }
                     b'k' => self.scroll_index = max(self.scroll_index - 10, 0),
                     b'a' => self.prev_link(),
                     b's' => self.next_link(),
@@ -208,7 +215,7 @@ impl View for PageView {
                 info!("now scroll index {}", self.scroll_index);
                 self.dirty = true
             }
-            GuiEvent::ScrollEvent(pt,delta)  => {
+            GuiEvent::ScrollEvent(pt, delta) => {
                 if (delta.x < 0) || (delta.y < 0) {
                     info!("scrolling to prev link");
                     self.prev_link();
@@ -218,9 +225,7 @@ impl View for PageView {
                     self.next_link();
                 };
             }
-            _ => {
-
-            }
+            _ => {}
         }
     }
 
@@ -231,5 +236,4 @@ impl View for PageView {
     fn set_visible(&mut self, visible: bool) {
         self.visible = visible;
     }
-
 }

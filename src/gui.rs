@@ -4,13 +4,13 @@ use crate::pageview::PageView;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
-use core::any::{Any};
+use core::any::Any;
 use core::fmt::{Debug, Formatter};
 use embedded_graphics::mono_font::ascii::FONT_9X15;
-use embedded_graphics::mono_font::{MonoFont};
+use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{Dimensions, Point, RgbColor, Size};
-use embedded_graphics::primitives::{Rectangle};
+use embedded_graphics::primitives::Rectangle;
 use hashbrown::HashMap;
 use log::{info, warn};
 
@@ -78,11 +78,11 @@ pub struct Scene {
 impl Scene {
     pub fn set_theme(&mut self, theme: Theme) {
         self.theme = theme;
-        self.mark_dirty(Rectangle::new(Point::new(0,0), Size::new(320,240)))
+        self.mark_dirty(Rectangle::new(Point::new(0, 0), Size::new(320, 240)))
     }
     pub fn set_auto_redraw(&mut self, auto_redraw: bool) {
         self.auto_redraw = auto_redraw;
-        self.mark_dirty(Rectangle::new(Point::new(0,0),Size::new(320,240)))
+        self.mark_dirty(Rectangle::new(Point::new(0, 0), Size::new(320, 240)))
     }
 }
 
@@ -142,7 +142,7 @@ impl Scene {
             None
         }
     }
-    pub fn mutate_view<F:Fn(&mut Box<dyn View>)>(&mut self, name: &str, callback: F) {
+    pub fn mutate_view<F: Fn(&mut Box<dyn View>)>(&mut self, name: &str, callback: F) {
         if let Some(view) = self.keys.get_mut(name) {
             callback(view);
             let bounds = view.bounds();
@@ -274,7 +274,13 @@ impl Scene {
         }
         if self.auto_redraw {
             self.dirty = true;
-            self.clip = Rectangle::new(Point::new(0,0),Size::new(display.bounding_box().size.width, display.bounding_box().size.height));
+            self.clip = Rectangle::new(
+                Point::new(0, 0),
+                Size::new(
+                    display.bounding_box().size.width,
+                    display.bounding_box().size.height,
+                ),
+            );
         } else {
             self.dirty = false;
             self.clip = Rectangle::zero();
