@@ -686,7 +686,9 @@ fn make_gui_scene<'a>() -> Scene {
     if let Some(tv) = scene.get_textview_mut(PAGE_VIEW) {
         let mut blocks = vec![];
         blocks.push(Block::new_of_type(BlockType::Header, "Header Text"));
-        blocks.push(Block::new_of_type(BlockType::ListItem, "list item"));
+        blocks.push(Block::new_of_type(BlockType::ListItem, "list item one"));
+        blocks.push(Block::new_of_type(BlockType::ListItem, "list item two"));
+        blocks.push(Block::new_of_type(BlockType::ListItem, "list item three"));
         blocks.push(Block::new_of_type(
             BlockType::Paragraph,
             "This is some long body text that needs to be broken into multiple lines",
