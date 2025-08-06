@@ -204,6 +204,16 @@ impl View for PageView {
                 info!("now scroll index {}", self.scroll_index);
                 self.dirty = true
             }
+            GuiEvent::ScrollEvent(pt,delta)  => {
+                if (delta.x < 0) || (delta.y < 0) {
+                    info!("scrolling to prev link");
+                    self.prev_link();
+                };
+                if (delta.x > 0) || (delta.y > 0) {
+                    info!("scrolling to next link");
+                    self.next_link();
+                };
+            }
             _ => {
 
             }
