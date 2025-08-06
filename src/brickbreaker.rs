@@ -40,11 +40,11 @@ impl GameView {
         }
         Box::new(GameView {
             bounds: Rectangle::new(Point::new(0, 0), Size::new(200, 200)),
-            paddle: Rectangle::new(Point::new(100, 100), Size::new(50, 10)),
-            old_paddle: Rectangle::new(Point::new(100, 100), Size::new(50, 10)),
+            paddle: Rectangle::new(Point::new(100, 220), Size::new(50, 10)),
+            old_paddle: Rectangle::new(Point::new(100, 220), Size::new(50, 10)),
             visible: true,
             count: 0,
-            ball_bounds: Rectangle::new(Point::new(58, 90), Size::new(10, 10)),
+            ball_bounds: Rectangle::new(Point::new(100, 120), Size::new(10, 10)),
             ball_velocity: Point::new(2, 1),
             bricks,
         })
@@ -53,12 +53,33 @@ impl GameView {
 
 impl GameView {
     pub(crate) fn handle_collisions(&mut self) {
+        let old_ball_bounds = self.ball_bounds.clone();
         self.ball_bounds = self.ball_bounds.translate(self.ball_velocity);
 
         // collide with bricks
         for brick in &mut self.bricks {
-            if !self.ball_bounds.intersection(&brick.bounds).is_zero_sized() {
+            if brick.active && !self.ball_bounds.intersection(&brick.bounds).is_zero_sized() {
                 brick.active = false;
+                // from the bottom
+                if old_ball_bounds.top_left.y > brick.bounds.top_left.y + brick.bounds.size.height as i32 {
+                    info!("from the bottom");
+                    self.ball_velocity.y = -self.ball_velocity.y
+                }
+                // from the top
+                if (old_ball_bounds.top_left.y + old_ball_bounds.size.height as i32) < brick.bounds.top_left.y {
+                    info!("from the top");
+                    self.ball_velocity.y = -self.ball_velocity.y
+                }
+                // from the right
+                if old_ball_bounds.top_left.x > brick.bounds.top_left.x + brick.bounds.size.width as i32 {
+                    info!("from the right");
+                    self.ball_velocity.x = -self.ball_velocity.x
+                }
+                // from the left
+                if (old_ball_bounds.top_left.x + old_ball_bounds.size.width as i32) < brick.bounds.top_left.x {
+                    info!("from the left");
+                    self.ball_velocity.x = -self.ball_velocity.x
+                }
             }
         }
 
