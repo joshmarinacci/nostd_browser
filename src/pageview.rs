@@ -7,13 +7,14 @@ use alloc::{format, vec};
 use core::any::Any;
 use core::cmp::max;
 use embedded_graphics::geometry::{OriginDimensions, Point, Size};
-use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
-use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
+use embedded_graphics::mono_font::ascii::{FONT_10X20, FONT_6X13, FONT_8X13, FONT_8X13_BOLD, FONT_9X15, FONT_9X15_BOLD};
+use embedded_graphics::mono_font::{MonoFont, MonoTextStyle, MonoTextStyleBuilder};
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{Dimensions, Primitive, RgbColor};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
+use embedded_graphics::mono_font::iso_8859_16::FONT_6X13_BOLD;
 use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
 use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
@@ -131,7 +132,7 @@ impl View for PageView {
             return;
         }
         self.dirty = false;
-        let font = FONT_9X15;
+        let font = theme.font;
         let line_height = font.character_size.height + 2;
         let viewport_height: i32 = (display.size().height / line_height) as i32;
         let char_width = font.character_size.width as i32;
@@ -159,9 +160,9 @@ impl View for PageView {
             let mut inset_chars: usize = 0;
             let y = j as i32 * (line_height as i32) + 10;
             let style = match line.block_type {
-                BlockType::Paragraph => MonoTextStyle::new(&FONT_9X15, theme.base_fg),
-                BlockType::ListItem => MonoTextStyle::new(&FONT_9X15, theme.base_fg),
-                BlockType::Header => MonoTextStyle::new(&FONT_9X15_BOLD, theme.base_fg),
+                BlockType::Paragraph => MonoTextStyle::new(&theme.font, theme.base_fg),
+                BlockType::ListItem => MonoTextStyle::new(&theme.font, theme.base_fg),
+                BlockType::Header => MonoTextStyle::new(calc_bold(theme.font), theme.base_fg),
             };
             // draw a bullet
             if line.block_type == BlockType::ListItem {
@@ -177,13 +178,18 @@ impl View for PageView {
                         // info!("found a link: {:?}", href);
                         link_count += 1;
                         let builder = MonoTextStyleBuilder::new()
-                            .font(&FONT_9X15)
-                            .text_color(Rgb565::BLUE)
+                            .font(&theme.font)
                             .underline();
                         if self.page.selection == link_count {
-                            builder.background_color(Rgb565::RED).build()
+                            builder
+                                .text_color(Rgb565::WHITE)
+                                .background_color(Rgb565::BLUE)
+                                .build()
                         } else {
-                            builder.build()
+                            builder
+                                .text_color(Rgb565::BLUE)
+                                .background_color(Rgb565::WHITE)
+                                .build()
                         }
                     }
                     RunStyle::Plain => style,
@@ -234,4 +240,17 @@ impl View for PageView {
     fn set_visible(&mut self, visible: bool) {
         self.visible = visible;
     }
+}
+
+fn calc_bold(font: MonoFont<'static>) -> &'static MonoFont<'static> {
+    if font == FONT_6X13 {
+        return &FONT_6X13_BOLD
+    }
+    if font == FONT_8X13 {
+        return &FONT_8X13_BOLD
+    }
+    if font == FONT_9X15 {
+        return &FONT_9X15_BOLD
+    }
+    return &FONT_9X15_BOLD
 }

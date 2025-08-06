@@ -16,7 +16,7 @@ use embassy_net::{Runner, Stack, StackResources};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
-use embedded_graphics::mono_font::ascii::{FONT_6X10, FONT_8X13, FONT_9X15};
+use embedded_graphics::mono_font::ascii::{FONT_6X10, FONT_6X13, FONT_8X13, FONT_9X15};
 use embedded_graphics::mono_font::iso_8859_14::FONT_10X20;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::Rectangle;
@@ -589,6 +589,7 @@ async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
         }
         if scene.menu_equals(MAIN_MENU, "close") {
             scene.hide(MAIN_MENU);
+            scene.set_focused(PAGE_VIEW);
             return;
         }
         return;
@@ -633,16 +634,13 @@ async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
     }
     if scene.is_focused(FONT_MENU) {
         if scene.menu_equals(FONT_MENU, "Small") {
-            scene.set_font(FONT_6X10);
+            scene.set_font(FONT_6X13);
         }
         if scene.menu_equals(FONT_MENU, "Medium") {
             scene.set_font(FONT_8X13);
         }
         if scene.menu_equals(FONT_MENU, "Large") {
             scene.set_font(FONT_9X15);
-        }
-        if scene.menu_equals(FONT_MENU, "Huge") {
-            scene.set_font(FONT_10X20);
         }
         // close
         if scene.menu_equals(FONT_MENU, "close") {
@@ -689,7 +687,7 @@ fn make_gui_scene<'a>() -> Scene {
     );
     scene.add(
         FONT_MENU,
-        MenuView::start_hidden(vec!["Small", "Medium", "Large", "Huge", "close"], Point::new(20, 20)),
+        MenuView::start_hidden(vec!["Small", "Medium", "Large", "close"], Point::new(20, 20)),
     );
     scene.add(
         "wifi",
