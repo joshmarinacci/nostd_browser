@@ -476,6 +476,22 @@ async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TD
         }
     }
 
+    match event {
+        GuiEvent::KeyEvent(key_event) => match key_event {
+            13 => {
+                handle_menu_click(scene, display).await;
+            }
+            _ => {}
+        },
+        GuiEvent::ScrollEvent(_, _) => {}
+        GuiEvent::ClickEvent() => {
+            info!("clicked the button");
+            handle_menu_click(scene, display).await;
+        }
+    }
+}
+
+async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
     let panel_bounds = Rectangle::new(
         Point::new(20, 20),
         Size::new(
@@ -483,160 +499,149 @@ async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TD
             display.bounding_box().size.height - 40,
         ),
     );
-    match event {
-        GuiEvent::KeyEvent(key_event) => match key_event {
-            13 => {
-                // scene.info();
-                if scene.is_focused(MAIN_MENU) {
-                    if scene.menu_equals(MAIN_MENU, "Theme") {
-                        scene.show_menu(THEME_MENU);
-                        return;
-                    }
-                    if scene.menu_equals(MAIN_MENU, "Font") {
-                        scene.show_menu("font");
-                        return;
-                    }
-                    if scene.menu_equals(MAIN_MENU, "Wifi") {
-                        let panel = Panel::new(panel_bounds);
-                        let label1a = Label::new("SSID", Point::new(60, 80));
-                        let label1b = Label::new(SSID.unwrap_or("----"), Point::new(150, 80));
-                        let label2a = Label::new("PASSWORD", Point::new(60, 100));
-                        let label2b = Label::new(PASSWORD.unwrap_or("----"), Point::new(150, 100));
-                        let button = Button::new("done", Point::new(160 - 20, 200 - 20));
+    // scene.info();
+    if scene.is_focused(MAIN_MENU) {
+        if scene.menu_equals(MAIN_MENU, "Theme") {
+            scene.show_menu(THEME_MENU);
+            return;
+        }
+        if scene.menu_equals(MAIN_MENU, "Font") {
+            scene.show_menu("font");
+            return;
+        }
+        if scene.menu_equals(MAIN_MENU, "Wifi") {
+            let panel = Panel::new(panel_bounds);
+            let label1a = Label::new("SSID", Point::new(60, 80));
+            let label1b = Label::new(SSID.unwrap_or("----"), Point::new(150, 80));
+            let label2a = Label::new("PASSWORD", Point::new(60, 100));
+            let label2b = Label::new(PASSWORD.unwrap_or("----"), Point::new(150, 100));
+            let button = Button::new("done", Point::new(160 - 20, 200 - 20));
 
-                        scene.add("wifi-panel", panel);
-                        scene.add("wifi-label1a", label1a);
-                        scene.add("wifi-label1b", label1b);
-                        scene.add("wifi-label2a", label2a);
-                        scene.add("wifi-label2b", label2b);
-                        scene.add("wifi-button", button);
-                        scene.hide(MAIN_MENU);
-                        scene.set_focused("wifi-button");
-                        return;
-                    }
-                    if scene.menu_equals(MAIN_MENU, "Bookmarks") {
-                        // show the bookmarks
-                        NET_COMMANDS
-                            .send(NetCommand::Load("bookmarks.html".to_string()))
-                            .await;
-                        return;
-                    }
-                    if scene.menu_equals(MAIN_MENU, "Info") {
-                        info!("showing the info panel");
-                        let panel = Panel::new(panel_bounds);
-                        scene.add("info-panel", panel);
+            scene.add("wifi-panel", panel);
+            scene.add("wifi-label1a", label1a);
+            scene.add("wifi-label1b", label1b);
+            scene.add("wifi-label2a", label2a);
+            scene.add("wifi-label2b", label2b);
+            scene.add("wifi-button", button);
+            scene.hide(MAIN_MENU);
+            scene.set_focused("wifi-button");
+            return;
+        }
+        if scene.menu_equals(MAIN_MENU, "Bookmarks") {
+            // show the bookmarks
+            NET_COMMANDS
+                .send(NetCommand::Load("bookmarks.html".to_string()))
+                .await;
+            return;
+        }
+        if scene.menu_equals(MAIN_MENU, "Info") {
+            info!("showing the info panel");
+            let panel = Panel::new(panel_bounds);
+            scene.add("info-panel", panel);
 
-                        let free = esp_alloc::HEAP.free();
-                        let used = esp_alloc::HEAP.used();
-                        scene.add("info-label1", Label::new("Heap", Point::new(120, 50)));
-                        scene.add(
-                            "info-label2a",
-                            Label::new("Free  memory ", Point::new(60, 80)),
-                        );
-                        scene.add(
-                            "info-label2b",
-                            Label::new(&format!("{:?}", free), Point::new(200, 80)),
-                        );
-                        scene.add(
-                            "info-label3a",
-                            Label::new("Used  memory ", Point::new(60, 100)),
-                        );
-                        scene.add(
-                            "info-label3b",
-                            Label::new(&format!("{:?}", used), Point::new(200, 100)),
-                        );
-                        scene.add(
-                            "info-label4a",
-                            Label::new("Total memory", Point::new(60, 120)),
-                        );
-                        scene.add(
-                            "info-label4b",
-                            Label::new(&format!("{:?}", free + used), Point::new(200, 120)),
-                        );
+            let free = esp_alloc::HEAP.free();
+            let used = esp_alloc::HEAP.used();
+            scene.add("info-label1", Label::new("Heap", Point::new(120, 50)));
+            scene.add(
+                "info-label2a",
+                Label::new("Free  memory ", Point::new(60, 80)),
+            );
+            scene.add(
+                "info-label2b",
+                Label::new(&format!("{:?}", free), Point::new(200, 80)),
+            );
+            scene.add(
+                "info-label3a",
+                Label::new("Used  memory ", Point::new(60, 100)),
+            );
+            scene.add(
+                "info-label3b",
+                Label::new(&format!("{:?}", used), Point::new(200, 100)),
+            );
+            scene.add(
+                "info-label4a",
+                Label::new("Total memory", Point::new(60, 120)),
+            );
+            scene.add(
+                "info-label4b",
+                Label::new(&format!("{:?}", free + used), Point::new(200, 120)),
+            );
 
-                        let button = Button::new("done", Point::new(160 - 20, 200 - 20));
-                        scene.add("info-button", button);
-                        scene.hide(MAIN_MENU);
-                        scene.set_focused("info-button");
-                        return;
-                    }
-                    if scene.menu_equals(MAIN_MENU, "Font") {
-                        scene.show_menu("font");
-                        return;
-                    }
-                    if scene.menu_equals(MAIN_MENU, "Bricks") {
-                        scene.add("game", GameView::new());
-                        scene.hide(MAIN_MENU);
-                        scene.set_focused("game");
-                        scene.set_auto_redraw(true);
-                        scene.hide(PAGE_VIEW);
-                        return;
-                    }
-                    if scene.menu_equals(MAIN_MENU, "close") {
-                        scene.hide(MAIN_MENU);
-                        return;
-                    }
-                    return;
-                }
-                if scene.is_focused("wifi-button") {
-                    info!("clicked the button");
-                    scene.remove("wifi-panel");
-                    scene.remove("wifi-label1a");
-                    scene.remove("wifi-label1b");
-                    scene.remove("wifi-label2a");
-                    scene.remove("wifi-label2b");
-                    scene.remove("wifi-button");
-                    return;
-                }
-                if scene.is_focused("info-button") {
-                    info!("clicked the info button");
-                    scene.remove("info-panel");
-                    scene.remove("info-label1");
-                    scene.remove("info-label2a");
-                    scene.remove("info-label2b");
-                    scene.remove("info-label3a");
-                    scene.remove("info-label3b");
-                    scene.remove("info-label4a");
-                    scene.remove("info-label4b");
-                    scene.remove("info-button");
-                    return;
-                }
-                if scene.is_focused("theme") {
-                    if scene.menu_equals(THEME_MENU, "Dark") {
-                        scene.set_theme(DARK_THEME);
-                        return;
-                    }
-                    if scene.menu_equals(THEME_MENU, "Light") {
-                        scene.set_theme(LIGHT_THEME);
-                        return;
-                    }
-                    if scene.menu_equals(THEME_MENU, "close") {
-                        scene.hide(THEME_MENU);
-                        scene.set_focused(MAIN_MENU);
-                        return;
-                    }
-                }
-                if scene.is_focused("font") {
-                    // close
-                    if scene.menu_equals("font", "close") {
-                        scene.hide("font");
-                        scene.set_focused(MAIN_MENU);
-                        return;
-                    }
-                }
-                if scene.is_focused("wifi") {
-                    if scene.menu_equals("wifi", "close") {
-                        scene.hide("wifi");
-                        scene.set_focused(MAIN_MENU);
-                        return;
-                    }
-                }
-            }
-            _ => {}
-        },
-        GuiEvent::ScrollEvent(_, _) => {}
-        GuiEvent::ClickEvent() => {
-            info!("clicked the button");
+            let button = Button::new("done", Point::new(160 - 20, 200 - 20));
+            scene.add("info-button", button);
+            scene.hide(MAIN_MENU);
+            scene.set_focused("info-button");
+            return;
+        }
+        if scene.menu_equals(MAIN_MENU, "Font") {
+            scene.show_menu("font");
+            return;
+        }
+        if scene.menu_equals(MAIN_MENU, "Bricks") {
+            scene.add("game", GameView::new());
+            scene.hide(MAIN_MENU);
+            scene.set_focused("game");
+            scene.set_auto_redraw(true);
+            scene.hide(PAGE_VIEW);
+            return;
+        }
+        if scene.menu_equals(MAIN_MENU, "close") {
+            scene.hide(MAIN_MENU);
+            return;
+        }
+        return;
+    }
+    if scene.is_focused("wifi-button") {
+        info!("clicked the button");
+        scene.remove("wifi-panel");
+        scene.remove("wifi-label1a");
+        scene.remove("wifi-label1b");
+        scene.remove("wifi-label2a");
+        scene.remove("wifi-label2b");
+        scene.remove("wifi-button");
+        return;
+    }
+    if scene.is_focused("info-button") {
+        info!("clicked the info button");
+        scene.remove("info-panel");
+        scene.remove("info-label1");
+        scene.remove("info-label2a");
+        scene.remove("info-label2b");
+        scene.remove("info-label3a");
+        scene.remove("info-label3b");
+        scene.remove("info-label4a");
+        scene.remove("info-label4b");
+        scene.remove("info-button");
+        return;
+    }
+    if scene.is_focused("theme") {
+        if scene.menu_equals(THEME_MENU, "Dark") {
+            scene.set_theme(DARK_THEME);
+            return;
+        }
+        if scene.menu_equals(THEME_MENU, "Light") {
+            scene.set_theme(LIGHT_THEME);
+            return;
+        }
+        if scene.menu_equals(THEME_MENU, "close") {
+            scene.hide(THEME_MENU);
+            scene.set_focused(MAIN_MENU);
+            return;
+        }
+    }
+    if scene.is_focused("font") {
+        // close
+        if scene.menu_equals("font", "close") {
+            scene.hide("font");
+            scene.set_focused(MAIN_MENU);
+            return;
+        }
+    }
+    if scene.is_focused("wifi") {
+        if scene.menu_equals("wifi", "close") {
+            scene.hide("wifi");
+            scene.set_focused(MAIN_MENU);
+            return;
         }
     }
 }
