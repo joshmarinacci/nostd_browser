@@ -1,5 +1,5 @@
 use crate::common::TDeckDisplay;
-use crate::comps::MenuView;
+use comps::MenuView;
 use crate::pageview::PageView;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
@@ -13,6 +13,8 @@ use embedded_graphics::prelude::{Dimensions, Point, RgbColor, Size};
 use embedded_graphics::primitives::Rectangle;
 use hashbrown::HashMap;
 use log::{info, warn};
+
+pub mod comps;
 
 pub const base_font: MonoFont = FONT_9X15;
 pub struct Theme {
