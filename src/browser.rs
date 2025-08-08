@@ -14,7 +14,7 @@ use alloc::boxed::Box;
 use nostd_html_parser::blocks::{Block, BlockType};
 use embedded_graphics::mono_font::ascii::{FONT_6X13, FONT_8X13, FONT_9X15};
 use crate::brickbreaker::GameView;
-use crate::gui::comps::{Button, Label, MenuView, OverlayLabel, Panel};
+use crate::gui::comps::{Button, Label, MenuView, OverlayLabel, Panel, TextInput};
 use crate::page::Page;
 use crate::pageview::PageView;
 
@@ -41,6 +41,10 @@ pub async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
             scene.show_menu(FONT_MENU);
             return;
         }
+        if scene.menu_equals(MAIN_MENU, "Browser") {
+            scene.show_menu("browser");
+            return;
+        }
         if scene.menu_equals(MAIN_MENU, "Wifi") {
             let panel = Panel::new(panel_bounds);
             let label1a = Label::new("SSID", Point::new(60, 80));
@@ -57,15 +61,6 @@ pub async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
             scene.add("wifi-button", button);
             scene.hide(MAIN_MENU);
             scene.set_focused("wifi-button");
-            return;
-        }
-        if scene.menu_equals(MAIN_MENU, "Bookmarks") {
-            // show the bookmarks
-            NET_COMMANDS
-                .send(NetCommand::Load("bookmarks.html".to_string()))
-                .await;
-            scene.hide(MAIN_MENU);
-            scene.set_focused(PAGE_VIEW);
             return;
         }
         if scene.menu_equals(MAIN_MENU, "Info") {
@@ -184,6 +179,52 @@ pub async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
             return;
         }
     }
+    if scene.is_focused("browser") {
+        if scene.menu_equals("browser", "Bookmarks") {
+            // show the bookmarks
+            NET_COMMANDS
+                .send(NetCommand::Load("bookmarks.html".to_string()))
+                .await;
+            scene.hide(MAIN_MENU);
+            scene.set_focused(PAGE_VIEW);
+            return;
+        }
+        if scene.menu_equals("browser","Open URL") {
+            let panel = Panel::new(panel_bounds);
+            let label1a = Label::new("URL", Point::new(60, 80));
+            let input = TextInput::new("https://apps.josh.earth/", Rectangle::new(Point::new(60, 120), Size::new(200,30)));
+            let button = Button::new("load", Point::new(160 - 20, 200 - 20));
+            scene.add("url-panel",panel);
+            scene.add("url-label",label1a);
+            scene.add("url-input",input);
+            scene.add("url-button",button);
+            scene.hide("browser");
+            scene.set_focused("url-input");
+            return;
+        }
+        if scene.menu_equals("browser","Back") {
+            scene.hide(MAIN_MENU);
+            if let Some(tv) = scene.get_textview_mut(PAGE_VIEW) {
+                tv.prev_page();
+            }
+            scene.set_focused(PAGE_VIEW);
+        }
+        if scene.menu_equals("browser","Forward") {
+            scene.hide(MAIN_MENU);
+            if let Some(tv) = scene.get_textview_mut(PAGE_VIEW) {
+                tv.next_page();
+            }
+            scene.set_focused(PAGE_VIEW);
+        }
+    }
+    if scene.is_focused("url-input") {
+        info!("editit the url");
+        return;
+    }
+    if scene.is_focused("url-button") {
+        info!("clicked the button");
+        return;
+    }
 }
 
 pub fn make_gui_scene<'a>() -> Scene {
@@ -201,7 +242,7 @@ pub fn make_gui_scene<'a>() -> Scene {
                 "Theme",
                 "Font",
                 "Wifi",
-                "Bookmarks",
+                "Browser",
                 "Bricks",
                 "Info",
                 "close",
@@ -220,6 +261,10 @@ pub fn make_gui_scene<'a>() -> Scene {
     scene.add(
         "wifi",
         MenuView::start_hidden(vec!["status", "scan", "close"], Point::new(20, 20)),
+    );
+    scene.add(
+        "browser",
+        MenuView::start_hidden(vec!["Bookmarks", "Open URL", "Back", "Forward"], Point::new(20, 20)),
     );
 
     // set up a fake page

@@ -1,7 +1,7 @@
 use crate::common::{NetCommand, TDeckDisplay, NET_COMMANDS};
 use crate::gui::{GuiEvent, Theme, View};
 use crate::page::Page;
-use alloc::string::ToString;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
 use core::any::Any;
@@ -19,14 +19,41 @@ use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
 use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
 
+pub struct RenderedPage {
+    pub link_count: i32,
+    pub lines: Vec<TextLine>,
+    pub page: Page,
+    pub scroll_index: i32,
+}
+impl RenderedPage {
+    pub fn find_href_by_index(&self, index: i32) -> Option<&str> {
+        // info!("find_href_by_index: {}", index);
+        // // blocks of spans -> text lines of text runs
+        let mut count = 0;
+        for line in &self.lines {
+            for run in &line.runs {
+                match &run.style {
+                    RunStyle::Link(href) => {
+                        // info!("link is {}", href);
+                        if count == index {
+                            // info!("found the right link");
+                            return Some(&href);
+                        }
+                        count += 1;
+                    }
+                    _ => {}
+                }
+            }
+        }
+        None
+    }
+}
 pub struct PageView {
     pub dirty: bool,
-    pub lines: Vec<TextLine>,
-    pub link_count: i32,
+    pub history: Vec<RenderedPage>,
+    pub history_index: usize,
     pub visible: bool,
-    pub scroll_index: i32,
     pub bounds: Rectangle,
-    pub page: Page,
 }
 
 impl PageView {
@@ -34,10 +61,15 @@ impl PageView {
         PageView {
             dirty: true,
             visible: true,
-            lines: vec![],
-            scroll_index: 0,
-            link_count: 0,
-            page,
+            history: vec![
+                RenderedPage{
+                    lines: vec![],
+                    scroll_index: 0,
+                    page,
+                    link_count: 0,
+                }
+            ],
+            history_index: 0,
             bounds,
         }
     }
@@ -60,61 +92,58 @@ impl PageView {
             }
             lines.append(&mut some_lines);
         }
-        self.link_count = link_count;
-        self.lines = lines;
-        self.page = page;
+        let pg:RenderedPage = RenderedPage {
+            link_count,
+            lines,
+            page,
+            scroll_index: 0,
+        };
+        self.history.push(pg);
+        self.history_index = self.history.len() - 1;
+    }
+    pub(crate) fn prev_page(&mut self) {
+        if self.history_index > 0 {
+            self.history_index -= 1;
+        }
+    }
+    pub(crate) fn next_page(&mut self) {
+        if self.history_index < self.history.len() -1 {
+            self.history_index += 1;
+        }
     }
 
     pub fn prev_link(&mut self) {
-        self.page.selection -= 1;
-        if self.page.selection < 0 {
-            self.page.selection = self.link_count - 1;
+        let rp = self.get_current_rendered_page();
+        rp.page.selection -= 1;
+        if rp.page.selection < 0 {
+            rp.page.selection = rp.link_count - 1;
         }
     }
     pub fn next_link(&mut self) {
-        self.page.selection += 1;
-        if self.page.selection >= self.link_count {
-            self.page.selection = 0;
+        let rp = self.get_current_rendered_page();
+        rp.page.selection += 1;
+        if rp.page.selection >= rp.link_count {
+            rp.page.selection = 0;
         }
-        info!(
-            "selected link: {:?}",
-            self.find_href_by_index(self.page.selection)
-        );
     }
-    pub fn find_href_by_index(&self, index: i32) -> Option<&str> {
-        // info!("find_href_by_index: {}", index);
-        // // blocks of spans -> text lines of text runs
-        let mut count = 0;
-        for line in &self.lines {
-            for run in &line.runs {
-                match &run.style {
-                    RunStyle::Link(href) => {
-                        // info!("link is {}", href);
-                        if count == index {
-                            // info!("found the right link");
-                            return Some(&href);
-                        }
-                        count += 1;
-                    }
-                    _ => {}
-                }
-            }
-        }
-        None
-    }
-    pub(crate) fn nav_current_link(&self) {
-        if let Some(href) = self.find_href_by_index(self.page.selection) {
+    pub(crate) fn nav_current_link(&mut self) {
+        let rp = self.get_current_rendered_page();
+        if let Some(href) = rp.find_href_by_index(rp.page.selection) {
             info!("loading the href {}", href);
             let mut href = href.to_string();
             if !href.starts_with("http") {
-                info!("doing a relative link. base is {}", self.page.url);
-                href = format!("{}{}", self.page.url, href);
+                info!("doing a relative link. base is {}", rp.page.url);
+                href = format!("{}{}", rp.page.url, href);
                 info!("final url is {}", href);
             }
             NET_COMMANDS
                 .try_send(NetCommand::Load(href.to_string()))
                 .unwrap()
         }
+    }
+
+    fn get_current_rendered_page(&mut self) -> &mut RenderedPage {
+        &mut self.history[self.history_index]
     }
 }
 impl View for PageView {
@@ -155,12 +184,13 @@ impl View for PageView {
             .unwrap();
 
         // select the lines in the current viewport
-        let mut end: usize = (self.scroll_index as i32 + viewport_height) as usize;
-        if end >= self.lines.len() {
-            end = self.lines.len();
+        let rpage = self.get_current_rendered_page();
+        let mut end: usize = (rpage.scroll_index as i32 + viewport_height) as usize;
+        if end >= rpage.lines.len() {
+            end = rpage.lines.len();
         }
-        let start = max(self.scroll_index, 0) as usize;
-        let viewport_lines = &self.lines[start..end];
+        let start = max(rpage.scroll_index, 0) as usize;
+        let viewport_lines = &rpage.lines[start..end];
 
         let x_inset = 8;
         let y_inset = 5;
@@ -191,7 +221,7 @@ impl View for PageView {
                         let builder = MonoTextStyleBuilder::new()
                             .font(&theme.font)
                             .underline();
-                        if self.page.selection == link_count {
+                        if rpage.page.selection == link_count {
                             builder
                                 .text_color(Rgb565::WHITE)
                                 .background_color(Rgb565::BLUE)
@@ -220,9 +250,13 @@ impl View for PageView {
             GuiEvent::KeyEvent(key) => {
                 match key {
                     b'j' => {
-                        self.scroll_index = (self.scroll_index + 10) % (self.lines.len() as i32)
-                    }
-                    b'k' => self.scroll_index = max(self.scroll_index - 10, 0),
+                        let page = self.get_current_rendered_page();
+                        page.scroll_index = (page.scroll_index + 10) % (page.lines.len() as i32)
+                    },
+                    b'k' => {
+                        let page = self.get_current_rendered_page();
+                        page.scroll_index = max(page.scroll_index - 10, 0)
+                    },
                     b'a' => self.prev_link(),
                     b's' => self.next_link(),
                     13 => self.nav_current_link(),
@@ -230,7 +264,6 @@ impl View for PageView {
                         warn!("Unhandled key {:?}", key);
                     }
                 }
-                info!("now scroll index {}", self.scroll_index);
                 self.dirty = true
             }
             GuiEvent::ScrollEvent(pt, delta) => {
