@@ -250,8 +250,8 @@ pub fn make_gui_scene<'a>() -> Scene {
 
 pub async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display: &TDeckDisplay) {
     // info!("update view from input {:?}", event);
-    if scene.focused.is_none() {
-        scene.focused = Some("".to_string());
+    if scene.get_focused_view().is_none() {
+        scene.set_focused("");
     }
     if let Some(menu) = scene.get_menu(MAIN_MENU) {
         if menu.visible {

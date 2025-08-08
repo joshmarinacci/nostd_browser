@@ -44,6 +44,7 @@ pub trait View {
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn visible(&self) -> bool;
     fn set_visible(&mut self, visible: bool);
+    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme);
     fn bounds(&self) -> Rectangle;
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme);
     fn handle_input(&mut self, event: GuiEvent);
@@ -71,13 +72,14 @@ impl Debug for Box<dyn View> {
     }
 }
 pub struct Scene {
-    pub draw_order: Vec<String>,
-    pub focused: Option<String>,
-    pub keys: HashMap<String, Box<dyn View>>,
+    draw_order: Vec<String>,
+    focused: Option<String>,
+    keys: HashMap<String, Box<dyn View>>,
     dirty: bool,
-    pub clip: Rectangle,
-    pub theme: Theme,
-    pub auto_redraw: bool,
+    layout_dirty: bool,
+    clip: Rectangle,
+    theme: Theme,
+    auto_redraw: bool,
 }
 
 impl Scene {
@@ -112,6 +114,7 @@ impl Scene {
     pub fn new() -> Scene {
         Scene {
             dirty: true,
+            layout_dirty: true,
             draw_order: Vec::new(),
             focused: None,
             keys: HashMap::new(),
@@ -125,6 +128,7 @@ impl Scene {
         self.keys.insert(name.to_string(), view);
         self.draw_order.push(name.to_string());
         self.mark_dirty(bounds);
+        self.mark_layout_dirty()
     }
     pub fn remove(&mut self, name: &str) {
         if self.keys.contains_key(name) {
@@ -133,6 +137,7 @@ impl Scene {
                 self.draw_order.remove(index);
             }
             info!("deleting the view {name}");
+            self.mark_layout_dirty()
         } else {
             warn!("remove: no view found for the name: {name}");
         }
@@ -241,6 +246,9 @@ impl Scene {
         self.dirty = true;
         self.clip = union(&self.clip, &bounds);
     }
+    fn mark_layout_dirty(&mut self) {
+        self.layout_dirty = true
+    }
     pub fn handle_input(&mut self, evt: GuiEvent) {
         // info!("=== handle_event: {evt:?}");
         // info!("focused is {:?}", self.focused);
@@ -278,6 +286,9 @@ impl Scene {
 
 impl Scene {
     pub fn draw(&mut self, display: &mut TDeckDisplay) {
+        if self.layout_dirty {
+            self.do_layout(display);
+        }
         if !self.dirty {
             return;
         }
@@ -298,6 +309,15 @@ impl Scene {
         } else {
             self.dirty = false;
             self.clip = Rectangle::zero();
+        }
+    }
+
+    fn do_layout(&mut self, display: &mut TDeckDisplay) {
+        self.layout_dirty = false;
+        for name in &self.draw_order {
+            if let Some(view) = self.keys.get_mut(name) {
+                view.layout(display, &self.theme);
+            }
         }
     }
 }

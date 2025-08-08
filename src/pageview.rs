@@ -124,9 +124,20 @@ impl View for PageView {
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
+    fn visible(&self) -> bool {
+        self.visible
+    }
+    fn set_visible(&mut self, visible: bool) {
+        self.visible = visible;
+    }
+    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+        self.bounds = Rectangle::new(Point::new(0, 0),  Size::new(display.size().width, display.size().height));
+    }
+
     fn bounds(&self) -> Rectangle {
         self.bounds.clone()
     }
+
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
         if !self.visible {
             return;
@@ -203,6 +214,7 @@ impl View for PageView {
             }
         }
     }
+
     fn handle_input(&mut self, event: GuiEvent) {
         match event {
             GuiEvent::KeyEvent(key) => {
@@ -231,14 +243,6 @@ impl View for PageView {
             }
             _ => {}
         }
-    }
-
-    fn visible(&self) -> bool {
-        self.visible
-    }
-
-    fn set_visible(&mut self, visible: bool) {
-        self.visible = visible;
     }
 }
 

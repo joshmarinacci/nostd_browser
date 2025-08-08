@@ -3,7 +3,7 @@ use crate::gui::{GuiEvent, Theme, View};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::any::Any;
-use embedded_graphics::geometry::{Point, Size};
+use embedded_graphics::geometry::{OriginDimensions, Point, Size};
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{Primitive, RgbColor, Transform, WebColors};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
@@ -116,9 +116,21 @@ impl View for GameView {
         self
     }
 
+    fn visible(&self) -> bool {
+        self.visible
+    }
+    fn set_visible(&mut self, visible: bool) {
+        self.visible = visible;
+    }
+
+    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+        self.bounds = Rectangle::new(Point::new(0, 0),  Size::new(display.size().width, display.size().height));
+    }
+
     fn bounds(&self) -> Rectangle {
         self.bounds.clone()
     }
+
     fn draw(&mut self, display: &mut TDeckDisplay, _clip: &Rectangle, _theme: &Theme) {
         self.count = self.count + 1;
 
@@ -182,13 +194,5 @@ impl View for GameView {
             }
             _ => {}
         }
-    }
-
-    fn visible(&self) -> bool {
-        self.visible
-    }
-
-    fn set_visible(&mut self, visible: bool) {
-        self.visible = visible;
     }
 }

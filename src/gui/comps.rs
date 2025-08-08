@@ -59,6 +59,9 @@ impl View for Panel {
     fn set_visible(&mut self, visible: bool) {
         self.visible = visible;
     }
+
+    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+    }
 }
 
 impl Panel {
@@ -91,6 +94,10 @@ impl View for Label {
 
     fn set_visible(&mut self, visible: bool) {
         self.visible = visible;
+    }
+
+    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+
     }
 
     fn bounds(&self) -> Rectangle {
@@ -159,6 +166,10 @@ impl View for Button {
     fn set_visible(&mut self, visible: bool) {
         self.visible = visible;
     }
+
+    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+    }
+
     fn bounds(&self) -> Rectangle {
         let style = MonoTextStyle::new(&base_font, Rgb565::BLACK);
         let bounds = Text::new(&self.text, self.position, style).bounding_box();
@@ -250,6 +261,10 @@ impl View for MenuView {
     fn set_visible(&mut self, visible: bool) {
         self.visible = visible;
     }
+
+    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+    }
+
     fn bounds(&self) -> Rectangle {
         Rectangle {
             top_left: self.position,
@@ -370,6 +385,10 @@ impl View for OverlayLabel {
     fn set_visible(&mut self, visible: bool) {
         self.visible = visible;
     }
+
+    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+    }
+
     fn bounds(&self) -> Rectangle {
         self.bounds
     }
@@ -428,6 +447,9 @@ impl View for TextInput {
 
     fn set_visible(&mut self, visible: bool) {
         self.visible = visible;
+    }
+
+    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
     }
 
     fn bounds(&self) -> Rectangle {
