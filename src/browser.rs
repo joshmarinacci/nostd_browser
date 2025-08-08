@@ -220,6 +220,11 @@ pub async fn handle_action(scene: &mut Scene, display: &TDeckDisplay) {
             }
             scene.set_focused(PAGE_VIEW);
         }
+        if scene.menu_equals("browser", "close") {
+            scene.hide("browser");
+            scene.set_focused(MAIN_MENU);
+            return;
+        }
     }
     if scene.is_focused("url-input") {
         scene.remove("url-panel");
@@ -282,7 +287,7 @@ pub fn make_gui_scene<'a>() -> Scene {
     );
     scene.add(
         "browser",
-        MenuView::start_hidden(vec!["Bookmarks", "Open URL", "Back", "Forward"], Point::new(20, 20)),
+        MenuView::start_hidden(vec!["Bookmarks", "Open URL", "Back", "Forward","close"], Point::new(20, 20)),
     );
 
     // set up a fake page
