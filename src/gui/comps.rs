@@ -468,7 +468,7 @@ impl View for TextInput {
             .build();
         self.bounds().into_styled(bounds_style).draw(display).unwrap();
 
-        let text_style = MonoTextStyle::new(&theme.font, theme.base_bg);
+        let text_style = MonoTextStyle::new(&theme.font, theme.base_fg);
         let text = Text::with_alignment(&self.text,
                                         self.bounds.top_left.add(Point::new(5,20)),
                                         text_style, Alignment::Left);
@@ -483,6 +483,10 @@ impl View for TextInput {
                         info!("printable key: {:?}", key);
                         self.text.push_str(&String::from_utf8_lossy(&[key]))
                     },
+                    8 => {
+                        info!("backspace");
+                        self.text.pop();
+                    }
                     0_u8..=29_u8 | 126_u8..=u8::MAX => {
                         info!("unprintable key: {:?}", key);
                     }
