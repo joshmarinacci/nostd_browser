@@ -11,7 +11,6 @@ use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
-use embedded_graphics::mono_font::ascii::{FONT_6X10, FONT_6X13, FONT_8X13, FONT_9X15};
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::Rectangle;
 use embedded_hal_bus::spi::ExclusiveDevice;
@@ -25,6 +24,7 @@ use esp_hal::spi::Mode;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::Blocking;
+use esp_hal::peripherals::Peripherals;
 use log::{error, info};
 
 use mipidsi::interface::SpiInterface;
@@ -210,11 +210,11 @@ async fn update_display(
 }
 #[embassy_executor::task]
 async fn handle_trackball(
-    tdeck_track_click: Input<'static>,
-    tdeck_trackball_left: Input<'static>,
-    tdeck_trackball_right: Input<'static>,
-    tdeck_trackball_up: Input<'static>,
-    tdeck_trackball_down: Input<'static>,
+    click: Input<'static>,
+    left: Input<'static>,
+    right: Input<'static>,
+    up: Input<'static>,
+    down: Input<'static>,
 ) {
     let mut last_click_low = false;
     let mut last_right_high = false;
@@ -224,39 +224,39 @@ async fn handle_trackball(
     info!("monitoring the trackball");
     let mut cursor = Point::new(50, 50);
     loop {
-        if tdeck_track_click.is_low() != last_click_low {
+        if click.is_low() != last_click_low {
             info!("click");
-            last_click_low = tdeck_track_click.is_low();
+            last_click_low = click.is_low();
             TRACKBALL_CHANNEL.send(GuiEvent::ClickEvent()).await;
         }
         // info!("button pressed is {} ", tdeck_track_click.is_low());
-        if tdeck_trackball_right.is_high() != last_right_high {
+        if right.is_high() != last_right_high {
             // info!("right");
-            last_right_high = tdeck_trackball_right.is_high();
+            last_right_high = right.is_high();
             cursor.x += 1;
             TRACKBALL_CHANNEL
                 .send(GuiEvent::ScrollEvent(cursor, Point::new(1, 0)))
                 .await;
         }
-        if tdeck_trackball_left.is_high() != last_left_high {
+        if left.is_high() != last_left_high {
             // info!("left");
-            last_left_high = tdeck_trackball_left.is_high();
+            last_left_high = left.is_high();
             cursor.x -= 1;
             TRACKBALL_CHANNEL
                 .send(GuiEvent::ScrollEvent(cursor, Point::new(-1, 0)))
                 .await;
         }
-        if tdeck_trackball_up.is_high() != last_up_high {
+        if up.is_high() != last_up_high {
             // info!("up");
-            last_up_high = tdeck_trackball_up.is_high();
+            last_up_high = up.is_high();
             cursor.y -= 1;
             TRACKBALL_CHANNEL
                 .send(GuiEvent::ScrollEvent(cursor, Point::new(0, -1)))
                 .await;
         }
-        if tdeck_trackball_down.is_high() != last_down_high {
+        if down.is_high() != last_down_high {
             // info!("down");
-            last_down_high = tdeck_trackball_down.is_high();
+            last_down_high = down.is_high();
             cursor.y += 1;
             TRACKBALL_CHANNEL
                 .send(GuiEvent::ScrollEvent(cursor, Point::new(0, 1)))

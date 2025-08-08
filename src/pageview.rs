@@ -173,7 +173,7 @@ impl View for PageView {
             let style = match line.block_type {
                 BlockType::Paragraph => MonoTextStyle::new(&theme.font, theme.base_fg),
                 BlockType::ListItem => MonoTextStyle::new(&theme.font, theme.base_fg),
-                BlockType::Header => MonoTextStyle::new(calc_bold(theme.font), theme.base_fg),
+                BlockType::Header => MonoTextStyle::new(&theme.bold, theme.base_fg),
             };
             // draw a bullet
             if line.block_type == BlockType::ListItem {
@@ -244,17 +244,4 @@ impl View for PageView {
             _ => {}
         }
     }
-}
-
-fn calc_bold(font: MonoFont<'static>) -> &'static MonoFont<'static> {
-    if font == FONT_6X13 {
-        return &FONT_6X13_BOLD
-    }
-    if font == FONT_8X13 {
-        return &FONT_8X13_BOLD
-    }
-    if font == FONT_9X15 {
-        return &FONT_9X15_BOLD
-    }
-    return &FONT_9X15_BOLD
 }

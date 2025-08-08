@@ -6,7 +6,7 @@ use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::any::Any;
 use core::fmt::{Debug, Formatter};
-use embedded_graphics::mono_font::ascii::FONT_9X15;
+use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{Dimensions, Point, RgbColor, Size};
@@ -16,26 +16,30 @@ use log::{info, warn};
 
 pub mod comps;
 
-pub const base_font: MonoFont = FONT_9X15;
+pub const BASE_FONT: MonoFont = FONT_9X15;
+pub const BOLD_FONT: MonoFont = FONT_9X15_BOLD;
 pub struct Theme {
     pub base_bg: Rgb565,
     pub base_bd: Rgb565,
     pub base_fg: Rgb565,
     pub shadow: bool,
     pub font: MonoFont<'static>,
+    pub bold: MonoFont<'static>,
 }
 pub const LIGHT_THEME: Theme = Theme {
     base_bg: Rgb565::WHITE,
     base_bd: Rgb565::BLACK,
     base_fg: Rgb565::BLACK,
     shadow: false,
-    font: base_font,
+    font: BASE_FONT,
+    bold: BOLD_FONT,
 };
 pub const DARK_THEME: Theme = Theme {
     base_bg: Rgb565::BLACK,
     base_bd: Rgb565::WHITE,
     base_fg: Rgb565::WHITE,
-    font: base_font,
+    font: BASE_FONT,
+    bold: BOLD_FONT,
     shadow: false,
 };
 

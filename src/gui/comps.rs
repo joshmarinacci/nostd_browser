@@ -1,5 +1,5 @@
 use crate::common::TDeckDisplay;
-use crate::gui::{base_font, GuiEvent, Theme, View};
+use crate::gui::{BASE_FONT, GuiEvent, Theme, View};
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -134,6 +134,7 @@ impl Label {
 pub struct Button {
     text: String,
     position: Point,
+    bounds: Rectangle,
     visible: bool,
 }
 
@@ -142,6 +143,7 @@ impl Button {
         Box::new(Button {
             text: text.to_string(),
             position,
+            bounds: Rectangle::new(Point::new(20, 20), Size::new(20, 20)),
             visible: true,
         })
     }
@@ -168,13 +170,14 @@ impl View for Button {
     }
 
     fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+        let style = MonoTextStyle::new(&BASE_FONT, Rgb565::BLACK);
+        let bounds = Text::new(&self.text, self.position, style).bounding_box();
+        let bigger = bounds.size.add(Size::new(20, 20));
+        self.bounds = bounds.resized(bigger, AnchorPoint::Center)
     }
 
     fn bounds(&self) -> Rectangle {
-        let style = MonoTextStyle::new(&base_font, Rgb565::BLACK);
-        let bounds = Text::new(&self.text, self.position, style).bounding_box();
-        let bigger = bounds.size.add(Size::new(20, 20));
-        bounds.resized(bigger, AnchorPoint::Center)
+        self.bounds
     }
 
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
