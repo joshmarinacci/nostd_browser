@@ -483,6 +483,9 @@ impl View for TextInput {
                         info!("printable key: {:?}", key);
                         self.text.push_str(&String::from_utf8_lossy(&[key]))
                     },
+                    13 => {
+                        info!("text input return key")
+                    }
                     8 => {
                         info!("backspace");
                         self.text.pop();
