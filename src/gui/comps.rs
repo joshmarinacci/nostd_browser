@@ -444,7 +444,9 @@ impl View for TextInput {
         self.bounds().into_styled(bounds_style).draw(display).unwrap();
 
         let text_style = MonoTextStyle::new(&theme.font, theme.base_bg);
-        let text = Text::with_alignment(&self.text, self.bounds.top_left, text_style, Alignment::Left);
+        let text = Text::with_alignment(&self.text,
+                                        self.bounds.top_left.add(Point::new(5,20)),
+                                        text_style, Alignment::Left);
         text.draw(display).unwrap();
     }
 
