@@ -42,11 +42,11 @@ pub const DARK_THEME: Theme = Theme {
 pub trait View {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    fn visible(&self) -> bool;
+    fn set_visible(&mut self, visible: bool);
     fn bounds(&self) -> Rectangle;
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme);
     fn handle_input(&mut self, event: GuiEvent);
-    fn visible(&self) -> bool;
-    fn set_visible(&mut self, visible: bool);
 }
 impl Debug for Box<dyn View> {
     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
@@ -241,7 +241,7 @@ impl Scene {
         self.dirty = true;
         self.clip = union(&self.clip, &bounds);
     }
-    pub fn handle_event(&mut self, evt: GuiEvent) {
+    pub fn handle_input(&mut self, evt: GuiEvent) {
         // info!("=== handle_event: {evt:?}");
         // info!("focused is {:?}", self.focused);
         if let Some(view) = self.get_focused_view_as_mut() {
@@ -263,9 +263,10 @@ impl Scene {
     }
     pub fn get_focused_view(&self) -> Option<&Box<dyn View>> {
         if let Some(name) = &self.focused {
-            return self.get_view(name);
+            self.get_view(name)
+        } else {
+            None
         }
-        None
     }
     pub fn get_focused_view_as_mut(&mut self) -> Option<&mut Box<dyn View>> {
         if let Some(name) = &self.focused {

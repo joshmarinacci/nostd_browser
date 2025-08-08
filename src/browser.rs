@@ -255,7 +255,7 @@ pub async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display:
     }
     if let Some(menu) = scene.get_menu(MAIN_MENU) {
         if menu.visible {
-            scene.handle_event(event);
+            scene.handle_input(event);
         } else {
             match event {
                 GuiEvent::KeyEvent(evt) => {
@@ -268,7 +268,7 @@ pub async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display:
                     }
                 }
                 _ => {
-                    scene.handle_event(event);
+                    scene.handle_input(event);
                 }
             }
         }

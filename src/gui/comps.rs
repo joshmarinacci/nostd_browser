@@ -396,3 +396,68 @@ impl View for OverlayLabel {
         info!("button got input: {:?}", event);
     }
 }
+
+
+pub struct TextInput {
+    pub text: String,
+    pub bounds: Rectangle,
+    pub visible: bool,
+}
+
+impl TextInput {
+    pub fn new(text: &str, bounds: Rectangle) -> Box<TextInput> {
+        Box::new(TextInput {
+            text:String::from(text),
+            bounds,
+            visible: true,
+        })
+    }
+}
+impl View for TextInput {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn visible(&self) -> bool {
+        self.visible
+    }
+
+    fn set_visible(&mut self, visible: bool) {
+        self.visible = visible;
+    }
+
+    fn bounds(&self) -> Rectangle {
+        self.bounds
+    }
+
+    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
+        let style = PrimitiveStyleBuilder::new()
+            .fill_color(Rgb565::WHITE)
+            .stroke_color(Rgb565::BLACK)
+            .stroke_width(1)
+            .stroke_alignment(StrokeAlignment::Inside)
+            .build();
+        self.bounds().into_styled(style).draw(display).unwrap();
+    }
+
+    fn handle_input(&mut self, event: GuiEvent) {
+        match event {
+            GuiEvent::KeyEvent(key) => {
+                match key {
+                    30..126 => {
+                        info!("printable key: {:?}", key);
+                        self.text.push_str(&String::from_utf8_lossy(&[key]))
+                    },
+                    0_u8..=29_u8 | 126_u8..=u8::MAX => {
+                        info!("unprintable key: {:?}", key);
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+}
