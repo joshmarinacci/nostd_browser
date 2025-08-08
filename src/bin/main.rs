@@ -527,6 +527,7 @@ async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
                         if !href.starts_with("http") {
                             info!("relative url");
                         }
+                        info!("loading url {}", href);
                         NET_STATUS.send(NetStatus::LoadingPage()).await;
                         let mut rx_buffer = [0; 4096 * 2];
                         let mut tx_buffer = [0; 4096 * 2];

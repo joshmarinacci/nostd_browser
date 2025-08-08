@@ -23,7 +23,7 @@ const FONT_MENU: &'static str = "font";
 const THEME_MENU: &'static str = "theme";
 pub const PAGE_VIEW: &'static str = "page";
 
-pub async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
+pub async fn handle_action(scene: &mut Scene, display: &TDeckDisplay) {
     let panel_bounds = Rectangle::new(
         Point::new(20, 20),
         Size::new(
@@ -186,24 +186,27 @@ pub async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
                 .send(NetCommand::Load("bookmarks.html".to_string()))
                 .await;
             scene.hide(MAIN_MENU);
+            scene.hide("browser");
             scene.set_focused(PAGE_VIEW);
             return;
         }
         if scene.menu_equals("browser","Open URL") {
             let panel = Panel::new(panel_bounds);
-            let label1a = Label::new("URL", Point::new(60, 80));
-            let input = TextInput::new("https://apps.josh.earth/", Rectangle::new(Point::new(60, 120), Size::new(200,30)));
+            let label1a = Label::new("URL", Point::new(40, 40));
+            let input = TextInput::new("https://apps.josh.earth/", Rectangle::new(Point::new(40, 70), Size::new(240,30)));
             let button = Button::new("load", Point::new(160 - 20, 200 - 20));
             scene.add("url-panel",panel);
             scene.add("url-label",label1a);
             scene.add("url-input",input);
             scene.add("url-button",button);
+            // scene.hide(MAIN_MENU);
             scene.hide("browser");
             scene.set_focused("url-input");
             return;
         }
         if scene.menu_equals("browser","Back") {
             scene.hide(MAIN_MENU);
+            scene.hide("browser");
             if let Some(tv) = scene.get_textview_mut(PAGE_VIEW) {
                 tv.prev_page();
             }
@@ -211,6 +214,7 @@ pub async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
         }
         if scene.menu_equals("browser","Forward") {
             scene.hide(MAIN_MENU);
+            scene.hide("browser");
             if let Some(tv) = scene.get_textview_mut(PAGE_VIEW) {
                 tv.next_page();
             }
@@ -218,7 +222,21 @@ pub async fn handle_menu_click(scene: &mut Scene, display: &TDeckDisplay) {
         }
     }
     if scene.is_focused("url-input") {
-        info!("editit the url");
+        scene.remove("url-panel");
+        scene.remove("url-label");
+        scene.remove("url-button");
+        scene.hide(MAIN_MENU);
+        scene.hide("browser");
+        scene.set_focused(PAGE_VIEW);
+        if let Some(view) = scene.get_view_mut("url-input") {
+            if let Some(input) = view.as_any().downcast_ref::<TextInput>() {
+                let href = &input.text;
+                NET_COMMANDS
+                    .send(NetCommand::Load(href.to_string()))
+                    .await;
+            }
+        }
+        scene.remove("url-input");
         return;
     }
     if scene.is_focused("url-button") {
@@ -322,14 +340,14 @@ pub async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display:
     match event {
         GuiEvent::KeyEvent(key_event) => match key_event {
             13 => {
-                handle_menu_click(scene, display).await;
+                handle_action(scene, display).await;
             }
             _ => {}
         },
         GuiEvent::ScrollEvent(_, _) => {}
         GuiEvent::ClickEvent() => {
             info!("clicked the button");
-            handle_menu_click(scene, display).await;
+            handle_action(scene, display).await;
         }
     }
 }

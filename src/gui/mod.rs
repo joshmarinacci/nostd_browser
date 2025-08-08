@@ -208,6 +208,7 @@ impl Scene {
         false
     }
     pub fn hide(&mut self, name: &str) {
+        info!("hide: {name}");
         if let Some(menu) = self.get_view_mut(name) {
             menu.set_visible(false);
             let bounds = menu.bounds();
@@ -270,6 +271,7 @@ impl Scene {
             let bounds = view.bounds();
             self.mark_dirty(bounds);
             self.focused = Some(name.to_string());
+            info!("set focused {}", name);
         } else {
             warn!("Missing view by name '{}'", name);
         }
