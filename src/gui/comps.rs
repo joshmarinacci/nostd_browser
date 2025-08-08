@@ -435,13 +435,17 @@ impl View for TextInput {
     }
 
     fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
-        let style = PrimitiveStyleBuilder::new()
+        let bounds_style = PrimitiveStyleBuilder::new()
             .fill_color(Rgb565::WHITE)
             .stroke_color(Rgb565::BLACK)
             .stroke_width(1)
             .stroke_alignment(StrokeAlignment::Inside)
             .build();
-        self.bounds().into_styled(style).draw(display).unwrap();
+        self.bounds().into_styled(bounds_style).draw(display).unwrap();
+
+        let text_style = MonoTextStyle::new(&theme.font, theme.base_bg);
+        let text = Text::with_alignment(&self.text, self.bounds.top_left, text_style, Alignment::Left);
+        text.draw(display).unwrap();
     }
 
     fn handle_input(&mut self, event: GuiEvent) {
