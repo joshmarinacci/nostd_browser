@@ -90,6 +90,7 @@ impl Scene {
     pub fn set_font(&mut self, font: MonoFont<'static>) {
         self.theme.font = font;
         self.mark_dirty(Rectangle::new(Point::new(0, 0), Size::new(320, 240)))
+        self.mark_layout_dirty();
     }
 }
 
