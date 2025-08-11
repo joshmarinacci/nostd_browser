@@ -123,7 +123,7 @@ impl View for GameView {
         self.visible = visible;
     }
 
-    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+    fn layout(&mut self, display: &mut TDeckDisplay, _theme: &Theme) {
         self.bounds = Rectangle::new(Point::new(0, 0),  Size::new(display.size().width, display.size().height));
     }
 

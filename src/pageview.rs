@@ -1,20 +1,18 @@
 use crate::common::{NetCommand, TDeckDisplay, NET_COMMANDS};
 use crate::gui::{GuiEvent, Theme, View};
 use crate::page::Page;
-use alloc::string::{String, ToString};
+use alloc::string::{ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
 use core::any::Any;
 use core::cmp::max;
 use embedded_graphics::geometry::{OriginDimensions, Point, Size};
-use embedded_graphics::mono_font::ascii::{FONT_10X20, FONT_6X13, FONT_8X13, FONT_8X13_BOLD, FONT_9X15, FONT_9X15_BOLD};
-use embedded_graphics::mono_font::{MonoFont, MonoTextStyle, MonoTextStyleBuilder};
+use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{Dimensions, Primitive, RgbColor};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
-use embedded_graphics::mono_font::iso_8859_16::FONT_6X13_BOLD;
 use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
 use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
@@ -159,7 +157,7 @@ impl View for PageView {
     fn set_visible(&mut self, visible: bool) {
         self.visible = visible;
     }
-    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+    fn layout(&mut self, display: &mut TDeckDisplay, _theme: &Theme) {
         self.bounds = Rectangle::new(Point::new(0, 0),  Size::new(display.size().width, display.size().height));
     }
 
@@ -266,7 +264,7 @@ impl View for PageView {
                 }
                 self.dirty = true
             }
-            GuiEvent::ScrollEvent(pt, delta) => {
+            GuiEvent::ScrollEvent(_pt, delta) => {
                 if (delta.x < 0) || (delta.y < 0) {
                     self.prev_link();
                 };

@@ -25,6 +25,7 @@ use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::Blocking;
 use esp_hal::peripherals::Peripherals;
+use gt911::Gt911Blocking;
 use log::{error, info};
 
 use mipidsi::interface::SpiInterface;
@@ -93,7 +94,7 @@ async fn main(spawner: Spawner) {
         .with_sda(peripherals.GPIO18)
         .with_scl(peripherals.GPIO8);
     info!("initialized I2C keyboard");
-    let ic2_ref = I2C.init(i2c);
+    let i2c_ref = I2C.init(i2c);
 
     // set up the display
     {
@@ -141,7 +142,7 @@ async fn main(spawner: Spawner) {
         let display_ref = DISPLAY.init(display);
         let scene = make_gui_scene().await;
         spawner
-            .spawn(update_display(display_ref, ic2_ref, scene))
+            .spawn(update_display(display_ref, i2c_ref, scene))
             .ok();
     }
 
@@ -185,7 +186,13 @@ async fn update_display(
     i2c: &'static mut I2c<'static, Blocking>,
     mut scene: Scene,
 ) {
+    let touch = Gt911Blocking::default();
+    touch.init(i2c).unwrap();
     loop {
+        if let Ok(points) = touch.get_touch(i2c) {
+            // stack allocated Vec containing 0-5 points
+            info!("{:?}", points)
+        }
         let mut data = [0u8; 1];
         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
         match kb_res {

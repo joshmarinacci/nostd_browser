@@ -7,7 +7,7 @@ use core::any::Any;
 use core::ops::Add;
 use embedded_graphics::geometry::{AnchorPoint, Dimensions, Point, Size};
 use embedded_graphics::mono_font::ascii::FONT_9X15;
-use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
+use embedded_graphics::mono_font::{MonoTextStyle};
 use embedded_graphics::pixelcolor::{Rgb565, RgbColor, WebColors};
 use embedded_graphics::prelude::Primitive;
 use embedded_graphics::primitives::StrokeAlignment::Inside;
@@ -60,7 +60,7 @@ impl View for Panel {
         self.visible = visible;
     }
 
-    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+    fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
     }
 }
 
@@ -96,7 +96,7 @@ impl View for Label {
         self.visible = visible;
     }
 
-    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+    fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
 
     }
 
@@ -169,7 +169,7 @@ impl View for Button {
         self.visible = visible;
     }
 
-    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+    fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
         let style = MonoTextStyle::new(&BASE_FONT, Rgb565::BLACK);
         let bounds = Text::new(&self.text, self.position, style).bounding_box();
         let bigger = bounds.size.add(Size::new(20, 20));
@@ -265,7 +265,7 @@ impl View for MenuView {
         self.visible = visible;
     }
 
-    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+    fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
     }
 
     fn bounds(&self) -> Rectangle {
@@ -389,7 +389,7 @@ impl View for OverlayLabel {
         self.visible = visible;
     }
 
-    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+    fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
     }
 
     fn bounds(&self) -> Rectangle {
@@ -452,14 +452,14 @@ impl View for TextInput {
         self.visible = visible;
     }
 
-    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme) {
+    fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
     }
 
     fn bounds(&self) -> Rectangle {
         self.bounds
     }
 
-    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, display: &mut TDeckDisplay, _clip: &Rectangle, theme: &Theme) {
         let bounds_style = PrimitiveStyleBuilder::new()
             .fill_color(Rgb565::WHITE)
             .stroke_color(Rgb565::BLACK)

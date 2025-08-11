@@ -1,13 +1,8 @@
 use alloc::string::ToString;
 use log::info;
-use crate::common::{NetCommand, NetStatus, TDeckDisplay, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
+use crate::common::{NetCommand, TDeckDisplay, NET_COMMANDS};
 use crate::gui::{GuiEvent, Scene, DARK_THEME, LIGHT_THEME};
-use embassy_net::Stack;
-use embassy_net::dns::DnsSocket;
-use embassy_net::tcp::client::{TcpClient, TcpClientState};
-use reqwless::client::{HttpClient, TlsConfig};
 use alloc::{format, vec};
-use embassy_time::{Duration, Timer};
 use embedded_graphics::primitives::Rectangle;
 use embedded_graphics::geometry::{Dimensions, Point, Size};
 use alloc::boxed::Box;

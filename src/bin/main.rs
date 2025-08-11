@@ -6,9 +6,8 @@
     holding buffers for the duration of a data transfer."
 )]
 extern crate alloc;
-use alloc::boxed::Box;
 use alloc::string::ToString;
-use alloc::{format, vec};
+use alloc::{format};
 use embassy_executor::Spawner;
 use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
@@ -16,10 +15,8 @@ use embassy_net::{Runner, Stack, StackResources};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
-use embedded_graphics::mono_font::ascii::{FONT_6X10, FONT_6X13, FONT_8X13, FONT_9X15};
-use embedded_graphics::mono_font::iso_8859_14::FONT_10X20;
+use embedded_graphics::mono_font::ascii::{FONT_9X15};
 use embedded_graphics::prelude::*;
-use embedded_graphics::primitives::Rectangle;
 use embedded_hal_bus::spi::ExclusiveDevice;
 use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
@@ -44,15 +41,12 @@ use reqwless::client::{HttpClient, TlsConfig};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder};
-use nostd_browser::brickbreaker::GameView;
 use nostd_browser::common::{
     NetCommand, NetStatus, TDeckDisplay, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL,
 };
-use nostd_browser::gui::comps::{Button, Label, MenuView, OverlayLabel, Panel};
-use nostd_browser::gui::{GuiEvent, Scene, View, DARK_THEME, LIGHT_THEME};
+use nostd_browser::gui::comps::{OverlayLabel};
+use nostd_browser::gui::{GuiEvent, Scene, View};
 use nostd_browser::page::Page;
-use nostd_browser::pageview::PageView;
-use nostd_html_parser::blocks::{Block, BlockType};
 use static_cell::StaticCell;
 use nostd_browser::browser::{make_gui_scene, update_view_from_input};
 
