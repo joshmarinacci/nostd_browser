@@ -21,6 +21,20 @@ use log::{info, warn};
 pub struct Panel {
     pub bounds: Rectangle,
     visible: bool,
+    children: Vec<String>,
+}
+
+impl Panel {
+    pub fn new(bounds: Rectangle) -> Box<Panel> {
+        Box::new(Panel {
+            bounds,
+            visible: true,
+            children: Vec::new(),
+        })
+    }
+    pub fn add_child(&mut self, child: String) {
+        self.children.push(child);
+    }
 }
 
 impl View for Panel {
@@ -61,17 +75,15 @@ impl View for Panel {
     }
 
     fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
+        info!("panel laying out children {:?}", self.children);
+        for child in &self.children {
+            // if let Some(view) = scene.get_view_mut() {
+            //
+            // }
+        }
     }
 }
 
-impl Panel {
-    pub fn new(bounds: Rectangle) -> Box<dyn View> {
-        Box::new(Panel {
-            bounds,
-            visible: true,
-        })
-    }
-}
 
 pub struct Label {
     text: String,

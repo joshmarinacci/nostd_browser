@@ -7,6 +7,7 @@
 )]
 extern crate alloc;
 use alloc::{vec};
+use alloc::string::ToString;
 use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
@@ -34,7 +35,7 @@ use mipidsi::{models::ST7789, Builder};
 use nostd_browser::common::{
     TDeckDisplay,
 };
-use nostd_browser::gui::comps::{Button, Label, MenuView, TextInput};
+use nostd_browser::gui::comps::{Button, Label, MenuView, Panel, TextInput};
 use nostd_browser::gui::Scene;
 use nostd_browser::gui::GuiEvent;
 use static_cell::StaticCell;
@@ -298,5 +299,16 @@ async fn make_gui_scene() -> Scene {
 
     let menuview = MenuView::new(vec!["first","second"], Point::new(100,30));
     scene.add("menuview", menuview);
+
+
+    let panel = Panel::new(Rectangle::new(Point::new(20,20),Size::new(200,200)));
+    scene.add("panel", panel);
+    let button = Button::new("panel button", Point::new(20,60));
+    scene.add("panel-button", button);
+    if let Some(view)= scene.get_view_mut("panel") {
+        if let Some(panel)= view.as_any_mut().downcast_mut::<Panel>() {
+            panel.add_child("panel-button".to_string());
+        }
+    }
     scene
 }
