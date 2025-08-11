@@ -20,6 +20,8 @@ pub type TDeckDisplay = Display<
     ST7789,
     NoResetPin,
 >;
+// pub type TDeckDisplay = dyn DrawTarget<Color=Rgb565, Error=core::convert::Infallible>;
+
 pub static PAGE_CHANNEL: Channel<CriticalSectionRawMutex, Page, 2> = Channel::new();
 
 #[derive(Debug)]

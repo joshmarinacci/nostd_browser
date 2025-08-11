@@ -36,7 +36,7 @@ use nostd_browser::common::{
     TDeckDisplay,
 };
 use nostd_browser::gui::comps::{Button, Label, MenuView, Panel, TextInput};
-use nostd_browser::gui::Scene;
+use nostd_browser::gui::{Canvas, Scene};
 use nostd_browser::gui::GuiEvent;
 use static_cell::StaticCell;
 

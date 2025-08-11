@@ -1,5 +1,5 @@
 use crate::common::TDeckDisplay;
-use crate::gui::{BASE_FONT, GuiEvent, Theme, View};
+use crate::gui::{BASE_FONT, GuiEvent, Theme, View, Canvas};
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -62,6 +62,11 @@ impl View for Panel {
             .into_styled(style)
             .draw(display)
             .unwrap();
+
+        let data:[u8;100*100] = [0;100*100];
+        let mut canvas = Canvas::new(Size::new(100,100), data);
+        let test_rect = Rectangle::new(Point::new(0,0), Size::new(3,3));
+        test_rect.into_styled(style).draw(&mut canvas).unwrap();
     }
 
     fn handle_input(&mut self, _event: GuiEvent) {}
@@ -76,11 +81,11 @@ impl View for Panel {
 
     fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
         info!("panel laying out children {:?}", self.children);
-        for child in &self.children {
+        // for child in &self.children {
             // if let Some(view) = scene.get_view_mut() {
             //
             // }
-        }
+        // }
     }
 }
 

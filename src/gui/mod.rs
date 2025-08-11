@@ -8,8 +8,9 @@ use core::any::Any;
 use core::fmt::{Debug, Formatter};
 use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::MonoFont;
+use embedded_graphics::Pixel;
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::{Dimensions, Point, RgbColor, Size};
+use embedded_graphics::prelude::{Dimensions, DrawTarget, Point, RgbColor, Size};
 use embedded_graphics::primitives::Rectangle;
 use hashbrown::HashMap;
 use log::{info, warn};
@@ -348,4 +349,51 @@ pub enum GuiEvent {
     KeyEvent(u8),
     ScrollEvent(Point, Point),
     ClickEvent(),
+}
+
+
+pub struct Canvas {
+    pub size:Size,
+    pub data: [u8; 10000],
+}
+
+impl Canvas {
+    pub fn new(size:Size, data: [u8; 10000]) -> Self {
+        Canvas {
+            size:size,
+            data:data
+        }
+    }
+}
+
+impl Dimensions for Canvas {
+    fn bounding_box(&self) -> Rectangle {
+        Rectangle::new(Point::new(0,0), self.size)
+    }
+}
+
+impl DrawTarget for Canvas {
+    type Color = Rgb565;
+    type Error = core::convert::Infallible;
+
+    fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
+    where
+        I: IntoIterator<Item=Pixel<Self::Color>>
+    {
+        info!("drawing pixels");
+        for pixel in pixels {
+            info!("drawing pixel {:?}", pixel);
+            let r = pixel.1.r();
+            let index = 0;
+            self.data[index] = r;
+        }
+        Ok(())
+    }
+    // fn fill_contiguous<I>(&mut self, area: &Rectangle, colors: I) -> Result<(), Self::Error>
+    // where
+    //     I: IntoIterator<Item=Self::Color>,
+    // {
+    //     info!("fill contiguous");
+    //     Ok(())
+    // }
 }
