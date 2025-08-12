@@ -1,3 +1,4 @@
+#![cfg(feature = "std")]
 use embedded_graphics::{
     pixelcolor::BinaryColor,
     prelude::*,
@@ -5,9 +6,16 @@ use embedded_graphics::{
     mono_font::{ascii::FONT_6X9, MonoTextStyle},
     text::Text,
 };
+use log::error;
 use embedded_graphics_simulator::{BinaryColorTheme, SimulatorDisplay, Window, OutputSettingsBuilder};
 
-fn main() -> Result<(), core::convert::Infallible> {
+// #[panic_handler]
+// fn panic(nfo: &core::panic::PanicInfo) -> ! {
+//     error!("PANIC: {:?}", nfo);
+//     loop {}
+// }
+//
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut display = SimulatorDisplay::<BinaryColor>::new(Size::new(128, 64));
 
     let line_style = PrimitiveStyle::with_stroke(BinaryColor::On, 1);
@@ -35,6 +43,5 @@ fn main() -> Result<(), core::convert::Infallible> {
         .theme(BinaryColorTheme::OledBlue)
         .build();
     Window::new("Hello World", &output_settings).show_static(&display);
-
     Ok(())
 }
