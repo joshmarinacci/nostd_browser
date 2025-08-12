@@ -1,5 +1,5 @@
 use crate::common::TDeckDisplay;
-use crate::gui::{GuiEvent, Theme, View};
+use crate::gui::{GuiEvent, Theme, View, ViewTarget};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::any::Any;
@@ -123,7 +123,7 @@ impl View for GameView {
         self.visible = visible;
     }
 
-    fn layout(&mut self, display: &mut TDeckDisplay, _theme: &Theme) {
+    fn layout(&mut self, display: &mut dyn ViewTarget, _theme: &Theme) {
         self.bounds = Rectangle::new(Point::new(0, 0),  Size::new(display.size().width, display.size().height));
     }
 
@@ -131,7 +131,7 @@ impl View for GameView {
         self.bounds.clone()
     }
 
-    fn draw(&mut self, display: &mut TDeckDisplay, _clip: &Rectangle, _theme: &Theme) {
+    fn draw(&mut self, display: &mut dyn ViewTarget, _clip: &Rectangle, _theme: &Theme) {
         self.count = self.count + 1;
 
         let old_ball_bounds = self.ball_bounds;
@@ -140,40 +140,25 @@ impl View for GameView {
         // draw background
         if self.count < 10 {
             let screen = Rectangle::new(Point::new(0, 0), Size::new(320, 240));
-            screen
-                .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
-                .draw(display)
-                .unwrap();
+            display.rect(&screen, PrimitiveStyle::with_fill(Rgb565::BLACK));
         }
 
         for brick in &self.bricks {
             if brick.active {
-                brick.bounds.into_styled(PrimitiveStyle::with_fill(brick.color)).draw(display).unwrap();
+                display.rect(&brick.bounds, PrimitiveStyle::with_fill(brick.color));
             } else {
-                brick.bounds.into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK)).draw(display).unwrap();
+                display.rect(&brick.bounds, PrimitiveStyle::with_fill(Rgb565::BLACK));
             }
         }
 
 
         // draw the ball
-        old_ball_bounds
-            .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
-            .draw(display)
-            .unwrap();
-        self.ball_bounds
-            .into_styled(PrimitiveStyle::with_fill(Rgb565::MAGENTA))
-            .draw(display)
-            .unwrap();
+        display.rect(&old_ball_bounds, PrimitiveStyle::with_fill(Rgb565::BLACK));
+        display.rect(&self.ball_bounds, PrimitiveStyle::with_fill(Rgb565::MAGENTA));
 
         // draw the paddle
-        self.old_paddle
-            .into_styled(PrimitiveStyle::with_fill(Rgb565::BLACK))
-            .draw(display)
-            .unwrap();
-        self.paddle
-            .into_styled(PrimitiveStyle::with_fill(Rgb565::RED))
-            .draw(display)
-            .unwrap();
+        display.rect(&self.old_paddle,PrimitiveStyle::with_fill(Rgb565::BLACK));
+        display.rect(&self.paddle,PrimitiveStyle::with_fill(Rgb565::RED));
     }
 
     fn handle_input(&mut self, event: GuiEvent) {

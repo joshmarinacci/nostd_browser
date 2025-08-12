@@ -1,5 +1,4 @@
-use crate::common::TDeckDisplay;
-use crate::gui::{BASE_FONT, GuiEvent, Theme, View, Canvas};
+use crate::gui::{BASE_FONT, GuiEvent, Theme, View, Canvas, ViewTarget};
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -50,23 +49,14 @@ impl View for Panel {
         self.bounds
     }
 
-    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme) {
         let style = PrimitiveStyleBuilder::new()
             .stroke_color(theme.base_bd)
             .stroke_width(1)
             .stroke_alignment(StrokeAlignment::Inside)
             .fill_color(theme.base_bg)
             .build();
-        self.bounds
-            .intersection(clip)
-            .into_styled(style)
-            .draw(display)
-            .unwrap();
-
-        let data:[u8;100*100] = [0;100*100];
-        let mut canvas = Canvas::new(Size::new(100,100), data);
-        let test_rect = Rectangle::new(Point::new(0,0), Size::new(3,3));
-        test_rect.into_styled(style).draw(&mut canvas).unwrap();
+        display.rect(&self.bounds,style);
     }
 
     fn handle_input(&mut self, _event: GuiEvent) {}
@@ -79,7 +69,7 @@ impl View for Panel {
         self.visible = visible;
     }
 
-    fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
+    fn layout(&mut self, _display: &mut dyn ViewTarget, _theme: &Theme) {
         info!("panel laying out children {:?}", self.children);
         // for child in &self.children {
             // if let Some(view) = scene.get_view_mut() {
@@ -113,7 +103,7 @@ impl View for Label {
         self.visible = visible;
     }
 
-    fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
+    fn layout(&mut self, _display: &mut dyn ViewTarget, _theme: &Theme) {
 
     }
 
@@ -124,12 +114,9 @@ impl View for Label {
         }
     }
 
-    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme) {
         let style = MonoTextStyle::new(&theme.font, theme.base_fg);
-        let text = Text::new(&self.text, self.position, style);
-        if !text.bounding_box().intersection(clip).is_zero_sized() {
-            text.draw(display).unwrap();
-        }
+        display.text(&self.text,&self.position,style);
     }
 
     fn handle_input(&mut self, _: GuiEvent) {}
@@ -186,7 +173,7 @@ impl View for Button {
         self.visible = visible;
     }
 
-    fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
+    fn layout(&mut self, _display: &mut dyn ViewTarget, _theme: &Theme) {
         let style = MonoTextStyle::new(&BASE_FONT, Rgb565::BLACK);
         let bounds = Text::new(&self.text, self.position, style).bounding_box();
         let bigger = bounds.size.add(Size::new(20, 20));
@@ -197,7 +184,7 @@ impl View for Button {
         self.bounds
     }
 
-    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme) {
         let style = PrimitiveStyleBuilder::new()
             .stroke_color(theme.base_bd)
             .stroke_width(1)
@@ -205,16 +192,9 @@ impl View for Button {
             .fill_color(theme.base_bg)
             .build();
 
-        self.bounds()
-            .intersection(clip)
-            .into_styled(style)
-            .draw(display)
-            .unwrap();
+        display.rect(&self.bounds,style);
         let style = MonoTextStyle::new(&theme.font, theme.base_fg);
-        let text = Text::new(&self.text, self.position, style);
-        if !text.bounding_box().intersection(clip).is_zero_sized() {
-            text.draw(display).unwrap();
-        }
+        display.text(&self.text,&self.position,style);
     }
 
     fn handle_input(&mut self, event: GuiEvent) {
@@ -282,7 +262,7 @@ impl View for MenuView {
         self.visible = visible;
     }
 
-    fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
+    fn layout(&mut self, _display: &mut dyn ViewTarget, _theme: &Theme) {
     }
 
     fn bounds(&self) -> Rectangle {
@@ -291,7 +271,7 @@ impl View for MenuView {
             size: self.size().add(Size::new(10, 10)),
         }
     }
-    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme) {
         if !self.visible {
             return;
         }
@@ -304,11 +284,7 @@ impl View for MenuView {
         // menu background
         if theme.shadow {
             let shadow_style = PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_GRAY);
-            Rectangle::new(self.position.add(Point::new(5, 5)), menu_size)
-                .intersection(clip)
-                .into_styled(shadow_style)
-                .draw(display)
-                .unwrap();
+            display.rect(&Rectangle::new(self.position.add(Point::new(5, 5)), menu_size), shadow_style);
         }
 
         let panel_style = PrimitiveStyleBuilder::new()
@@ -317,23 +293,15 @@ impl View for MenuView {
             .stroke_color(theme.base_bd)
             .fill_color(theme.base_bg)
             .build();
-        Rectangle::new(self.position, menu_size)
-            .intersection(clip)
-            .into_styled(panel_style)
-            .draw(display)
-            .unwrap();
+        display.rect(&Rectangle::new(self.position,menu_size),panel_style);
         for (i, item) in self.items.iter().enumerate() {
             let line_y = (i as i32) * line_height + pad;
 
             if i == self.highlighted_index {
-                Rectangle::new(
+                display.rect(&Rectangle::new(
                     Point::new(pad, line_y + yoff).add(self.position),
                     Size::new(100, line_height as u32),
-                )
-                .intersection(clip)
-                .into_styled(PrimitiveStyle::with_fill(theme.base_bd))
-                .draw(display)
-                .unwrap();
+                ),PrimitiveStyle::with_fill(theme.base_bd));
             };
             let fg = if i == self.highlighted_index {
                 theme.base_bg
@@ -343,9 +311,7 @@ impl View for MenuView {
             let text_style = MonoTextStyle::new(&theme.font, fg);
             let pos = Point::new(pad + xoff, line_y + line_height - 3 + yoff).add(self.position);
             let text_bounds = Text::new(item, pos, text_style).bounding_box();
-            if !text_bounds.intersection(clip).is_zero_sized() {
-                Text::new(&item, pos, text_style).draw(display).unwrap();
-            }
+            display.text(item,&pos,text_style);
         }
     }
     fn handle_input(&mut self, event: GuiEvent) {
@@ -406,29 +372,21 @@ impl View for OverlayLabel {
         self.visible = visible;
     }
 
-    fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
+    fn layout(&mut self, _display: &mut dyn ViewTarget, _theme: &Theme) {
     }
 
     fn bounds(&self) -> Rectangle {
         self.bounds
     }
 
-    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme) {
         let style = PrimitiveStyleBuilder::new()
             .fill_color(theme.base_fg)
             .build();
 
-        self.bounds()
-            .intersection(clip)
-            .into_styled(style)
-            .draw(display)
-            .unwrap();
+        display.rect(&self.bounds,style);
         let style = MonoTextStyle::new(&theme.font, theme.base_bg);
-        let text =
-            Text::with_alignment(&self.text, self.bounds().center(), style, Alignment::Center);
-        if !text.bounding_box().intersection(clip).is_zero_sized() {
-            text.draw(display).unwrap();
-        }
+        display.text(&self.text,&self.bounds.center(),style);
     }
 
     fn handle_input(&mut self, event: GuiEvent) {
@@ -469,27 +427,24 @@ impl View for TextInput {
         self.visible = visible;
     }
 
-    fn layout(&mut self, _display: &mut TDeckDisplay, _theme: &Theme) {
+    fn layout(&mut self, _display: &mut dyn ViewTarget, _theme: &Theme) {
     }
 
     fn bounds(&self) -> Rectangle {
         self.bounds
     }
 
-    fn draw(&mut self, display: &mut TDeckDisplay, _clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, display: &mut dyn ViewTarget, _clip: &Rectangle, theme: &Theme) {
         let bounds_style = PrimitiveStyleBuilder::new()
             .fill_color(Rgb565::WHITE)
             .stroke_color(Rgb565::BLACK)
             .stroke_width(1)
             .stroke_alignment(StrokeAlignment::Inside)
             .build();
-        self.bounds().into_styled(bounds_style).draw(display).unwrap();
+        display.rect(&self.bounds, bounds_style);
 
         let text_style = MonoTextStyle::new(&theme.font, theme.base_fg);
-        let text = Text::with_alignment(&self.text,
-                                        self.bounds.top_left.add(Point::new(5,20)),
-                                        text_style, Alignment::Left);
-        text.draw(display).unwrap();
+        display.text(&self.text,&self.bounds.top_left.add(Point::new(5,20)),text_style)
     }
 
     fn handle_input(&mut self, event: GuiEvent) {

@@ -12,8 +12,10 @@ use embassy_executor::Spawner;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
+use embedded_graphics::mono_font::MonoTextStyle;
+use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
-use embedded_graphics::primitives::Rectangle;
+use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_hal_bus::spi::ExclusiveDevice;
 use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
@@ -36,7 +38,7 @@ use nostd_browser::common::{
     TDeckDisplay,
 };
 use nostd_browser::gui::comps::{Button, Label, MenuView, Panel, TextInput};
-use nostd_browser::gui::{Canvas, Scene};
+use nostd_browser::gui::{Canvas, Scene, ViewTarget};
 use nostd_browser::gui::GuiEvent;
 use static_cell::StaticCell;
 
@@ -288,6 +290,9 @@ async fn handle_input(event: GuiEvent, scene: &mut Scene, display: &mut TDeckDis
 async fn make_gui_scene() -> Scene {
     let mut scene = Scene::new();
 
+    let panel = Panel::new(Rectangle::new(Point::new(20,20),Size::new(200,200)));
+    scene.add("panel", panel);
+
     let label = Label::new("A label", Point::new(10, 30));
     scene.add("label1", label);
 
@@ -301,8 +306,6 @@ async fn make_gui_scene() -> Scene {
     scene.add("menuview", menuview);
 
 
-    let panel = Panel::new(Rectangle::new(Point::new(20,20),Size::new(200,200)));
-    scene.add("panel", panel);
     let button = Button::new("panel button", Point::new(20,60));
     scene.add("panel-button", button);
     if let Some(view)= scene.get_view_mut("panel") {

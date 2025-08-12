@@ -7,11 +7,11 @@ use alloc::vec::Vec;
 use core::any::Any;
 use core::fmt::{Debug, Formatter};
 use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
-use embedded_graphics::mono_font::MonoFont;
+use embedded_graphics::mono_font::{MonoFont, MonoTextStyle};
 use embedded_graphics::Pixel;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{Dimensions, DrawTarget, Point, RgbColor, Size};
-use embedded_graphics::primitives::Rectangle;
+use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use hashbrown::HashMap;
 use log::{info, warn};
 
@@ -44,14 +44,20 @@ pub const DARK_THEME: Theme = Theme {
     shadow: false,
 };
 
+pub trait ViewTarget {
+    fn size(&self) -> Size;
+    fn text(&mut self, txt:&str, pos:&Point, style:MonoTextStyle<Rgb565>);
+    fn rect(&mut self, rectangle: &Rectangle, style: PrimitiveStyle<Rgb565>);
+}
+
 pub trait View {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
     fn visible(&self) -> bool;
     fn set_visible(&mut self, visible: bool);
-    fn layout(&mut self, display: &mut TDeckDisplay, theme: &Theme);
+    fn layout(&mut self, display: &mut dyn ViewTarget, theme: &Theme);
     fn bounds(&self) -> Rectangle;
-    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme);
+    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme);
     fn handle_input(&mut self, event: GuiEvent);
 }
 impl Debug for Box<dyn View> {
@@ -293,7 +299,7 @@ impl Scene {
 }
 
 impl Scene {
-    pub fn draw(&mut self, display: &mut TDeckDisplay) {
+    pub fn draw(&mut self, display: &mut dyn ViewTarget) {
         if self.layout_dirty {
             self.do_layout(display);
         }
@@ -309,10 +315,7 @@ impl Scene {
             self.dirty = true;
             self.clip = Rectangle::new(
                 Point::new(0, 0),
-                Size::new(
-                    display.bounding_box().size.width,
-                    display.bounding_box().size.height,
-                ),
+                display.size(),
             );
         } else {
             self.dirty = false;
@@ -320,7 +323,7 @@ impl Scene {
         }
     }
 
-    fn do_layout(&mut self, display: &mut TDeckDisplay) {
+    fn do_layout(&mut self, display: &mut dyn ViewTarget) {
         self.layout_dirty = false;
         for name in &self.draw_order {
             if let Some(view) = self.keys.get_mut(name) {

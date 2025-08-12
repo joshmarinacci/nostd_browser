@@ -1,5 +1,5 @@
 use crate::common::{NetCommand, TDeckDisplay, NET_COMMANDS};
-use crate::gui::{GuiEvent, Theme, View};
+use crate::gui::{GuiEvent, Theme, View, ViewTarget};
 use crate::page::Page;
 use alloc::string::{ToString};
 use alloc::vec::Vec;
@@ -157,7 +157,7 @@ impl View for PageView {
     fn set_visible(&mut self, visible: bool) {
         self.visible = visible;
     }
-    fn layout(&mut self, display: &mut TDeckDisplay, _theme: &Theme) {
+    fn layout(&mut self, display: &mut dyn ViewTarget, _theme: &Theme) {
         self.bounds = Rectangle::new(Point::new(0, 0),  Size::new(display.size().width, display.size().height));
     }
 
@@ -165,7 +165,7 @@ impl View for PageView {
         self.bounds.clone()
     }
 
-    fn draw(&mut self, display: &mut TDeckDisplay, clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme) {
         if !self.visible {
             return;
         }
@@ -175,11 +175,7 @@ impl View for PageView {
         let viewport_height: i32 = (display.size().height / line_height) as i32;
         let char_width = font.character_size.width as i32;
 
-        self.bounds
-            .intersection(clip)
-            .into_styled(PrimitiveStyle::with_fill(theme.base_bg))
-            .draw(display)
-            .unwrap();
+        display.rect(&self.bounds,PrimitiveStyle::with_fill(theme.base_bg));
 
         // select the lines in the current viewport
         let rpage = self.get_current_rendered_page();
@@ -205,10 +201,8 @@ impl View for PageView {
             };
             // draw a bullet
             if line.block_type == BlockType::ListItem {
-                Rectangle::new(Point::new(2, y), Size::new(4, 3))
-                    .into_styled(PrimitiveStyle::with_fill(theme.base_fg))
-                    .draw(display)
-                    .unwrap();
+                display.rect(&Rectangle::new(Point::new(2, y), Size::new(4, 3)),
+                    PrimitiveStyle::with_fill(theme.base_fg));
             }
             for run in &line.runs {
                 let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
@@ -234,10 +228,7 @@ impl View for PageView {
                     RunStyle::Plain => style,
                     RunStyle::Bold => style,
                 };
-                let text = Text::new(&run.text, pos, text_style);
-                if !text.bounding_box().intersection(clip).is_zero_sized() {
-                    text.draw(display).unwrap();
-                }
+                display.text(&run.text, &pos, text_style);
                 inset_chars += run.text.len();
             }
         }
