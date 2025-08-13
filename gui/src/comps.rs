@@ -1,4 +1,3 @@
-use crate::gui::{BASE_FONT, GuiEvent, Theme, View, Canvas, ViewTarget};
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -16,6 +15,7 @@ use embedded_graphics::primitives::{
 use embedded_graphics::text::{Alignment, Text};
 use embedded_graphics::Drawable;
 use log::{info, warn};
+use crate::{GuiEvent, Theme, View, ViewTarget, BASE_FONT};
 
 pub struct Panel {
     pub bounds: Rectangle,
@@ -72,9 +72,9 @@ impl View for Panel {
     fn layout(&mut self, _display: &mut dyn ViewTarget, _theme: &Theme) {
         info!("panel laying out children {:?}", self.children);
         // for child in &self.children {
-            // if let Some(view) = scene.get_view_mut() {
-            //
-            // }
+        // if let Some(view) = scene.get_view_mut() {
+        //
+        // }
         // }
     }
 }

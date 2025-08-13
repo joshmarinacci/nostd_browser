@@ -34,13 +34,10 @@ use log::{error, info};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder};
-use nostd_browser::common::{
-    TDeckDisplay,
-};
-use nostd_browser::gui::comps::{Button, Label, MenuView, Panel, TextInput};
-use nostd_browser::gui::{Canvas, Scene, ViewTarget};
-use nostd_browser::gui::GuiEvent;
+use nostd_browser::common::{TDeckDisplay, TDeckDisplayWrapper};
 use static_cell::StaticCell;
+use gui::{GuiEvent, Scene};
+use gui::comps::{Button, Label, MenuView, Panel, TextInput};
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {
@@ -191,6 +188,9 @@ async fn update_display(
 ) {
     let touch = Gt911Blocking::default();
     touch.init(i2c).unwrap();
+    let mut wrapper = TDeckDisplayWrapper {
+        display: display
+    };
     loop {
         if let Ok(points) = touch.get_touch(i2c) {
             // stack allocated Vec containing 0-5 points
@@ -202,7 +202,7 @@ async fn update_display(
             Ok(_) => {
                 if data[0] != 0x00 {
                     let evt: GuiEvent = GuiEvent::KeyEvent(data[0]);
-                    handle_input(evt, &mut scene, display).await;
+                    handle_input(evt, &mut scene, wrapper.display).await;
                 }
             }
             Err(_) => {
@@ -211,10 +211,10 @@ async fn update_display(
         }
 
         if let Ok(evt) = TRACKBALL_CHANNEL.try_receive() {
-            handle_input(evt, &mut scene, display).await;
+            handle_input(evt, &mut scene, wrapper.display).await;
         }
 
-        scene.draw(display);
+        scene.draw(&mut wrapper);
         Timer::after(Duration::from_millis(20)).await;
     }
 }

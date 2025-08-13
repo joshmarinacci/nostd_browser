@@ -1,6 +1,8 @@
-use crate::common::TDeckDisplay;
+#![no_std]
+extern crate alloc;
+
 use comps::MenuView;
-use crate::pageview::PageView;
+// use crate::pageview::PageView;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -234,18 +236,18 @@ impl Scene {
             warn!("show_menu: no menu found for the name: {name}");
         }
     }
-    pub fn get_textview_mut(&mut self, name: &str) -> Option<&mut PageView> {
-        if let Some(view) = self.keys.get_mut(name) {
-            if let Some(menu) = view.as_any_mut().downcast_mut::<PageView>() {
-                Some(menu)
-            } else {
-                None
-            }
-        } else {
-            warn!("Missing textview by name '{}'", name);
-            None
-        }
-    }
+    // pub fn get_textview_mut(&mut self, name: &str) -> Option<&mut PageView> {
+    //     if let Some(view) = self.keys.get_mut(name) {
+    //         if let Some(menu) = view.as_any_mut().downcast_mut::<PageView>() {
+    //             Some(menu)
+    //         } else {
+    //             None
+    //         }
+    //     } else {
+    //         warn!("Missing textview by name '{}'", name);
+    //         None
+    //     }
+    // }
     pub fn is_focused(&self, name: &str) -> bool {
         if let Some(f2) = &self.focused {
             if f2.eq_ignore_ascii_case(name) {

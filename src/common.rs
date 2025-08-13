@@ -1,5 +1,6 @@
 use crate::page::Page;
 use alloc::string::String;
+use core::ops::Deref;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embedded_graphics::Drawable;
@@ -16,7 +17,7 @@ use esp_hal::Blocking;
 use mipidsi::interface::SpiInterface;
 use mipidsi::models::ST7789;
 use mipidsi::{Display, NoResetPin};
-use crate::gui::ViewTarget;
+use gui::ViewTarget;
 
 pub type TDeckDisplay = Display<
     SpiInterface<
@@ -28,17 +29,20 @@ pub type TDeckDisplay = Display<
     NoResetPin,
 >;
 
-impl ViewTarget for TDeckDisplay {
+pub struct TDeckDisplayWrapper {
+    pub display:&'static mut TDeckDisplay
+}
+impl ViewTarget for TDeckDisplayWrapper {
     fn size(&self) -> Size {
-        self.bounding_box().size
+        self.display.bounding_box().size
     }
 
     fn text(&mut self, txt: &str, pos: &Point, style: MonoTextStyle<Rgb565>) {
-        Text::new(&txt, pos.clone(), style).draw(self).unwrap();
+        Text::new(&txt, pos.clone(), style).draw(self.display).unwrap();
     }
 
     fn rect(&mut self, rectangle: &Rectangle, style: PrimitiveStyle<Rgb565>) {
-        rectangle.into_styled(style).draw(self).unwrap();
+        rectangle.into_styled(style).draw(self.display).unwrap();
     }
 }
 

@@ -1,5 +1,4 @@
 use crate::common::{NetCommand, TDeckDisplay, NET_COMMANDS};
-use crate::gui::{GuiEvent, Theme, View, ViewTarget};
 use crate::page::Page;
 use alloc::string::{ToString};
 use alloc::vec::Vec;
@@ -16,6 +15,7 @@ use embedded_graphics::Drawable;
 use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
 use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
+use gui::{GuiEvent, Theme, View, ViewTarget};
 
 pub struct RenderedPage {
     pub link_count: i32,

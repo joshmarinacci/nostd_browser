@@ -70,7 +70,7 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
 ] }
 static_cell = { version = "2.1.0", features = ["nightly"] }
 gt911 = "0.3.0"
-
+gui = {path="./gui"}
 
 [profile.dev]
 # Rust debug is too slow.

@@ -1,5 +1,4 @@
 use crate::common::TDeckDisplay;
-use crate::gui::{GuiEvent, Theme, View, ViewTarget};
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::any::Any;
@@ -9,6 +8,7 @@ use embedded_graphics::prelude::{Primitive, RgbColor, Transform, WebColors};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::Drawable;
 use log::info;
+use gui::{GuiEvent, Theme, View, ViewTarget};
 
 pub struct Brick {
     pub bounds: Rectangle,
