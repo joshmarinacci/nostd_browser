@@ -5,6 +5,7 @@
     reason = "mem::forget is generally not safe to do with esp_hal types, especially those \
     holding buffers for the duration of a data transfer."
 )]
+use gui::View;
 extern crate alloc;
 use alloc::string::ToString;
 use alloc::{format};
@@ -29,6 +30,7 @@ use esp_hal::spi::Mode;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::Blocking;
+use esp_hal::xtensa_lx::interrupt::disable;
 use esp_wifi::wifi::ScanTypeConfig::Active;
 use esp_wifi::wifi::{
     ClientConfiguration, Configuration, ScanConfig, WifiController, WifiDevice, WifiEvent,
@@ -40,15 +42,14 @@ use reqwless::client::{HttpClient, TlsConfig};
 
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
-use mipidsi::{models::ST7789, Builder};
-use nostd_browser::common::{
-    NetCommand, NetStatus, TDeckDisplay, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL,
-};
-use nostd_browser::gui::comps::{OverlayLabel};
-use nostd_browser::gui::{GuiEvent, Scene, View};
+use mipidsi::{models::ST7789, Builder, Display, NoResetPin};
+use nostd_browser::common::{NetCommand, NetStatus, TDeckDisplay, TDeckDisplayWrapper, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
 use nostd_browser::page::Page;
 use static_cell::StaticCell;
+use gui::{GuiEvent, Scene};
+use gui::comps::OverlayLabel;
 use nostd_browser::browser::{make_gui_scene, update_view_from_input};
+use nostd_browser::pageview::PageView;
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {
@@ -81,6 +82,8 @@ static I2C: StaticCell<I2c<Blocking>> = StaticCell::new();
 
 static PAGE_BYTES: &[u8] = include_bytes!("homepage.html");
 
+pub(crate) static DISPLAY: StaticCell<TDeckDisplay> = StaticCell::new();
+static DISPLAY_REF: StaticCell<&mut TDeckDisplay> = StaticCell::new();
 static TRACKBALL_CHANNEL: Channel<CriticalSectionRawMutex, GuiEvent, 2> = Channel::new();
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
@@ -158,13 +161,11 @@ async fn main(spawner: Spawner) {
             // .display_size(320,240)
             .init(&mut delay)
             .unwrap();
-        static DISPLAY: StaticCell<TDeckDisplay> = StaticCell::new();
-        let display_ref = DISPLAY.init(display);
         info!("initialized display");
 
         let scene = make_gui_scene();
         spawner
-            .spawn(update_display(display_ref, ic2_ref, scene))
+            .spawn(update_display(display, ic2_ref, scene))
             .ok();
     }
 
@@ -390,20 +391,32 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
     runner.run().await
 }
 
-#[embassy_executor::task]
+
+fn get_pageview_mut<'a>(scene:&'a mut Scene, name:&str) -> Option<&'a mut PageView>  {
+    if let Some(view) = scene.get_view_mut(name) {
+        if let Some(tv) = view.as_any_mut().downcast_mut::<PageView>() {
+            return Some(tv)
+        }
+    }
+    None
+}
+
+    #[embassy_executor::task]
 async fn update_display(
-    display: &'static mut TDeckDisplay,
+    display: TDeckDisplay,
     i2c: &'static mut I2c<'static, Blocking>,
     mut scene: Scene,
 ) {
+    let display = DISPLAY.init(display);
+    let mut wrapper = TDeckDisplayWrapper::new(display);
     loop {
-        let display_width = display.size().width;
+        let display_width = wrapper.display.size().width;
         let font = FONT_9X15;
         let char_width = font.character_size.width as i32;
         let columns = ((display_width as i32) / char_width) as u32;
         // info!("width is {} char width = {} columns is {}", display_width, char_width, columns);
         if let Ok(page) = PAGE_CHANNEL.try_receive() {
-            if let Some(tv) = scene.get_textview_mut("page") {
+            if let Some(tv) = get_pageview_mut(&mut scene,"page") {
                 tv.load_page(page, columns);
                 let bounds = tv.bounds();
                 scene.mark_dirty(bounds);
@@ -416,7 +429,7 @@ async fn update_display(
             Ok(_) => {
                 if data[0] != 0x00 {
                     let evt: GuiEvent = GuiEvent::KeyEvent(data[0]);
-                    update_view_from_input(evt, &mut scene, display).await;
+                    update_view_from_input(evt, &mut scene, wrapper.display).await;
                 }
             }
             Err(_) => {
@@ -425,7 +438,7 @@ async fn update_display(
         }
 
         if let Ok(evt) = TRACKBALL_CHANNEL.try_receive() {
-            update_view_from_input(evt, &mut scene, display).await;
+            update_view_from_input(evt, &mut scene, wrapper.display).await;
         }
 
         if let Ok(status) = NET_STATUS.try_receive() {
@@ -441,7 +454,7 @@ async fn update_display(
             });
         }
 
-        scene.draw(display);
+        scene.draw(&mut wrapper);
         Timer::after(Duration::from_millis(20)).await;
     }
 }

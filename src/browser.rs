@@ -1,15 +1,15 @@
 use alloc::string::ToString;
 use log::info;
 use crate::common::{NetCommand, TDeckDisplay, NET_COMMANDS};
-use crate::gui::{GuiEvent, Scene, DARK_THEME, LIGHT_THEME};
 use alloc::{format, vec};
 use embedded_graphics::primitives::Rectangle;
 use embedded_graphics::geometry::{Dimensions, Point, Size};
 use alloc::boxed::Box;
 use nostd_html_parser::blocks::{Block, BlockType};
 use embedded_graphics::mono_font::ascii::{FONT_6X13, FONT_8X13, FONT_9X15};
+use gui::comps::{Button, Label, MenuView, OverlayLabel, Panel, TextInput};
+use gui::{GuiEvent, Scene, DARK_THEME, LIGHT_THEME};
 use crate::brickbreaker::GameView;
-use crate::gui::comps::{Button, Label, MenuView, OverlayLabel, Panel, TextInput};
 use crate::page::Page;
 use crate::pageview::PageView;
 
@@ -202,16 +202,20 @@ pub async fn handle_action(scene: &mut Scene, display: &TDeckDisplay) {
         if scene.menu_equals("browser","Back") {
             scene.hide(MAIN_MENU);
             scene.hide("browser");
-            if let Some(tv) = scene.get_textview_mut(PAGE_VIEW) {
-                tv.prev_page();
+            if let Some(view) = scene.get_view_mut(PAGE_VIEW) {
+                if let Some(tv) = view.as_any_mut().downcast_mut::<PageView>() {
+                    tv.prev_page();
+                }
             }
             scene.set_focused(PAGE_VIEW);
         }
         if scene.menu_equals("browser","Forward") {
             scene.hide(MAIN_MENU);
             scene.hide("browser");
-            if let Some(tv) = scene.get_textview_mut(PAGE_VIEW) {
-                tv.next_page();
+            if let Some(view) = scene.get_view_mut(PAGE_VIEW) {
+                if let Some(tv) = view.as_any_mut().downcast_mut::<PageView>() {
+                    tv.next_page();
+                }
             }
             scene.set_focused(PAGE_VIEW);
         }
@@ -286,23 +290,25 @@ pub fn make_gui_scene<'a>() -> Scene {
     );
 
     // set up a fake page
-    if let Some(tv) = scene.get_textview_mut(PAGE_VIEW) {
-        let mut blocks = vec![];
-        blocks.push(Block::new_of_type(BlockType::Header, "Header Text"));
-        blocks.push(Block::new_of_type(BlockType::ListItem, "list item one"));
-        blocks.push(Block::new_of_type(BlockType::ListItem, "list item two"));
-        blocks.push(Block::new_of_type(BlockType::ListItem, "list item three"));
-        blocks.push(Block::new_of_type(
-            BlockType::Paragraph,
-            "This is some long body text that needs to be broken into multiple lines",
-        ));
-        let page = Page {
-            selection: 0,
-            blocks,
-            links: vec![],
-            url: "".to_string(),
-        };
-        tv.load_page(page, 30);
+    if let Some(view) = scene.get_view_mut(PAGE_VIEW) {
+        if let Some(tv) = view.as_any_mut().downcast_mut::<PageView>() {
+            let mut blocks = vec![];
+            blocks.push(Block::new_of_type(BlockType::Header, "Header Text"));
+            blocks.push(Block::new_of_type(BlockType::ListItem, "list item one"));
+            blocks.push(Block::new_of_type(BlockType::ListItem, "list item two"));
+            blocks.push(Block::new_of_type(BlockType::ListItem, "list item three"));
+            blocks.push(Block::new_of_type(
+                BlockType::Paragraph,
+                "This is some long body text that needs to be broken into multiple lines",
+            ));
+            let page = Page {
+                selection: 0,
+                blocks,
+                links: vec![],
+                url: "".to_string(),
+            };
+            tv.load_page(page, 30);
+        }
     }
 
     scene.set_focused(PAGE_VIEW);

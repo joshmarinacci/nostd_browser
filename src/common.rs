@@ -32,6 +32,13 @@ pub type TDeckDisplay = Display<
 pub struct TDeckDisplayWrapper {
     pub display:&'static mut TDeckDisplay
 }
+impl TDeckDisplayWrapper {
+    pub fn new(display:&'static mut TDeckDisplay) -> Self {
+        TDeckDisplayWrapper {
+            display
+        }
+    }
+}
 impl ViewTarget for TDeckDisplayWrapper {
     fn size(&self) -> Size {
         self.display.bounding_box().size
