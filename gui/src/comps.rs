@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use core::any::Any;
-use core::ops::Add;
+use core::ops::{Add, Sub};
 use embedded_graphics::geometry::{AnchorPoint, Dimensions, Point, Size};
 use embedded_graphics::mono_font::ascii::FONT_9X15;
 use embedded_graphics::mono_font::{MonoTextStyle};
@@ -315,7 +315,6 @@ impl View for MenuView {
         }
     }
     fn handle_input(&mut self, event: GuiEvent) {
-        // info!("Handling key event: {:?}", event);
         match event {
             GuiEvent::KeyEvent(key) => match key {
                 b'j' => self.nav_prev(),
@@ -323,12 +322,20 @@ impl View for MenuView {
                 _ => {}
             },
             GuiEvent::ScrollEvent(_, delta) => {
-                // info!("menu got {pt} {delta}");
                 if delta.y < 0 {
                     self.nav_next();
                 }
                 if delta.y > 0 {
                     self.nav_prev();
+                }
+            }
+            GuiEvent::TouchEvent(pt) => {
+                let pos = pt.sub(self.position);
+                let line_height = (BASE_FONT.character_size.height + 2) as i32;
+                let index:usize = (pos.y / line_height) as usize;
+                if  index < self.items.len() {
+                    self.highlighted_index = index;
+                    self.dirty = true;
                 }
             }
             _ => {

@@ -5,6 +5,7 @@ use comps::MenuView;
 // use crate::pageview::PageView;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
+use alloc::vec;
 use alloc::vec::Vec;
 use core::any::Any;
 use core::fmt::{Debug, Formatter};
@@ -93,6 +94,20 @@ pub struct Scene {
     clip: Rectangle,
     theme: Theme,
     auto_redraw: bool,
+}
+
+impl Scene {
+    pub fn find_views_at(&self, p0: &Point) -> Vec<String> {
+        let mut found:Vec<String> = vec![];
+        for name in &self.draw_order {
+            if let Some(view) = self.get_view(name) {
+                if(view.bounds().contains(*p0)) {
+                    found.push(name.to_string());
+                }
+            }
+        }
+        return found;
+    }
 }
 
 impl Scene {
@@ -354,6 +369,7 @@ pub enum GuiEvent {
     KeyEvent(u8),
     ScrollEvent(Point, Point),
     ClickEvent(),
+    TouchEvent(Point),
 }
 
 

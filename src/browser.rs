@@ -354,6 +354,9 @@ pub async fn update_view_from_input(event: GuiEvent, scene: &mut Scene, display:
         GuiEvent::ClickEvent() => {
             info!("clicked the button");
             handle_action(scene, display).await;
+        },
+        GuiEvent::TouchEvent(pt) => {
+            info!("touch event {pt}")
         }
     }
 }

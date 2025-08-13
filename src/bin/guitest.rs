@@ -192,9 +192,12 @@ async fn update_display(
         display: display
     };
     loop {
-        if let Ok(points) = touch.get_touch(i2c) {
-            // stack allocated Vec containing 0-5 points
-            info!("{:?}", points)
+        if let Ok(point) = touch.get_touch(i2c) {
+            if let Some(point) = point {
+                // flip because the screen is mounted sideways on the t-deck
+                let evt = GuiEvent::TouchEvent(Point::new(320 - point.y as i32, 240-point.x as i32));
+                handle_input(evt, &mut scene, wrapper.display).await;
+            }
         }
         let mut data = [0u8; 1];
         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
@@ -280,11 +283,24 @@ async fn handle_trackball(
 
 const TEXT_INPUT: &str = "textinput";
 async fn handle_input(event: GuiEvent, scene: &mut Scene, display: &mut TDeckDisplay) {
-    info!("handling input event: {:?}", event);
+    // info!("handling input event: {:?}", event);
     if scene.get_focused_view().is_none() {
     scene.set_focused(TEXT_INPUT);
         }
     scene.handle_input(event);
+
+    match &event {
+        GuiEvent::TouchEvent(pt) => {
+            // focus on touched elements
+            info!("got a touch event {pt}");
+            let view_names = scene.find_views_at(pt);
+            if let Some(last) = view_names.last() {
+                scene.set_focused(last);
+            }
+        }
+        _ => {
+        }
+    }
 }
 
 async fn make_gui_scene() -> Scene {
