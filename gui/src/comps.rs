@@ -15,7 +15,7 @@ use embedded_graphics::primitives::{
 use embedded_graphics::text::{Alignment, Text};
 use embedded_graphics::Drawable;
 use log::{info, warn};
-use crate::{GuiEvent, Theme, View, ViewTarget, BASE_FONT};
+use crate::{DrawContext, GuiEvent, Theme, View, ViewTarget, BASE_FONT};
 
 pub struct Panel {
     pub bounds: Rectangle,
@@ -49,14 +49,14 @@ impl View for Panel {
         self.bounds
     }
 
-    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, context: &mut DrawContext) {
         let style = PrimitiveStyleBuilder::new()
-            .stroke_color(theme.base_bd)
+            .stroke_color(context.theme.base_bd)
             .stroke_width(1)
             .stroke_alignment(StrokeAlignment::Inside)
-            .fill_color(theme.base_bg)
+            .fill_color(context.theme.base_bg)
             .build();
-        display.rect(&self.bounds,style);
+        context.display.rect(&self.bounds,style);
     }
 
     fn handle_input(&mut self, _event: GuiEvent) {}
@@ -114,9 +114,9 @@ impl View for Label {
         }
     }
 
-    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme) {
-        let style = MonoTextStyle::new(&theme.font, theme.base_fg);
-        display.text(&self.text,&self.position,style);
+    fn draw(&mut self, context: &mut DrawContext) {
+        let style = MonoTextStyle::new(&context.theme.font, context.theme.base_fg);
+        context.display.text(&self.text,&self.position,style);
     }
 
     fn handle_input(&mut self, _: GuiEvent) {}
@@ -184,17 +184,17 @@ impl View for Button {
         self.bounds
     }
 
-    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, context: &mut DrawContext) {
         let style = PrimitiveStyleBuilder::new()
-            .stroke_color(theme.base_bd)
+            .stroke_color(context.theme.base_bd)
             .stroke_width(1)
             .stroke_alignment(StrokeAlignment::Inside)
-            .fill_color(theme.base_bg)
+            .fill_color(context.theme.base_bg)
             .build();
 
-        display.rect(&self.bounds,style);
-        let style = MonoTextStyle::new(&theme.font, theme.base_fg);
-        display.text(&self.text,&self.position,style);
+        context.display.rect(&self.bounds,style);
+        let style = MonoTextStyle::new(&context.theme.font, context.theme.base_fg);
+        context.display.text(&self.text,&self.position,style);
     }
 
     fn handle_input(&mut self, event: GuiEvent) {
@@ -271,47 +271,46 @@ impl View for MenuView {
             size: self.size().add(Size::new(10, 10)),
         }
     }
-    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, context: &mut DrawContext) {
         if !self.visible {
             return;
         }
-        let line_height = (theme.font.character_size.height + 2) as i32;
+        let line_height = (context.theme.font.character_size.height + 2) as i32;
         let pad = PAD as i32;
 
         let xoff: i32 = 2;
         let yoff: i32 = 0;
         let menu_size = self.size();
         // menu background
-        if theme.shadow {
+        if context.theme.shadow {
             let shadow_style = PrimitiveStyle::with_fill(Rgb565::CSS_LIGHT_GRAY);
-            display.rect(&Rectangle::new(self.position.add(Point::new(5, 5)), menu_size), shadow_style);
+            context.display.rect(&Rectangle::new(self.position.add(Point::new(5, 5)), menu_size), shadow_style);
         }
 
         let panel_style = PrimitiveStyleBuilder::new()
             .stroke_width(1)
             .stroke_alignment(Inside)
-            .stroke_color(theme.base_bd)
-            .fill_color(theme.base_bg)
+            .stroke_color(context.theme.base_bd)
+            .fill_color(context.theme.base_bg)
             .build();
-        display.rect(&Rectangle::new(self.position,menu_size),panel_style);
+        context.display.rect(&Rectangle::new(self.position,menu_size),panel_style);
         for (i, item) in self.items.iter().enumerate() {
             let line_y = (i as i32) * line_height + pad;
 
             if i == self.highlighted_index {
-                display.rect(&Rectangle::new(
+                context.display.rect(&Rectangle::new(
                     Point::new(pad, line_y + yoff).add(self.position),
                     Size::new(100, line_height as u32),
-                ),PrimitiveStyle::with_fill(theme.base_bd));
+                ),PrimitiveStyle::with_fill(context.theme.base_bd));
             };
             let fg = if i == self.highlighted_index {
-                theme.base_bg
+                context.theme.base_bg
             } else {
-                theme.base_fg
+                context.theme.base_fg
             };
-            let text_style = MonoTextStyle::new(&theme.font, fg);
+            let text_style = MonoTextStyle::new(&context.theme.font, fg);
             let pos = Point::new(pad + xoff, line_y + line_height - 3 + yoff).add(self.position);
-            let text_bounds = Text::new(item, pos, text_style).bounding_box();
-            display.text(item,&pos,text_style);
+            context.display.text(item,&pos,text_style);
         }
     }
     fn handle_input(&mut self, event: GuiEvent) {
@@ -386,14 +385,14 @@ impl View for OverlayLabel {
         self.bounds
     }
 
-    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, context: &mut DrawContext) {
         let style = PrimitiveStyleBuilder::new()
-            .fill_color(theme.base_fg)
+            .fill_color(context.theme.base_fg)
             .build();
 
-        display.rect(&self.bounds,style);
-        let style = MonoTextStyle::new(&theme.font, theme.base_bg);
-        display.text(&self.text,&self.bounds.center(),style);
+        context.display.rect(&self.bounds,style);
+        let style = MonoTextStyle::new(&context.theme.font, context.theme.base_bg);
+        context.display.text(&self.text,&self.bounds.center(),style);
     }
 
     fn handle_input(&mut self, event: GuiEvent) {
@@ -441,17 +440,17 @@ impl View for TextInput {
         self.bounds
     }
 
-    fn draw(&mut self, display: &mut dyn ViewTarget, _clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, context: &mut DrawContext) {
         let bounds_style = PrimitiveStyleBuilder::new()
             .fill_color(Rgb565::WHITE)
             .stroke_color(Rgb565::BLACK)
             .stroke_width(1)
             .stroke_alignment(StrokeAlignment::Inside)
             .build();
-        display.rect(&self.bounds, bounds_style);
+        context.display.rect(&self.bounds, bounds_style);
 
-        let text_style = MonoTextStyle::new(&theme.font, theme.base_fg);
-        display.text(&self.text,&self.bounds.top_left.add(Point::new(5,20)),text_style)
+        let text_style = MonoTextStyle::new(&context.theme.font, context.theme.base_fg);
+        context.display.text(&self.text,&self.bounds.top_left.add(Point::new(5,20)),text_style)
     }
 
     fn handle_input(&mut self, event: GuiEvent) {

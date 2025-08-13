@@ -8,14 +8,12 @@ use core::cmp::max;
 use embedded_graphics::geometry::{OriginDimensions, Point, Size};
 use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::{Dimensions, Primitive, RgbColor};
+use embedded_graphics::prelude::{RgbColor};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
-use embedded_graphics::text::Text;
-use embedded_graphics::Drawable;
 use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
 use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
-use gui::{GuiEvent, Theme, View, ViewTarget};
+use gui::{DrawContext, GuiEvent, Theme, View, ViewTarget};
 
 pub struct RenderedPage {
     pub link_count: i32,
@@ -165,17 +163,17 @@ impl View for PageView {
         self.bounds.clone()
     }
 
-    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme) {
+    fn draw(&mut self, context:&mut DrawContext) {
         if !self.visible {
             return;
         }
         self.dirty = false;
-        let font = theme.font;
+        let font = context.theme.font;
         let line_height = font.character_size.height + 2;
-        let viewport_height: i32 = (display.size().height / line_height) as i32;
+        let viewport_height: i32 = (context.display.size().height / line_height) as i32;
         let char_width = font.character_size.width as i32;
 
-        display.rect(&self.bounds,PrimitiveStyle::with_fill(theme.base_bg));
+        context.display.rect(&self.bounds,PrimitiveStyle::with_fill(context.theme.base_bg));
 
         // select the lines in the current viewport
         let rpage = self.get_current_rendered_page();
@@ -195,14 +193,14 @@ impl View for PageView {
             let mut inset_chars: usize = 0;
             let y = j as i32 * (line_height as i32) + 10;
             let style = match line.block_type {
-                BlockType::Paragraph => MonoTextStyle::new(&theme.font, theme.base_fg),
-                BlockType::ListItem => MonoTextStyle::new(&theme.font, theme.base_fg),
-                BlockType::Header => MonoTextStyle::new(&theme.bold, theme.base_fg),
+                BlockType::Paragraph => MonoTextStyle::new(&context.theme.font, context.theme.base_fg),
+                BlockType::ListItem => MonoTextStyle::new(&context.theme.font, context.theme.base_fg),
+                BlockType::Header => MonoTextStyle::new(&context.theme.bold, context.theme.base_fg),
             };
             // draw a bullet
             if line.block_type == BlockType::ListItem {
-                display.rect(&Rectangle::new(Point::new(2, y), Size::new(4, 3)),
-                    PrimitiveStyle::with_fill(theme.base_fg));
+                context.display.rect(&Rectangle::new(Point::new(2, y), Size::new(4, 3)),
+                    PrimitiveStyle::with_fill(context.theme.base_fg));
             }
             for run in &line.runs {
                 let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
@@ -211,7 +209,7 @@ impl View for PageView {
                         // info!("found a link: {:?}", href);
                         link_count += 1;
                         let builder = MonoTextStyleBuilder::new()
-                            .font(&theme.font)
+                            .font(&context.theme.font)
                             .underline();
                         if rpage.page.selection == link_count {
                             builder
@@ -228,7 +226,7 @@ impl View for PageView {
                     RunStyle::Plain => style,
                     RunStyle::Bold => style,
                 };
-                display.text(&run.text, &pos, text_style);
+                context.display.text(&run.text, &pos, text_style);
                 inset_chars += run.text.len();
             }
         }

@@ -4,11 +4,10 @@ use alloc::vec::Vec;
 use core::any::Any;
 use embedded_graphics::geometry::{OriginDimensions, Point, Size};
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::{Primitive, RgbColor, Transform, WebColors};
+use embedded_graphics::prelude::{RgbColor, Transform, WebColors};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
-use embedded_graphics::Drawable;
 use log::info;
-use gui::{GuiEvent, Theme, View, ViewTarget};
+use gui::{DrawContext, GuiEvent, Theme, View, ViewTarget};
 
 pub struct Brick {
     pub bounds: Rectangle,
@@ -131,7 +130,7 @@ impl View for GameView {
         self.bounds.clone()
     }
 
-    fn draw(&mut self, display: &mut dyn ViewTarget, _clip: &Rectangle, _theme: &Theme) {
+    fn draw(&mut self, context:&mut DrawContext) {
         self.count = self.count + 1;
 
         let old_ball_bounds = self.ball_bounds;
@@ -140,25 +139,25 @@ impl View for GameView {
         // draw background
         if self.count < 10 {
             let screen = Rectangle::new(Point::new(0, 0), Size::new(320, 240));
-            display.rect(&screen, PrimitiveStyle::with_fill(Rgb565::BLACK));
+            context.display.rect(&screen, PrimitiveStyle::with_fill(Rgb565::BLACK));
         }
 
         for brick in &self.bricks {
             if brick.active {
-                display.rect(&brick.bounds, PrimitiveStyle::with_fill(brick.color));
+                context.display.rect(&brick.bounds, PrimitiveStyle::with_fill(brick.color));
             } else {
-                display.rect(&brick.bounds, PrimitiveStyle::with_fill(Rgb565::BLACK));
+                context.display.rect(&brick.bounds, PrimitiveStyle::with_fill(Rgb565::BLACK));
             }
         }
 
 
         // draw the ball
-        display.rect(&old_ball_bounds, PrimitiveStyle::with_fill(Rgb565::BLACK));
-        display.rect(&self.ball_bounds, PrimitiveStyle::with_fill(Rgb565::MAGENTA));
+        context.display.rect(&old_ball_bounds, PrimitiveStyle::with_fill(Rgb565::BLACK));
+        context.display.rect(&self.ball_bounds, PrimitiveStyle::with_fill(Rgb565::MAGENTA));
 
         // draw the paddle
-        display.rect(&self.old_paddle,PrimitiveStyle::with_fill(Rgb565::BLACK));
-        display.rect(&self.paddle,PrimitiveStyle::with_fill(Rgb565::RED));
+        context.display.rect(&self.old_paddle,PrimitiveStyle::with_fill(Rgb565::BLACK));
+        context.display.rect(&self.paddle,PrimitiveStyle::with_fill(Rgb565::RED));
     }
 
     fn handle_input(&mut self, event: GuiEvent) {

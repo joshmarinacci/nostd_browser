@@ -53,6 +53,12 @@ pub trait ViewTarget {
     fn rect(&mut self, rectangle: &Rectangle, style: PrimitiveStyle<Rgb565>);
 }
 
+pub struct DrawContext<'a> {
+    pub display: &'a mut dyn ViewTarget,
+    clip: &'a Rectangle,
+    pub theme: &'a Theme,
+}
+
 pub trait View {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -60,7 +66,7 @@ pub trait View {
     fn set_visible(&mut self, visible: bool);
     fn layout(&mut self, display: &mut dyn ViewTarget, theme: &Theme);
     fn bounds(&self) -> Rectangle;
-    fn draw(&mut self, display: &mut dyn ViewTarget, clip: &Rectangle, theme: &Theme);
+    fn draw(&mut self, context: &mut DrawContext);
     fn handle_input(&mut self, event: GuiEvent);
 }
 impl Debug for Box<dyn View> {
@@ -323,9 +329,14 @@ impl Scene {
         if !self.dirty {
             return;
         }
+        let mut context:DrawContext = DrawContext {
+            display: display,
+            clip: &self.clip,
+            theme: &self.theme,
+        };
         for name in &self.draw_order {
             if let Some(view) = self.keys.get_mut(name) {
-                view.draw(display, &self.clip, &self.theme);
+                view.draw(&mut context);
             }
         }
         if self.auto_redraw {
