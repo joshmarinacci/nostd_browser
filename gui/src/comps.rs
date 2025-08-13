@@ -187,9 +187,10 @@ impl View for Button {
     fn draw(&mut self, context: &mut DrawContext) {
         let bg = if context.is_focused { context.theme.base_fg } else { context.theme.base_bg };
         let fg = if context.is_focused { context.theme.base_bg } else { context.theme.base_fg };
+        let stroke_width = if context.is_focused { 3 } else { 1 };
         let style = PrimitiveStyleBuilder::new()
             .stroke_color(fg)
-            .stroke_width(1)
+            .stroke_width(stroke_width)
             .stroke_alignment(StrokeAlignment::Inside)
             .fill_color(bg)
             .build();
@@ -443,10 +444,11 @@ impl View for TextInput {
     }
 
     fn draw(&mut self, context: &mut DrawContext) {
+        let stroke_width = if context.is_focused { 3 } else { 1 };
         let bounds_style = PrimitiveStyleBuilder::new()
             .fill_color(Rgb565::WHITE)
             .stroke_color(Rgb565::BLACK)
-            .stroke_width(1)
+            .stroke_width(stroke_width)
             .stroke_alignment(StrokeAlignment::Inside)
             .build();
         context.display.rect(&self.bounds, bounds_style);
