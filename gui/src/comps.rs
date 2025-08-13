@@ -185,15 +185,17 @@ impl View for Button {
     }
 
     fn draw(&mut self, context: &mut DrawContext) {
+        let bg = if context.is_focused { context.theme.base_fg } else { context.theme.base_bg };
+        let fg = if context.is_focused { context.theme.base_bg } else { context.theme.base_fg };
         let style = PrimitiveStyleBuilder::new()
-            .stroke_color(context.theme.base_bd)
+            .stroke_color(fg)
             .stroke_width(1)
             .stroke_alignment(StrokeAlignment::Inside)
-            .fill_color(context.theme.base_bg)
+            .fill_color(bg)
             .build();
 
         context.display.rect(&self.bounds,style);
-        let style = MonoTextStyle::new(&context.theme.font, context.theme.base_fg);
+        let style = MonoTextStyle::new(&context.theme.font, fg);
         context.display.text(&self.text,&self.position,style);
     }
 

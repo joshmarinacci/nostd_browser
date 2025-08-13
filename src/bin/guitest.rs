@@ -322,12 +322,12 @@ async fn make_gui_scene() -> Scene {
     scene.add("menuview", menuview);
 
 
-    let button = Button::new("panel button", Point::new(20,60));
-    scene.add("panel-button", button);
-    if let Some(view)= scene.get_view_mut("panel") {
-        if let Some(panel)= view.as_any_mut().downcast_mut::<Panel>() {
-            panel.add_child("panel-button".to_string());
-        }
-    }
+    // let button = Button::new("panel button", Point::new(20,60));
+    // scene.add("panel-button", button);
+    // if let Some(view)= scene.get_view_mut("panel") {
+    //     if let Some(panel)= view.as_any_mut().downcast_mut::<Panel>() {
+    //         panel.add_child("panel-button".to_string());
+    //     }
+    // }
     scene
 }

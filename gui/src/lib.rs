@@ -57,6 +57,7 @@ pub struct DrawContext<'a> {
     pub display: &'a mut dyn ViewTarget,
     clip: &'a Rectangle,
     pub theme: &'a Theme,
+    is_focused: bool
 }
 
 pub trait View {
@@ -333,8 +334,10 @@ impl Scene {
             display: display,
             clip: &self.clip,
             theme: &self.theme,
+            is_focused: false
         };
         for name in &self.draw_order {
+            context.is_focused = self.is_focused(name);
             if let Some(view) = self.keys.get_mut(name) {
                 view.draw(&mut context);
             }
