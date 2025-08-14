@@ -6,7 +6,7 @@ use embedded_graphics::primitives::Rectangle;
 use embedded_graphics::geometry::{Dimensions, Point, Size};
 use alloc::boxed::Box;
 use nostd_html_parser::blocks::{Block, BlockType};
-use embedded_graphics::mono_font::ascii::{FONT_6X13, FONT_8X13, FONT_9X15};
+use embedded_graphics::mono_font::ascii::{FONT_6X13, FONT_6X13_BOLD, FONT_8X13, FONT_8X13_BOLD, FONT_9X15, FONT_9X15_BOLD};
 use gui::comps::{Button, Label, MenuView, OverlayLabel, Panel, TextInput};
 use gui::{GuiEvent, Scene, DARK_THEME, LIGHT_THEME};
 use crate::brickbreaker::GameView;
@@ -152,13 +152,13 @@ pub async fn handle_action(scene: &mut Scene, display: &TDeckDisplay) {
     }
     if scene.is_focused(FONT_MENU) {
         if scene.menu_equals(FONT_MENU, "Small") {
-            scene.set_font(FONT_6X13);
+            scene.set_font(FONT_6X13, FONT_6X13_BOLD);
         }
         if scene.menu_equals(FONT_MENU, "Medium") {
-            scene.set_font(FONT_8X13);
+            scene.set_font(FONT_8X13, FONT_8X13_BOLD);
         }
         if scene.menu_equals(FONT_MENU, "Large") {
-            scene.set_font(FONT_9X15);
+            scene.set_font(FONT_9X15, FONT_9X15_BOLD);
         }
         // close
         if scene.menu_equals(FONT_MENU, "close") {
@@ -307,7 +307,7 @@ pub fn make_gui_scene<'a>() -> Scene {
                 links: vec![],
                 url: "".to_string(),
             };
-            tv.load_page(page, 30);
+            tv.load_page(page);
         }
     }
 

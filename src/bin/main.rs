@@ -417,7 +417,7 @@ async fn update_display(
         // info!("width is {} char width = {} columns is {}", display_width, char_width, columns);
         if let Ok(page) = PAGE_CHANNEL.try_receive() {
             if let Some(tv) = get_pageview_mut(&mut scene,"page") {
-                tv.load_page(page, columns);
+                tv.load_page(page);
                 let bounds = tv.bounds();
                 scene.mark_dirty(bounds);
             }

@@ -12,7 +12,7 @@ use core::fmt::{Debug, Formatter};
 use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::{MonoFont, MonoTextStyle};
 use embedded_graphics::Pixel;
-use embedded_graphics::pixelcolor::Rgb565;
+use embedded_graphics::pixelcolor::{Rgb565, WebColors};
 use embedded_graphics::prelude::{Dimensions, DrawTarget, Point, RgbColor, Size};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use hashbrown::HashMap;
@@ -26,6 +26,8 @@ pub struct Theme {
     pub base_bg: Rgb565,
     pub base_bd: Rgb565,
     pub base_fg: Rgb565,
+    pub accent_fg: Rgb565,
+    pub highlight_fg: Rgb565,
     pub shadow: bool,
     pub font: MonoFont<'static>,
     pub bold: MonoFont<'static>,
@@ -34,6 +36,8 @@ pub const LIGHT_THEME: Theme = Theme {
     base_bg: Rgb565::WHITE,
     base_bd: Rgb565::BLACK,
     base_fg: Rgb565::BLACK,
+    accent_fg: Rgb565::BLUE,
+    highlight_fg: Rgb565::CSS_ORANGE_RED,
     shadow: false,
     font: BASE_FONT,
     bold: BOLD_FONT,
@@ -42,6 +46,8 @@ pub const DARK_THEME: Theme = Theme {
     base_bg: Rgb565::BLACK,
     base_bd: Rgb565::WHITE,
     base_fg: Rgb565::WHITE,
+    accent_fg: Rgb565::CSS_DARK_BLUE,
+    highlight_fg: Rgb565::CSS_DARK_ORANGE,
     font: BASE_FONT,
     bold: BOLD_FONT,
     shadow: false,
@@ -118,8 +124,9 @@ impl Scene {
 }
 
 impl Scene {
-    pub fn set_font(&mut self, font: MonoFont<'static>) {
+    pub fn set_font(&mut self, font: MonoFont<'static>, bold: MonoFont<'static>) {
         self.theme.font = font;
+        self.theme.bold = bold;
         self.mark_dirty(Rectangle::new(Point::new(0, 0), Size::new(320, 240)));
         self.mark_layout_dirty();
     }

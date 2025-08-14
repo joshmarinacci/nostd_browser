@@ -50,6 +50,7 @@ pub struct PageView {
     pub history_index: usize,
     pub visible: bool,
     pub bounds: Rectangle,
+    pub columns: u32,
 }
 
 impl PageView {
@@ -57,6 +58,7 @@ impl PageView {
         PageView {
             dirty: true,
             visible: true,
+            columns: 20,
             history: vec![
                 RenderedPage{
                     lines: vec![],
@@ -69,11 +71,11 @@ impl PageView {
             bounds,
         }
     }
-    pub fn load_page(&mut self, page: Page, columns: u32) {
+    pub fn load_page(&mut self, page: Page) {
         let mut lines: Vec<TextLine> = vec![];
         let mut link_count = 0;
         for block in &page.blocks {
-            let mut some_lines = break_lines(&block, columns);
+            let mut some_lines = break_lines(&block, self.columns);
             for line in &some_lines {
                 for run in &line.runs {
                     // info!("Run: {:?}", run);
@@ -155,8 +157,9 @@ impl View for PageView {
     fn set_visible(&mut self, visible: bool) {
         self.visible = visible;
     }
-    fn layout(&mut self, display: &mut dyn ViewTarget, _theme: &Theme) {
+    fn layout(&mut self, display: &mut dyn ViewTarget, theme: &Theme) {
         self.bounds = Rectangle::new(Point::new(0, 0),  Size::new(display.size().width, display.size().height));
+        self.columns = display.size().width/theme.font.character_size.width
     }
 
     fn bounds(&self) -> Rectangle {
@@ -213,13 +216,13 @@ impl View for PageView {
                             .underline();
                         if rpage.page.selection == link_count {
                             builder
-                                .text_color(Rgb565::WHITE)
-                                .background_color(Rgb565::BLUE)
+                                .text_color(context.theme.accent_fg)
+                                .background_color(context.theme.highlight_fg)
                                 .build()
                         } else {
                             builder
-                                .text_color(Rgb565::BLUE)
-                                .background_color(Rgb565::WHITE)
+                                .text_color(context.theme.accent_fg)
+                                .background_color(context.theme.base_bg)
                                 .build()
                         }
                     }
