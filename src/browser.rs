@@ -9,7 +9,6 @@ use nostd_html_parser::blocks::{Block, BlockType};
 use embedded_graphics::mono_font::ascii::{FONT_6X13, FONT_6X13_BOLD, FONT_8X13, FONT_8X13_BOLD, FONT_9X15, FONT_9X15_BOLD};
 use gui::comps::{Button, Label, MenuView, OverlayLabel, Panel, TextInput};
 use gui::{GuiEvent, Scene, DARK_THEME, LIGHT_THEME};
-use crate::brickbreaker::GameView;
 use crate::page::Page;
 use crate::pageview::PageView;
 
@@ -95,14 +94,6 @@ pub async fn handle_action(scene: &mut Scene, display: &TDeckDisplay) {
             scene.add("info-button", button);
             scene.hide(MAIN_MENU);
             scene.set_focused("info-button");
-            return;
-        }
-        if scene.menu_equals(MAIN_MENU, "Bricks") {
-            scene.add("game", GameView::new());
-            scene.hide(MAIN_MENU);
-            scene.set_focused("game");
-            scene.set_auto_redraw(true);
-            scene.hide(PAGE_VIEW);
             return;
         }
         if scene.menu_equals(MAIN_MENU, "close") {
@@ -265,7 +256,6 @@ pub fn make_gui_scene<'a>() -> Scene {
                 "Font",
                 "Wifi",
                 "Browser",
-                "Bricks",
                 "Info",
                 "close",
             ],
