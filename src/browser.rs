@@ -252,10 +252,9 @@ pub fn make_gui_scene<'a>() -> Scene {
         MAIN_MENU,
         MenuView::start_hidden(
             vec![
-                "Theme",
-                "Font",
-                "Wifi",
                 "Browser",
+                "Network",
+                "Settings",
                 "Info",
                 "close",
             ],
@@ -276,7 +275,7 @@ pub fn make_gui_scene<'a>() -> Scene {
     );
     scene.add(
         "browser",
-        MenuView::start_hidden(vec!["Bookmarks", "Open URL", "Back", "Forward","close"], Point::new(20, 20)),
+        MenuView::start_hidden(vec!["Bookmarks", "SDCard", "Open URL", "Back", "Forward","close"], Point::new(20, 20)),
     );
 
     // set up a fake page

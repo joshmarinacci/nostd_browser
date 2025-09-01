@@ -517,6 +517,67 @@ async fn handle_trackball(
     }
 }
 
+async fn load_file_url(href:&str) -> &[u8] {
+    PAGE_BYTES
+}
+async  fn handle_file_url(href:&str) {
+    info!("sdcard url {}",href);
+    let path = &href[5..];
+    info!("loading path {}", path);
+
+
+    let bytes = load_file_url(&href).await;
+    PAGE_CHANNEL.sender().send(Page::from_bytes(bytes,&href)).await;
+}
+
+async fn handle_bookmarks(href:&str) {
+    PAGE_CHANNEL
+        .sender()
+        .send(Page::from_bytes(PAGE_BYTES, &href))
+        .await;
+}
+
+async fn handle_http_url(href:&str, network_stack: Stack<'static>, tls_seed: u64) {
+    NET_STATUS.send(NetStatus::LoadingPage()).await;
+    let mut rx_buffer = [0; 4096 * 2];
+    let mut tx_buffer = [0; 4096 * 2];
+    let dns = DnsSocket::new(network_stack);
+    let tcp_state = TcpClientState::<1, 4096, 4096>::new();
+    let tcp = TcpClient::new(network_stack, &tcp_state);
+
+    let tls = TlsConfig::new(
+        tls_seed,
+        &mut rx_buffer,
+        &mut tx_buffer,
+        reqwless::client::TlsVerify::None,
+    );
+
+    let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
+    // let mut client = HttpClient::new(&tcp, &dns);
+    let mut buffer = [0u8; 4096 * 5];
+    info!("making the actual request to {}", href);
+    // let url = "https://joshondesign.com/2023/07/12/css_text_style_builder";
+    let mut http_req = client
+        .request(reqwless::request::Method::GET, &href)
+        .await
+        .unwrap();
+    let resp = http_req.send(&mut buffer).await;
+    match resp {
+        Ok(response) => {
+            info!("Got response");
+            let res = response.body().read_to_end().await.unwrap();
+            PAGE_CHANNEL
+                .sender()
+                .send(Page::from_bytes(res, &href))
+                .await;
+            NET_STATUS.send(NetStatus::PageLoaded()).await;
+        },
+        Err(err) => {
+            info!("Got error: {:?}", err);
+            NET_STATUS.send(NetStatus::Error(format!("{:?}",err))).await;
+        }
+    }
+}
 #[embassy_executor::task]
 async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
     loop {
@@ -526,54 +587,14 @@ async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
                 NetCommand::Load(href) => {
                     info!("Loading page: {}", href);
                     if href == "bookmarks.html" {
-                        PAGE_CHANNEL
-                            .sender()
-                            .send(Page::from_bytes(PAGE_BYTES, &href))
-                            .await;
+                        handle_bookmarks(&href).await;
+                    } else if href.starts_with("file:") {
+                        handle_file_url(&href).await;
                     } else {
-                        if !href.starts_with("http") {
-                            info!("relative url");
-                        }
-                        info!("loading url {}", href);
-                        NET_STATUS.send(NetStatus::LoadingPage()).await;
-                        let mut rx_buffer = [0; 4096 * 2];
-                        let mut tx_buffer = [0; 4096 * 2];
-                        let dns = DnsSocket::new(network_stack);
-                        let tcp_state = TcpClientState::<1, 4096, 4096>::new();
-                        let tcp = TcpClient::new(network_stack, &tcp_state);
-
-                        let tls = TlsConfig::new(
-                            tls_seed,
-                            &mut rx_buffer,
-                            &mut tx_buffer,
-                            reqwless::client::TlsVerify::None,
-                        );
-
-                        let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
-                        // let mut client = HttpClient::new(&tcp, &dns);
-                        let mut buffer = [0u8; 4096 * 5];
-                        info!("making the actual request to {}", href);
-                        // let url = "https://joshondesign.com/2023/07/12/css_text_style_builder";
-                        let mut http_req = client
-                            .request(reqwless::request::Method::GET, &href)
-                            .await
-                            .unwrap();
-                        let resp = http_req.send(&mut buffer).await;
-                        match resp {
-                            Ok(response) => {
-                                info!("Got response");
-                                let res = response.body().read_to_end().await.unwrap();
-                                PAGE_CHANNEL
-                                    .sender()
-                                    .send(Page::from_bytes(res, &href))
-                                    .await;
-                                NET_STATUS.send(NetStatus::PageLoaded()).await;
-                            },
-                            Err(err) => {
-                                info!("Got error: {:?}", err);
-                                NET_STATUS.send(NetStatus::Error(format!("{:?}",err))).await;
-                            }
-                        }
+                        // if !href.starts_with("http") {
+                        //     info!("relative url");
+                        // }
+                        handle_http_url(&href, network_stack, tls_seed).await;
                     }
                 }
             }
