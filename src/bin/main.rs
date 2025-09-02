@@ -210,7 +210,7 @@ async fn main(spawner: Spawner) {
         info!("made timer");
         let esp_wifi_ctrl = &*mk_static!(
             EspWifiController<'static>,
-            init(timer_g0.timer0, rng.clone(), peripherals.RADIO_CLK).unwrap()
+            init(timer_g0.timer0, rng.clone()).unwrap()
         );
         info!("making controller");
         let (wifi_controller, interfaces) =
