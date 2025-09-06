@@ -30,7 +30,6 @@ use esp_hal::spi::Mode;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::Blocking;
-use esp_hal::xtensa_lx::interrupt::disable;
 use esp_wifi::wifi::ScanTypeConfig::Active;
 use esp_wifi::wifi::{
     ClientConfiguration, Configuration, ScanConfig, WifiController, WifiDevice, WifiEvent,

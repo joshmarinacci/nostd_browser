@@ -7,15 +7,19 @@
 )]
 extern crate alloc;
 use alloc::{vec};
-use alloc::string::ToString;
+use alloc::boxed::Box;
+use alloc::string::{String, ToString};
+use alloc::vec::Vec;
 use embassy_executor::Spawner;
-use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::channel::Channel;
+// use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+// use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
+use embedded_graphics::mono_font::ascii::FONT_6X10;
 use embedded_graphics::mono_font::MonoTextStyle;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
+use embedded_graphics::text::Text;
 use embedded_hal_bus::spi::ExclusiveDevice;
 use esp_hal::clock::CpuClock;
 use esp_hal::delay::Delay;
@@ -27,17 +31,17 @@ use esp_hal::spi::Mode;
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::Blocking;
-use esp_hal::peripherals::Peripherals;
+// use esp_hal::peripherals::Peripherals;
 use gt911::Gt911Blocking;
+use gui2::{click_at, draw_scene, pick_at, type_at_focused, Callback, DrawingContext, EventType, GuiEvent, Scene, Theme, View};
+use gui2::geom::{Bounds, Point as GPoint};
 use log::{error, info};
 
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder};
-use nostd_browser::common::{TDeckDisplay, TDeckDisplayWrapper};
+use nostd_browser::common::{TDeckDisplay};
 use static_cell::StaticCell;
-use gui::{GuiEvent, Scene};
-use gui::comps::{Button, Label, MenuView, Panel, TextInput};
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {
@@ -63,7 +67,7 @@ pub const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
 
 static I2C: StaticCell<I2c<Blocking>> = StaticCell::new();
 
-static TRACKBALL_CHANNEL: Channel<CriticalSectionRawMutex, GuiEvent, 2> = Channel::new();
+// static TRACKBALL_CHANNEL: Channel<CriticalSectionRawMutex, GuiEvent<Rgb565>, 2> = Channel::new();
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     esp_println::logger::init_logger_from_env();
@@ -184,28 +188,59 @@ async fn main(spawner: Spawner) {
 async fn update_display(
     display: &'static mut TDeckDisplay,
     i2c: &'static mut I2c<'static, Blocking>,
-    mut scene: Scene,
+    mut scene: Scene<Rgb565>,
 ) {
     let touch = Gt911Blocking::default();
     touch.init(i2c).unwrap();
-    let mut wrapper = TDeckDisplayWrapper {
-        display: display
+    let theme:Theme<Rgb565> = Theme {
+        bg: Rgb565::WHITE,
+        fg: Rgb565::BLACK,
+        panel_bg: Rgb565::CSS_LIGHT_GRAY,
     };
+
+    let mut ctx:EmbeddedDrawingContext = EmbeddedDrawingContext::new(display);
+    let mut handlers: Vec<Callback<Rgb565>> = vec![];
+    handlers.push(|event| {
+        info!("event to {} ", event.target);
+        handle_input(event);
+    });
     loop {
         if let Ok(point) = touch.get_touch(i2c) {
             if let Some(point) = point {
                 // flip because the screen is mounted sideways on the t-deck
-                let evt = GuiEvent::TouchEvent(Point::new(320 - point.y as i32, 240-point.x as i32));
-                handle_input(evt, &mut scene, wrapper.display).await;
+                let pt = GPoint::new(320 - point.y as i32, 240-point.x as i32);
+                let targets = pick_at(&mut scene, &pt);
+                info!("clicked on targets {:?}", targets);
+                click_at(&mut scene,&mut handlers,pt);
+                // if let Some(target) =  targets.last() {
+                //     let mut evt:GuiEvent<Rgb565> = GuiEvent {
+                //         scene: &mut scene,
+                //         target,
+                //         event_type: EventType::Tap(pt)
+                //     };
+                //     info!("created event on target {:?} at {:?}",evt.target, evt.event_type);
+                //     if let Some(view) = evt.scene.get_view("target") {
+                //         if let Some(input) = view.input {
+                //             input(&mut evt);
+                //         }
+                //     }
+                //     handle_input(&mut evt);
+                // }
             }
         }
+        // if let Ok(point) = touch.get_touch(i2c) {
+        //     if let Some(point) = point {
+        //         // flip because the screen is mounted sideways on the t-deck
+        //         // let evt = GuiEvent::TouchEvent(Point::new(320 - point.y as i32, 240-point.x as i32));
+        //         // handle_input(evt, &mut scene, wrapper.display).await;
+        //     }
+        // }
         let mut data = [0u8; 1];
         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
         match kb_res {
             Ok(_) => {
                 if data[0] != 0x00 {
-                    let evt: GuiEvent = GuiEvent::KeyEvent(data[0]);
-                    handle_input(evt, &mut scene, wrapper.display).await;
+                    type_at_focused(&mut scene, &handlers, data[0])
                 }
             }
             Err(_) => {
@@ -213,14 +248,58 @@ async fn update_display(
             }
         }
 
-        if let Ok(evt) = TRACKBALL_CHANNEL.try_receive() {
-            handle_input(evt, &mut scene, wrapper.display).await;
-        }
-
-        scene.draw(&mut wrapper);
+        draw_scene(&mut scene,&mut ctx,&theme);
         Timer::after(Duration::from_millis(20)).await;
     }
 }
+
+struct EmbeddedDrawingContext {
+    pub display:&'static mut TDeckDisplay
+}
+
+impl EmbeddedDrawingContext {
+    fn new(display: &'static mut TDeckDisplay) -> EmbeddedDrawingContext {
+        EmbeddedDrawingContext {
+            display,
+        }
+    }
+}
+
+impl DrawingContext<Rgb565> for EmbeddedDrawingContext {
+    fn clear(&mut self, color: &Rgb565) {
+        self.display.clear(*color).unwrap();
+    }
+
+    fn fillRect(&mut self, bounds: &Bounds, color: &Rgb565) {
+        let pt = Point::new(bounds.x,bounds.y);
+        let size = Size::new(bounds.w as u32, bounds.h as u32);
+        Rectangle::new(pt,size)
+            .into_styled(PrimitiveStyle::with_fill(*color))
+            .draw(self.display).unwrap();
+
+    }
+
+    fn strokeRect(&mut self, bounds: &Bounds, color: &Rgb565) {
+        let pt = Point::new(bounds.x,bounds.y);
+        let size = Size::new(bounds.w as u32, bounds.h as u32);
+        Rectangle::new(pt,size)
+            .into_styled(PrimitiveStyle::with_stroke(*color,1))
+            .draw(self.display).unwrap();
+    }
+
+    fn fillText(&mut self, bounds: &Bounds, text: &str, color: &Rgb565) {
+        let style = MonoTextStyle::new(&FONT_6X10, *color);
+        let mut pt = Point::new(bounds.x, bounds.y);
+        pt.y += bounds.h / 2;
+        pt.y += (FONT_6X10.baseline as i32)/2;
+        let w = (FONT_6X10.character_size.width as i32) * (text.len() as i32);
+        pt.x += (bounds.w - w) / 2;
+        Text::new(text, pt, style)
+            .draw(self.display)
+            .unwrap();
+    }
+}
+
 #[embassy_executor::task]
 async fn handle_trackball(
     click: Input<'static>,
@@ -240,40 +319,40 @@ async fn handle_trackball(
         if click.is_low() != last_click_low {
             info!("click");
             last_click_low = click.is_low();
-            TRACKBALL_CHANNEL.send(GuiEvent::ClickEvent()).await;
+            // TRACKBALL_CHANNEL.send(GuiEvent::ClickEvent()).await;
         }
         // info!("button pressed is {} ", tdeck_track_click.is_low());
         if right.is_high() != last_right_high {
             // info!("right");
             last_right_high = right.is_high();
             cursor.x += 1;
-            TRACKBALL_CHANNEL
-                .send(GuiEvent::ScrollEvent(cursor, Point::new(1, 0)))
-                .await;
+            // TRACKBALL_CHANNEL
+            //     .send(GuiEvent::ScrollEvent(cursor, Point::new(1, 0)))
+            //     .await;
         }
         if left.is_high() != last_left_high {
             // info!("left");
             last_left_high = left.is_high();
             cursor.x -= 1;
-            TRACKBALL_CHANNEL
-                .send(GuiEvent::ScrollEvent(cursor, Point::new(-1, 0)))
-                .await;
+            // TRACKBALL_CHANNEL
+            //     .send(GuiEvent::ScrollEvent(cursor, Point::new(-1, 0)))
+            //     .await;
         }
         if up.is_high() != last_up_high {
             // info!("up");
             last_up_high = up.is_high();
             cursor.y -= 1;
-            TRACKBALL_CHANNEL
-                .send(GuiEvent::ScrollEvent(cursor, Point::new(0, -1)))
-                .await;
+            // TRACKBALL_CHANNEL
+            //     .send(GuiEvent::ScrollEvent(cursor, Point::new(0, -1)))
+            //     .await;
         }
         if down.is_high() != last_down_high {
             // info!("down");
             last_down_high = down.is_high();
             cursor.y += 1;
-            TRACKBALL_CHANNEL
-                .send(GuiEvent::ScrollEvent(cursor, Point::new(0, 1)))
-                .await;
+            // TRACKBALL_CHANNEL
+            //     .send(GuiEvent::ScrollEvent(cursor, Point::new(0, 1)))
+            //     .await;
         }
         // wait one msec
         Timer::after(Duration::from_millis(1)).await;
@@ -281,53 +360,231 @@ async fn handle_trackball(
 }
 
 
-const TEXT_INPUT: &str = "textinput";
-async fn handle_input(event: GuiEvent, scene: &mut Scene, display: &mut TDeckDisplay) {
-    // info!("handling input event: {:?}", event);
-    if scene.get_focused_view().is_none() {
-    scene.set_focused(TEXT_INPUT);
-        }
-    scene.handle_input(event);
+// const TEXT_INPUT: &str = "textinput";
 
-    match &event {
-        GuiEvent::TouchEvent(pt) => {
-            // focus on touched elements
-            info!("got a touch event {pt}");
-            let view_names = scene.find_views_at(pt);
-            if let Some(last) = view_names.last() {
-                scene.set_focused(last);
-            }
-        }
-        _ => {
-        }
-    }
+fn handle_input<C>(event: &mut GuiEvent<C>) {
+    // info!("handling input event: {:?}", event);
+    // if scene.get_focused_view().is_none() {
+    // scene.set_focused(TEXT_INPUT);
+    //     }
+    // scene.handle_input(event);
+    //
+    // match &event {
+    //     GuiEvent::TouchEvent(pt) => {
+    //         // focus on touched elements
+    //         info!("got a touch event {pt}");
+    //         let view_names = scene.find_views_at(pt);
+    //         if let Some(last) = view_names.last() {
+    //             scene.set_focused(last);
+    //         }
+    //     }
+    //     _ => {
+    //     }
+    // }
 }
 
-async fn make_gui_scene() -> Scene {
+async fn make_gui_scene() -> Scene<Rgb565> {
     let mut scene = Scene::new();
 
-    let panel = Panel::new(Rectangle::new(Point::new(20,20),Size::new(200,200)));
-    scene.add("panel", panel);
+    let mut panel = make_panel(Bounds::new(20,20,200,200));
+    panel.name = "panel".into();
+    scene.add_view(panel);
 
-    let label = Label::new("A label", Point::new(10, 30));
-    scene.add("label1", label);
+    let mut label = make_label("A label");
+    label.bounds = Bounds::new(10,30,100,30);
+    label.name = "label1".into();
+    label.title = "A label".into();
+    scene.add_view(label);
 
-    let button = Button::new("A Button", Point::new(10,60));
-    scene.add("button1", button);
+    let mut button = make_button("A Button");
+    button.bounds = Bounds::new(10,60,100,30);
+    button.name = "button1".into();
+    scene.add_view(button);
 
-    let textinput = TextInput::new("type text here", Rectangle::new(Point::new(10,90),Size::new(200,30)));
-    scene.add(TEXT_INPUT,textinput);
+    let mut textinput = make_text_input("type text here");
+    textinput.name = "textinput".into();
+    textinput.bounds = Bounds::new(10,90,200,30);
+    scene.add_view(textinput);
 
-    let menuview = MenuView::new(vec!["first","second"], Point::new(100,30));
-    scene.add("menuview", menuview);
+    let mut menuview = make_menuview(vec!["first".into(), "second".into(), "third".into()]);
+    menuview.bounds = Bounds::new(100,30,150,80);
+    menuview.name = "menuview".into();
+    scene.add_view(menuview);
 
-
-    // let button = Button::new("panel button", Point::new(20,60));
-    // scene.add("panel-button", button);
+    let mut button = make_button("panel button");
+    button.bounds = Bounds::new(20,60,100,30);
+    button.name = "panel-button".into();
+    scene.add_view(button);
     // if let Some(view)= scene.get_view_mut("panel") {
     //     if let Some(panel)= view.as_any_mut().downcast_mut::<Panel>() {
     //         panel.add_child("panel-button".to_string());
     //     }
     // }
     scene
+}
+
+fn make_panel<C>(bounds:Bounds) -> View<C> {
+    View {
+        name:"something".into(),
+        title: "some panel".into(),
+        bounds: bounds,
+        visible: true,
+        children: vec![],
+        draw: Some(|view, ctx, theme| {
+            ctx.fillRect(&view.bounds, &theme.panel_bg);
+            ctx.strokeRect(&view.bounds, &theme.fg);
+        }),
+        input: None,
+        state: None,
+        layout: None,
+    }
+}
+fn make_label<C>(text:&str) -> View<C> {
+    View {
+        name:text.into(),
+        title: text.into(),
+        bounds: Bounds { x:0, y:0, w:10, h:20},
+        visible:true,
+        children: vec![],
+        draw: Some(|view, ctx, theme| {
+            ctx.fillText(&view.bounds, &view.title, &theme.fg);
+        }),
+        input: None,
+        state: None,
+        layout: None,
+    }
+}
+fn make_button<C>(name: &str) -> View<C> {
+    View {
+        name: name.to_string(),
+        title: name.to_string(),
+        bounds: Bounds {
+            x: 0,
+            y: 0,
+            w: 20,
+            h: 20,
+        },
+        visible: true,
+        children: vec![],
+        draw: Some(|view, ctx, theme|{
+            ctx.fillRect(&view.bounds, &theme.bg);
+            ctx.strokeRect(&view.bounds, &theme.fg);
+            ctx.fillText(&view.bounds, &view.title, &theme.fg);
+        }),
+        input: Some(|event| {
+            info!("button got input {:?}",event.target);
+        }),
+        state: None,
+        layout: None,
+    }
+}
+fn make_text_input<C>(text:&str) -> View<C> {
+    View {
+        name: "text".into(),
+        title: text.into(),
+        bounds:Bounds {
+            x: 0,
+            y: 0,
+            w: 200,
+            h: 30,
+        },
+        visible: true,
+        children: vec![],
+        draw: Some(|view, ctx, theme| {
+            ctx.fillRect(&view.bounds, &theme.bg);
+            ctx.strokeRect(&view.bounds, &theme.fg);
+            ctx.fillText(&view.bounds, &view.title,&theme.fg);
+            // if view.focused {
+            //     let cursor = Bounds {
+            //         x: view.bounds.x + 20,
+            //         y: view.bounds.y + 2,
+            //         w: 2,
+            //         h: view.bounds.h - 4,
+            //     };
+            //     ctx.fillRect(&cursor, &theme.fg);
+            // }
+        }),
+        input: None,
+        state: None,
+        layout: None,
+    }
+}
+struct MenuState {
+    data:Vec<String>,
+    selected:usize,
+}
+fn make_menuview<C>(data:Vec<String>) -> View<C> {
+    View {
+        name: "somemenu".into(),
+        title: "somemenu".into(),
+        bounds: Bounds {
+            x:0,
+            y:0,
+            w:100,
+            h:200,
+        },
+        visible:true,
+        children: vec![],
+        draw: Some(|view, ctx, theme| {
+            ctx.fillRect(&view.bounds, &theme.bg);
+            ctx.strokeRect(&view.bounds, &theme.fg);
+            if let Some(state) = &view.state {
+                if let Some(state) = state.downcast_ref::<MenuState>() {
+                    info!("menu state is {:?}",state.data);
+                    for (i,item) in (&state.data).iter().enumerate() {
+                        let b = Bounds {
+                            x: view.bounds.x,
+                            y: view.bounds.y + (i as i32) * 30,
+                            w: view.bounds.w,
+                            h: 30,
+                        };
+                        if state.selected == i {
+                            ctx.fillRect(&b,&theme.fg);
+                            ctx.fillText(&b,item.as_str(),&theme.bg);
+                        }else {
+                            ctx.fillText(&b, item.as_str(), &theme.fg);
+                        }
+                    }
+                }
+            }
+        }),
+        input: Some(|event|{
+            info!("menu clicked at");
+            match &event.event_type {
+                EventType::Tap(pt) => {
+                    info!("tapped at {:?}",pt);
+                    if let Some(view) = event.scene.get_view_mut(event.target) {
+                        info!("the view is {} at {:?}",view.name, view.bounds);
+                        let name = view.name.clone();
+                        if view.bounds.contains(pt) {
+                            info!("I was clicked on. index is {}", pt.y/30);
+                            let selected = pt.y/30;
+                            if let Some(state) = &mut view.state {
+                                if let Some(state) = state.downcast_mut::<MenuState>() {
+                                    info!("menu state is {:?}",state.data);
+                                    if selected >= 0 && selected < state.data.len() as i32 {
+                                        state.selected = selected as usize;
+                                        event.scene.set_focused(&name);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                _ => {
+                    info!("unknown event type");
+                }
+            }
+        }),
+        layout: Some(|scene, name|{
+            if let Some(parent) = scene.get_view_mut(name) {
+                if let Some(state) = &parent.state {
+                    if let Some(state) = state.downcast_ref::<MenuState>() {
+                        parent.bounds.h = 30 * (state.data.len() as i32)
+                    }
+                }
+            };
+        }),
+        state: Some(Box::new(MenuState{data,selected:0})),
+    }
 }
