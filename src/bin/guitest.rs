@@ -202,18 +202,16 @@ async fn update_display(
     let mut ctx:EmbeddedDrawingContext = EmbeddedDrawingContext::new(display);
     let mut handlers: Vec<Callback<Rgb565>> = vec![];
     handlers.push(|event| {
-        // if event.scene.focused.is_none() {
-        //     event.scene.focused.insert("textinput".into());
-        // }
-        //
-        // match &event.event_type {
-        //     EventType::Keyboard(key) => {
-        //         info!("typed keyboard key {key}");
-        //     },
-        //     _ => {
-        //         info!("other event type {:?}",event.event_type);
-        //     }
-        // }
+        info!("event happened {} {:?}", event.target, event.event_type);
+        // show menu when tapping the button
+        if event.target == "button1" {
+            if let Some(view) = event.scene.get_view_mut("menuview") {
+                view.visible = true;
+            } else {
+                error!("couldnt find the menu view");
+            }
+            event.scene.dirty = true;
+        }
     });
     loop {
         if let Ok(point) = touch.get_touch(i2c) {
@@ -235,7 +233,6 @@ async fn update_display(
                 // info!("kb_res = {}", e);
             }
         }
-        // scene.dirty = true;
         draw_scene(&mut scene,&mut ctx,&theme);
         Timer::after(Duration::from_millis(20)).await;
     }
@@ -375,12 +372,12 @@ async fn make_gui_scene() -> Scene<Rgb565> {
     text_input.bounds.y = 100;
     connect_parent_child(&mut scene, "panel", &text_input.name);
     scene.add_view(text_input);
-    //
-    // let mut menuview = make_menuview(vec!["first".into(), "second".into(), "third".into()]);
-    // menuview.bounds = Bounds::new(100,30,150,80);
-    // menuview.name = "menuview".into();
-    // menuview.visible = false;
-    // scene.add_view_to_root(menuview);
+
+    let mut menuview = make_menuview(vec!["first".into(), "second".into(), "third".into()]);
+    menuview.bounds = Bounds::new(100,30,150,80);
+    menuview.name = "menuview".into();
+    menuview.visible = false;
+    scene.add_view_to_root(menuview);
 
     // let mut button = make_button("panel button");
     // button.bounds = Bounds::new(20,60,100,30);
