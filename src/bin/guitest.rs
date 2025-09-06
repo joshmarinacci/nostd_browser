@@ -33,7 +33,7 @@ use esp_hal::timer::timg::TimerGroup;
 use esp_hal::Blocking;
 // use esp_hal::peripherals::Peripherals;
 use gt911::Gt911Blocking;
-use gui2::{click_at, draw_scene, pick_at, type_at_focused, Callback, DrawingContext, EventType, GuiEvent, Scene, Theme, View};
+use gui2::{click_at, connect_parent_child, draw_scene, pick_at, type_at_focused, Callback, DrawingContext, EventType, GuiEvent, Scene, Theme, View};
 use gui2::geom::{Bounds, Point as GPoint};
 use log::{error, info};
 
@@ -201,40 +201,27 @@ async fn update_display(
     let mut ctx:EmbeddedDrawingContext = EmbeddedDrawingContext::new(display);
     let mut handlers: Vec<Callback<Rgb565>> = vec![];
     handlers.push(|event| {
-        info!("event to {} ", event.target);
-        handle_input(event);
+        // if event.scene.focused.is_none() {
+        //     event.scene.focused.insert("textinput".into());
+        // }
+        //
+        // match &event.event_type {
+        //     EventType::Keyboard(key) => {
+        //         info!("typed keyboard key {key}");
+        //     },
+        //     _ => {
+        //         info!("other event type {:?}",event.event_type);
+        //     }
+        // }
     });
     loop {
         if let Ok(point) = touch.get_touch(i2c) {
             if let Some(point) = point {
                 // flip because the screen is mounted sideways on the t-deck
                 let pt = GPoint::new(320 - point.y as i32, 240-point.x as i32);
-                let targets = pick_at(&mut scene, &pt);
-                info!("clicked on targets {:?}", targets);
                 click_at(&mut scene,&mut handlers,pt);
-                // if let Some(target) =  targets.last() {
-                //     let mut evt:GuiEvent<Rgb565> = GuiEvent {
-                //         scene: &mut scene,
-                //         target,
-                //         event_type: EventType::Tap(pt)
-                //     };
-                //     info!("created event on target {:?} at {:?}",evt.target, evt.event_type);
-                //     if let Some(view) = evt.scene.get_view("target") {
-                //         if let Some(input) = view.input {
-                //             input(&mut evt);
-                //         }
-                //     }
-                //     handle_input(&mut evt);
-                // }
             }
         }
-        // if let Ok(point) = touch.get_touch(i2c) {
-        //     if let Some(point) = point {
-        //         // flip because the screen is mounted sideways on the t-deck
-        //         // let evt = GuiEvent::TouchEvent(Point::new(320 - point.y as i32, 240-point.x as i32));
-        //         // handle_input(evt, &mut scene, wrapper.display).await;
-        //     }
-        // }
         let mut data = [0u8; 1];
         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
         match kb_res {
@@ -247,7 +234,7 @@ async fn update_display(
                 // info!("kb_res = {}", e);
             }
         }
-
+        // scene.dirty = true;
         draw_scene(&mut scene,&mut ctx,&theme);
         Timer::after(Duration::from_millis(20)).await;
     }
@@ -362,59 +349,47 @@ async fn handle_trackball(
 
 // const TEXT_INPUT: &str = "textinput";
 
-fn handle_input<C>(event: &mut GuiEvent<C>) {
-    // info!("handling input event: {:?}", event);
-    // if scene.get_focused_view().is_none() {
-    // scene.set_focused(TEXT_INPUT);
-    //     }
-    // scene.handle_input(event);
-    //
-    // match &event {
-    //     GuiEvent::TouchEvent(pt) => {
-    //         // focus on touched elements
-    //         info!("got a touch event {pt}");
-    //         let view_names = scene.find_views_at(pt);
-    //         if let Some(last) = view_names.last() {
-    //             scene.set_focused(last);
-    //         }
-    //     }
-    //     _ => {
-    //     }
-    // }
-}
-
 async fn make_gui_scene() -> Scene<Rgb565> {
     let mut scene = Scene::new();
+    let root_id = scene.rootId.clone();
 
     let mut panel = make_panel(Bounds::new(20,20,200,200));
     panel.name = "panel".into();
+    connect_parent_child(&mut scene, &root_id, &panel.name);
     scene.add_view(panel);
 
     let mut label = make_label("A label");
     label.bounds = Bounds::new(10,30,100,30);
     label.name = "label1".into();
     label.title = "A label".into();
+    connect_parent_child(&mut scene, &root_id, &label.name);
     scene.add_view(label);
 
     let mut button = make_button("A Button");
     button.bounds = Bounds::new(10,60,100,30);
     button.name = "button1".into();
+    connect_parent_child(&mut scene, &root_id, &button.name);
     scene.add_view(button);
 
     let mut textinput = make_text_input("type text here");
     textinput.name = "textinput".into();
     textinput.bounds = Bounds::new(10,90,200,30);
+    connect_parent_child(&mut scene, &root_id, &textinput.name);
     scene.add_view(textinput);
 
     let mut menuview = make_menuview(vec!["first".into(), "second".into(), "third".into()]);
     menuview.bounds = Bounds::new(100,30,150,80);
     menuview.name = "menuview".into();
+    menuview.visible = false;
+    connect_parent_child(&mut scene, &root_id, &menuview.name);
     scene.add_view(menuview);
 
-    let mut button = make_button("panel button");
-    button.bounds = Bounds::new(20,60,100,30);
-    button.name = "panel-button".into();
-    scene.add_view(button);
+    // let mut button = make_button("panel button");
+    // button.bounds = Bounds::new(20,60,100,30);
+    // button.name = "panel-button".into();
+    // button.visible = false;
+    // connect_parent_child(&mut scene, &root_id, &button.name);
+    // scene.add_view(button);
     // if let Some(view)= scene.get_view_mut("panel") {
     //     if let Some(panel)= view.as_any_mut().downcast_mut::<Panel>() {
     //         panel.add_child("panel-button".to_string());
@@ -431,7 +406,7 @@ fn make_panel<C>(bounds:Bounds) -> View<C> {
         visible: true,
         children: vec![],
         draw: Some(|view, ctx, theme| {
-            ctx.fillRect(&view.bounds, &theme.panel_bg);
+            ctx.fillRect(&view.bounds, &theme.bg);
             ctx.strokeRect(&view.bounds, &theme.fg);
         }),
         input: None,
@@ -472,7 +447,15 @@ fn make_button<C>(name: &str) -> View<C> {
             ctx.fillText(&view.bounds, &view.title, &theme.fg);
         }),
         input: Some(|event| {
-            info!("button got input {:?}",event.target);
+            info!("button got input {:?} {:?}",event.target, event.event_type);
+            match &event.event_type {
+                EventType::Tap(pt) => {
+                    info!("tapped on text input");
+                    event.scene.focused = Some(event.target.into());
+                },
+                _ => {
+                }
+            }
         }),
         state: None,
         layout: None,
@@ -504,7 +487,28 @@ fn make_text_input<C>(text:&str) -> View<C> {
             //     ctx.fillRect(&cursor, &theme.fg);
             // }
         }),
-        input: None,
+        input: Some(|event|{
+            info!("text input got event {:?}",event.event_type);
+            match &event.event_type {
+                EventType::Keyboard(key) => {
+                    if let Some(view) = event.scene.get_view_mut(event.target) {
+                        if *key == 8 {
+                            view.title.remove(view.title.len()-1);
+                        } else {
+                            view.title.push(*key as char);
+                        }
+                    }
+                    event.scene.dirty = true;
+                }
+                EventType::Tap(pt) => {
+                    info!("tapped on text input");
+                    event.scene.focused = Some(event.target.into());
+                }
+                _ => {
+
+                }
+            }
+        }),
         state: None,
         layout: None,
     }
