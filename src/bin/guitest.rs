@@ -204,22 +204,25 @@ async fn update_display(
     handlers.push(|event| {
         info!("event happened {} {:?}", event.target, event.event_type);
         // show menu when tapping the button
-        if event.target == "button1" {
-            if let Some(view) = event.scene.get_view_mut("menuview") {
-                view.visible = true;
-            } else {
-                error!("couldnt find the menu view");
+        if let EventType::Tap(point) = &event.event_type {
+            if event.target == "button1" {
+                event.scene.set_visible("menuview");
+                event.scene.set_focused("menuview");
             }
-            event.scene.dirty = true;
         }
     });
+
+    let mut last_touch_event:Option<gt911::Point> = None;
     loop {
         if let Ok(point) = touch.get_touch(i2c) {
-            if let Some(point) = point {
-                // flip because the screen is mounted sideways on the t-deck
-                let pt = GPoint::new(320 - point.y as i32, 240-point.x as i32);
-                click_at(&mut scene,&mut handlers,pt);
+            // emit tap when the touch event ends
+            if let None = &point {
+                if let Some(point) = last_touch_event {
+                    let pt = GPoint::new(320 - point.y as i32, 240-point.x as i32);
+                    click_at(&mut scene,&mut handlers,pt);
+                }
             }
+            last_touch_event = point;
         }
         let mut data = [0u8; 1];
         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
