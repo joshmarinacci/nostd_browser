@@ -33,7 +33,7 @@ use esp_hal::timer::timg::TimerGroup;
 use esp_hal::Blocking;
 // use esp_hal::peripherals::Peripherals;
 use gt911::Gt911Blocking;
-use gui2::{click_at, connect_parent_child, draw_scene, pick_at, type_at_focused, Callback, DrawingContext, EventType, GuiEvent, Scene, Theme, View};
+use gui2::{click_at, connect_parent_child, draw_scene, pick_at, scroll_at_focused, type_at_focused, Callback, DrawingContext, EventType, GuiEvent, HAlign, Scene, Theme, View};
 use gui2::comps::{make_button, make_label, make_panel, make_text_input};
 use gui2::geom::{Bounds, Point as GPoint};
 use log::{error, info};
@@ -146,13 +146,7 @@ async fn main(spawner: Spawner) {
         static DISPLAY: StaticCell<TDeckDisplay> = StaticCell::new();
         let display_ref = DISPLAY.init(display);
         let scene = make_gui_scene().await;
-        spawner
-            .spawn(update_display(display_ref, i2c_ref, scene))
-            .ok();
-    }
 
-    // setup trackball
-    {
         let trackball_click = Input::new(
             peripherals.GPIO0,
             InputConfig::default().with_pull(Pull::Up),
@@ -174,14 +168,10 @@ async fn main(spawner: Spawner) {
             peripherals.GPIO15,
             InputConfig::default().with_pull(Pull::Up),
         );
+
+
         spawner
-            .spawn(handle_trackball(
-                trackball_click,
-                trackball_left,
-                trackball_right,
-                trackball_up,
-                trackball_down,
-            ))
+            .spawn(update_display(display_ref, i2c_ref, scene, trackball_click, trackball_right, trackball_left, trackball_up, trackball_down))
             .ok();
     }
 }
@@ -190,6 +180,12 @@ async fn update_display(
     display: &'static mut TDeckDisplay,
     i2c: &'static mut I2c<'static, Blocking>,
     mut scene: Scene<Rgb565>,
+    click: Input<'static>,
+    left: Input<'static>,
+    right: Input<'static>,
+    up: Input<'static>,
+    down: Input<'static>,
+
 ) {
     let touch = Gt911Blocking::default();
     touch.init(i2c).unwrap();
@@ -213,6 +209,13 @@ async fn update_display(
     });
 
     let mut last_touch_event:Option<gt911::Point> = None;
+    let mut last_click_low = false;
+    let mut last_right_high = false;
+    let mut last_left_high = false;
+    let mut last_up_high = false;
+    let mut last_down_high = false;
+    let mut cursor = Point::new(50, 50);
+
     loop {
         if let Ok(point) = touch.get_touch(i2c) {
             // emit tap when the touch event ends
@@ -236,6 +239,32 @@ async fn update_display(
                 // info!("kb_res = {}", e);
             }
         }
+
+        {
+
+            if click.is_low() != last_click_low {
+                last_click_low = click.is_low();
+            }
+            if right.is_high() != last_right_high {
+                last_right_high = right.is_high();
+                cursor.x += 1;
+            }
+            if left.is_high() != last_left_high {
+                last_left_high = left.is_high();
+                cursor.x -= 1;
+            }
+            if up.is_high() != last_up_high {
+                last_up_high = up.is_high();
+                cursor.y -= 1;
+                scroll_at_focused(&mut scene, &handlers, 0,-1);
+            }
+            if down.is_high() != last_down_high {
+                last_down_high = down.is_high();
+                cursor.y += 1;
+                scroll_at_focused(&mut scene, &handlers, 0,1);
+            }
+        }
+
         draw_scene(&mut scene,&mut ctx,&theme);
         Timer::after(Duration::from_millis(20)).await;
     }
@@ -258,7 +287,7 @@ impl DrawingContext<Rgb565> for EmbeddedDrawingContext {
         self.display.clear(*color).unwrap();
     }
 
-    fn fillRect(&mut self, bounds: &Bounds, color: &Rgb565) {
+    fn fill_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
         let pt = Point::new(bounds.x,bounds.y);
         let size = Size::new(bounds.w as u32, bounds.h as u32);
         Rectangle::new(pt,size)
@@ -267,7 +296,7 @@ impl DrawingContext<Rgb565> for EmbeddedDrawingContext {
 
     }
 
-    fn strokeRect(&mut self, bounds: &Bounds, color: &Rgb565) {
+    fn stroke_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
         let pt = Point::new(bounds.x,bounds.y);
         let size = Size::new(bounds.w as u32, bounds.h as u32);
         Rectangle::new(pt,size)
@@ -275,13 +304,26 @@ impl DrawingContext<Rgb565> for EmbeddedDrawingContext {
             .draw(self.display).unwrap();
     }
 
-    fn fillText(&mut self, bounds: &Bounds, text: &str, color: &Rgb565) {
+    fn fill_text(&mut self, bounds: &Bounds, text: &str, color: &Rgb565, halign: &HAlign) {
         let style = MonoTextStyle::new(&FONT_6X10, *color);
         let mut pt = Point::new(bounds.x, bounds.y);
         pt.y += bounds.h / 2;
         pt.y += (FONT_6X10.baseline as i32)/2;
+
         let w = (FONT_6X10.character_size.width as i32) * (text.len() as i32);
-        pt.x += (bounds.w - w) / 2;
+
+        match halign {
+            HAlign::Left => {
+                pt.x += 0;
+            }
+            HAlign::Center => {
+                pt.x += (bounds.w - w) / 2;
+            }
+            HAlign::Right => {
+
+            }
+        }
+
         Text::new(text, pt, style)
             .draw(self.display)
             .unwrap();
@@ -413,8 +455,8 @@ fn make_menuview<C>(data:Vec<String>) -> View<C> {
         visible:true,
         children: vec![],
         draw: Some(|view, ctx, theme| {
-            ctx.fillRect(&view.bounds, &theme.bg);
-            ctx.strokeRect(&view.bounds, &theme.fg);
+            ctx.fill_rect(&view.bounds, &theme.bg);
+            ctx.stroke_rect(&view.bounds, &theme.fg);
             if let Some(state) = &view.state {
                 if let Some(state) = state.downcast_ref::<MenuState>() {
                     info!("menu state is {:?}",state.data);
@@ -426,17 +468,16 @@ fn make_menuview<C>(data:Vec<String>) -> View<C> {
                             h: 30,
                         };
                         if state.selected == i {
-                            ctx.fillRect(&b,&theme.fg);
-                            ctx.fillText(&b,item.as_str(),&theme.bg);
+                            ctx.fill_rect(&b,&theme.fg);
+                            ctx.fill_text(&b,item.as_str(),&theme.bg, &HAlign::Left);
                         }else {
-                            ctx.fillText(&b, item.as_str(), &theme.fg);
+                            ctx.fill_text(&b, item.as_str(), &theme.fg, &HAlign::Left);
                         }
                     }
                 }
             }
         }),
         input: Some(|event|{
-            info!("menu clicked at");
             match &event.event_type {
                 EventType::Tap(pt) => {
                     info!("tapped at {:?}",pt);
@@ -458,12 +499,30 @@ fn make_menuview<C>(data:Vec<String>) -> View<C> {
                         }
                     }
                 }
+                EventType::Scroll(dx,dy) => {
+                    // info!("menu scrolling");
+                    if let Some(view) = event.scene.get_view_mut(event.target) {
+                        if let Some(state) = &mut view.state {
+                            if let Some(state) = state.downcast_mut::<MenuState>() {
+                                // info!("menu state is {:?} {}",state.data, state.selected);
+                                if *dy > 0 {
+                                    state.selected = (state.selected + 1) % state.data.len();
+                                }
+                                if *dy < 0 && state.selected > 0 {
+                                    state.selected -= 1;
+                                }
+                                event.scene.dirty = true;
+                            }
+                        }
+                    }
+                }
                 _ => {
                     info!("unknown event type");
                 }
             }
         }),
         layout: Some(|scene, name|{
+            info!("doing layout on menuview");
             if let Some(parent) = scene.get_view_mut(name) {
                 if let Some(state) = &parent.state {
                     if let Some(state) = state.downcast_ref::<MenuState>() {
