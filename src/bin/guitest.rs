@@ -34,6 +34,7 @@ use esp_hal::Blocking;
 // use esp_hal::peripherals::Peripherals;
 use gt911::Gt911Blocking;
 use gui2::{click_at, connect_parent_child, draw_scene, pick_at, type_at_focused, Callback, DrawingContext, EventType, GuiEvent, Scene, Theme, View};
+use gui2::comps::{make_button, make_label, make_panel, make_text_input};
 use gui2::geom::{Bounds, Point as GPoint};
 use log::{error, info};
 
@@ -351,38 +352,35 @@ async fn handle_trackball(
 
 async fn make_gui_scene() -> Scene<Rgb565> {
     let mut scene = Scene::new();
-    let root_id = scene.rootId.clone();
 
-    let mut panel = make_panel(Bounds::new(20,20,200,200));
-    panel.name = "panel".into();
-    connect_parent_child(&mut scene, &root_id, &panel.name);
-    scene.add_view(panel);
 
-    let mut label = make_label("A label");
-    label.bounds = Bounds::new(10,30,100,30);
-    label.name = "label1".into();
-    label.title = "A label".into();
-    connect_parent_child(&mut scene, &root_id, &label.name);
+    let panel = make_panel("panel", Bounds::new(20,20,260,200));
+    scene.add_view_to_root(panel);
+
+    let mut label = make_label("label1","A label");
+    label.bounds.x = 40;
+    label.bounds.y = 30;
+    connect_parent_child(&mut scene, "panel", &label.name);
     scene.add_view(label);
 
-    let mut button = make_button("A Button");
-    button.bounds = Bounds::new(10,60,100,30);
-    button.name = "button1".into();
-    connect_parent_child(&mut scene, &root_id, &button.name);
+    let mut button = make_button("button1","A Button");
+    button.bounds.x = 40;
+    button.bounds.y = 60;
+    connect_parent_child(&mut scene, "panel", "button1");
     scene.add_view(button);
 
-    let mut textinput = make_text_input("type text here");
-    textinput.name = "textinput".into();
-    textinput.bounds = Bounds::new(10,90,200,30);
-    connect_parent_child(&mut scene, &root_id, &textinput.name);
-    scene.add_view(textinput);
 
-    let mut menuview = make_menuview(vec!["first".into(), "second".into(), "third".into()]);
-    menuview.bounds = Bounds::new(100,30,150,80);
-    menuview.name = "menuview".into();
-    menuview.visible = false;
-    connect_parent_child(&mut scene, &root_id, &menuview.name);
-    scene.add_view(menuview);
+    let mut text_input = make_text_input("textinput","type text here");
+    text_input.bounds.x = 40;
+    text_input.bounds.y = 100;
+    connect_parent_child(&mut scene, "panel", &text_input.name);
+    scene.add_view(text_input);
+    //
+    // let mut menuview = make_menuview(vec!["first".into(), "second".into(), "third".into()]);
+    // menuview.bounds = Bounds::new(100,30,150,80);
+    // menuview.name = "menuview".into();
+    // menuview.visible = false;
+    // scene.add_view_to_root(menuview);
 
     // let mut button = make_button("panel button");
     // button.bounds = Bounds::new(20,60,100,30);
@@ -398,121 +396,6 @@ async fn make_gui_scene() -> Scene<Rgb565> {
     scene
 }
 
-fn make_panel<C>(bounds:Bounds) -> View<C> {
-    View {
-        name:"something".into(),
-        title: "some panel".into(),
-        bounds: bounds,
-        visible: true,
-        children: vec![],
-        draw: Some(|view, ctx, theme| {
-            ctx.fillRect(&view.bounds, &theme.bg);
-            ctx.strokeRect(&view.bounds, &theme.fg);
-        }),
-        input: None,
-        state: None,
-        layout: None,
-    }
-}
-fn make_label<C>(text:&str) -> View<C> {
-    View {
-        name:text.into(),
-        title: text.into(),
-        bounds: Bounds { x:0, y:0, w:10, h:20},
-        visible:true,
-        children: vec![],
-        draw: Some(|view, ctx, theme| {
-            ctx.fillText(&view.bounds, &view.title, &theme.fg);
-        }),
-        input: None,
-        state: None,
-        layout: None,
-    }
-}
-fn make_button<C>(name: &str) -> View<C> {
-    View {
-        name: name.to_string(),
-        title: name.to_string(),
-        bounds: Bounds {
-            x: 0,
-            y: 0,
-            w: 20,
-            h: 20,
-        },
-        visible: true,
-        children: vec![],
-        draw: Some(|view, ctx, theme|{
-            ctx.fillRect(&view.bounds, &theme.bg);
-            ctx.strokeRect(&view.bounds, &theme.fg);
-            ctx.fillText(&view.bounds, &view.title, &theme.fg);
-        }),
-        input: Some(|event| {
-            info!("button got input {:?} {:?}",event.target, event.event_type);
-            match &event.event_type {
-                EventType::Tap(pt) => {
-                    info!("tapped on text input");
-                    event.scene.focused = Some(event.target.into());
-                },
-                _ => {
-                }
-            }
-        }),
-        state: None,
-        layout: None,
-    }
-}
-fn make_text_input<C>(text:&str) -> View<C> {
-    View {
-        name: "text".into(),
-        title: text.into(),
-        bounds:Bounds {
-            x: 0,
-            y: 0,
-            w: 200,
-            h: 30,
-        },
-        visible: true,
-        children: vec![],
-        draw: Some(|view, ctx, theme| {
-            ctx.fillRect(&view.bounds, &theme.bg);
-            ctx.strokeRect(&view.bounds, &theme.fg);
-            ctx.fillText(&view.bounds, &view.title,&theme.fg);
-            // if view.focused {
-            //     let cursor = Bounds {
-            //         x: view.bounds.x + 20,
-            //         y: view.bounds.y + 2,
-            //         w: 2,
-            //         h: view.bounds.h - 4,
-            //     };
-            //     ctx.fillRect(&cursor, &theme.fg);
-            // }
-        }),
-        input: Some(|event|{
-            info!("text input got event {:?}",event.event_type);
-            match &event.event_type {
-                EventType::Keyboard(key) => {
-                    if let Some(view) = event.scene.get_view_mut(event.target) {
-                        if *key == 8 {
-                            view.title.remove(view.title.len()-1);
-                        } else {
-                            view.title.push(*key as char);
-                        }
-                    }
-                    event.scene.dirty = true;
-                }
-                EventType::Tap(pt) => {
-                    info!("tapped on text input");
-                    event.scene.focused = Some(event.target.into());
-                }
-                _ => {
-
-                }
-            }
-        }),
-        state: None,
-        layout: None,
-    }
-}
 struct MenuState {
     data:Vec<String>,
     selected:usize,
