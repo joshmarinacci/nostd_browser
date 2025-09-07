@@ -418,9 +418,9 @@ async fn make_gui_scene() -> Scene<Rgb565> {
     connect_parent_child(&mut scene, "panel", &text_input.name);
     scene.add_view(text_input);
 
-    let mut menuview = make_menuview(vec!["first".into(), "second".into(), "third".into()]);
-    menuview.bounds = Bounds::new(100,30,150,80);
-    menuview.name = "menuview".into();
+    let mut menuview = make_menuview("menuview",vec!["first".into(), "second".into(), "third".into()]);
+    menuview.bounds.x = 100;
+    menuview.bounds.y = 30;
     menuview.visible = false;
     scene.add_view_to_root(menuview);
 
@@ -440,17 +440,17 @@ async fn make_gui_scene() -> Scene<Rgb565> {
 
 struct MenuState {
     data:Vec<String>,
-    selected:usize,
+    selected:i32,
 }
-fn make_menuview<C>(data:Vec<String>) -> View<C> {
+fn make_menuview<C>(name:&str, data:Vec<String>) -> View<C> {
     View {
-        name: "somemenu".into(),
-        title: "somemenu".into(),
+        name: name.into(),
+        title: name.into(),
         bounds: Bounds {
             x:0,
             y:0,
             w:100,
-            h:200,
+            h: (30*data.len()) as i32,
         },
         visible:true,
         children: vec![],
@@ -459,15 +459,14 @@ fn make_menuview<C>(data:Vec<String>) -> View<C> {
             ctx.stroke_rect(&view.bounds, &theme.fg);
             if let Some(state) = &view.state {
                 if let Some(state) = state.downcast_ref::<MenuState>() {
-                    info!("menu state is {:?}",state.data);
                     for (i,item) in (&state.data).iter().enumerate() {
                         let b = Bounds {
                             x: view.bounds.x,
                             y: view.bounds.y + (i as i32) * 30,
                             w: view.bounds.w,
-                            h: 30,
+                            h: 20,
                         };
-                        if state.selected == i {
+                        if state.selected == (i as i32) {
                             ctx.fill_rect(&b,&theme.fg);
                             ctx.fill_text(&b,item.as_str(),&theme.bg, &HAlign::Left);
                         }else {
@@ -480,18 +479,15 @@ fn make_menuview<C>(data:Vec<String>) -> View<C> {
         input: Some(|event|{
             match &event.event_type {
                 EventType::Tap(pt) => {
-                    info!("tapped at {:?}",pt);
                     if let Some(view) = event.scene.get_view_mut(event.target) {
-                        info!("the view is {} at {:?}",view.name, view.bounds);
                         let name = view.name.clone();
                         if view.bounds.contains(pt) {
-                            info!("I was clicked on. index is {}", pt.y/30);
-                            let selected = pt.y/30;
+                            let y = pt.y - view.bounds.y;
+                            let selected = y/30;
                             if let Some(state) = &mut view.state {
                                 if let Some(state) = state.downcast_mut::<MenuState>() {
-                                    info!("menu state is {:?}",state.data);
                                     if selected >= 0 && selected < state.data.len() as i32 {
-                                        state.selected = selected as usize;
+                                        state.selected = selected;
                                         event.scene.set_focused(&name);
                                     }
                                 }
@@ -500,16 +496,15 @@ fn make_menuview<C>(data:Vec<String>) -> View<C> {
                     }
                 }
                 EventType::Scroll(dx,dy) => {
-                    // info!("menu scrolling");
                     if let Some(view) = event.scene.get_view_mut(event.target) {
                         if let Some(state) = &mut view.state {
                             if let Some(state) = state.downcast_mut::<MenuState>() {
-                                // info!("menu state is {:?} {}",state.data, state.selected);
+                                let len = state.data.len() as i32;
                                 if *dy > 0 {
-                                    state.selected = (state.selected + 1) % state.data.len();
+                                    state.selected = (state.selected + 1) % len;
                                 }
-                                if *dy < 0 && state.selected > 0 {
-                                    state.selected -= 1;
+                                if *dy < 0 {
+                                    state.selected = (state.selected -1 + len) % len;
                                 }
                                 event.scene.dirty = true;
                             }
