@@ -3,7 +3,7 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 use gui2::geom::Bounds;
-use gui2::{EventType, HAlign, View};
+use gui2::{EventType, GuiEvent, HAlign, Scene, View};
 use log::info;
 
 pub struct MenuState {
@@ -69,21 +69,28 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
                 event.scene.mark_dirty();
             }
             EventType::Scroll(dx, dy) => {
-                info!("Scroll event {:?}", event.target);
-                if let Some(view) = event.scene.get_view_mut(event.target) {
-                    if let Some(state) = &mut view.state {
-                        if let Some(state) = state.downcast_mut::<MenuState>() {
-                            let len = state.data.len() as i32;
-                            if *dy > 0 {
-                                state.selected = (state.selected + 1) % len;
-                            }
-                            if *dy < 0 {
-                                state.selected = (state.selected - 1 + len) % len;
-                            }
-                        }
+                if *dy > 0 {
+                    scroll_by(event.scene,event.target,1);
+                }
+                if *dy < 0 {
+                    scroll_by(event.scene,event.target,1);
+                }
+            }
+            EventType::Keyboard(key) => {
+                match *key {
+                    b'j' => {
+                        scroll_by(event.scene, event.target, 1);
+                    }
+                    b'k' => {
+                        scroll_by(event.scene, event.target, -1);
+                    }
+                    13 => {
+                        info!("enter")
+                    },
+                    _ => {
+                        info!("other keypress {key}");
                     }
                 }
-                event.scene.mark_dirty();
             }
             _ => {
                 info!("unknown event type");
@@ -106,21 +113,17 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
     }
 }
 
-//     fn handle_input(&mut self, event: GuiEvent) {
-//         match event {
-//             GuiEvent::KeyEvent(key) => match key {
-//                 b'j' => self.nav_prev(),
-//                 b'k' => self.nav_next(),
-//                 _ => {}
-//             },
-//             GuiEvent::ScrollEvent(_, delta) => {
-//                 if delta.y < 0 {
-//                     self.nav_next();
-//                 }
-//                 if delta.y > 0 {
-//                     self.nav_prev();
-//                 }
-//             }
+fn scroll_by<C, F>(scene: &mut Scene<C, F>, name: &str, amt: i32) {
+    if let Some(view) = scene.get_view_mut(name) {
+        if let Some(state) = &mut view.state {
+            if let Some(state) = state.downcast_mut::<MenuState>() {
+                let len = state.data.len() as i32;
+                state.selected = (state.selected  + amt + len) % len;
+                scene.mark_dirty();
+            }
+        }
+    }
+}
 //             GuiEvent::TouchEvent(pt) => {
 //                 let pos = pt.sub(self.position);
 //                 let line_height = (BASE_FONT.character_size.height + 2) as i32;
@@ -130,10 +133,3 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
 //                     self.dirty = true;
 //                 }
 //             }
-//             _ => {
-//                 warn!("unhandled event: {:?}", event);
-//             }
-//         }
-//     }
-// }
-//

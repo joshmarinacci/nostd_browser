@@ -401,23 +401,21 @@ pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
 }
 
 pub fn update_view_from_input<C, F>(event: &mut GuiEvent<C, F>) {
-    info!(
-        "update view from input {:?} {:?}",
-        event.target, event.event_type
-    );
-    match event.event_type {
+    match &event.event_type {
         EventType::Keyboard(key) => {
-            if key == b' ' && is_visible(event, MAIN_MENU) == false {
+            if *key == b' ' && is_visible(event, MAIN_MENU) == false {
                 event.scene.show_view(MAIN_MENU);
                 event.scene.set_focused(MAIN_MENU);
                 return;
             }
         }
+        EventType::Tap(pt) => {
+            info!("tapped on point {pt:?}");
+        }
         _ => {
-            // scene.handle_input(event);
         }
     }
-    handle_action(event);
+    // handle_action(event);
 }
 
 fn show_and_focus<C, F>(event: &mut GuiEvent<C, F>, name: &str) {
