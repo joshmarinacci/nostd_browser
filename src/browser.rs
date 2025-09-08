@@ -60,32 +60,34 @@ pub const THEME: Option<Box<&AppTheme>> = None;
 
 pub fn handle_action<C, F>(event: &mut GuiEvent<C, F>) {
     let panel_bounds = Bounds::new(20, 20, 320 - 40, 240 - 40);
+    info!("handle action {}", event.target);
     if event.target == MAIN_MENU {
         info!("clicked on the main menu");
-        if menu_item_selected(event, MAIN_MENU, "Theme") {
-            show_and_focus(event, THEME_MENU);
-            return;
-        }
-        if menu_item_selected(event, MAIN_MENU, "Font") {
-            show_and_focus(event, FONT_MENU);
-            return;
-        }
+        // if menu_item_selected(event, MAIN_MENU, "Theme") {
+        //     show_and_focus(event, THEME_MENU);
+        //     return;
+        // }
+        // if menu_item_selected(event, MAIN_MENU, "Font") {
+        //     show_and_focus(event, FONT_MENU);
+        //     return;
+        // }
         if menu_item_selected(event, MAIN_MENU, "Browser") {
             show_and_focus(event, "browser");
             return;
         }
-        if menu_item_selected(event, MAIN_MENU, "Wifi") {
-            let panel = make_panel("panel1", panel_bounds.clone());
-            let mut label1a = make_label("wifi-label1a", "SSID").position_at(60, 80);
+        if menu_item_selected(event, MAIN_MENU, "Network") {
+            let panel_name = "wifi-panel";
+            let panel = make_panel(panel_name, panel_bounds.clone());
+            let label1a = make_label("wifi-label1a", "SSID").position_at(60, 80);
             // let label1b = Label::new(SSID.unwrap_or("----"), Point::new(150, 80));
             let label2a = make_label("wifi-label2a", "PASSWORD").position_at(60, 100);
             // let label2b = Label::new(PASSWORD.unwrap_or("----"), Point::new(150, 100));
             let button = make_button("wifi-button", "done").position_at(160 - 20, 200 - 20);
 
-            connect_parent_child(event.scene, &panel.name, &label1a.name);
-            connect_parent_child(event.scene, &panel.name, &label2a.name);
-            connect_parent_child(event.scene, &panel.name, &button.name);
             event.scene.add_view_to_root(panel);
+            connect_parent_child(event.scene, panel_name, &label1a.name);
+            connect_parent_child(event.scene, panel_name, &label2a.name);
+            connect_parent_child(event.scene, panel_name, &button.name);
             event.scene.add_view(label1a);
             event.scene.add_view(label2a);
             event.scene.add_view(button);
@@ -154,6 +156,7 @@ pub fn handle_action<C, F>(event: &mut GuiEvent<C, F>) {
         event.scene.remove_view("wifi-label2a");
         event.scene.remove_view("wifi-label2b");
         event.scene.remove_view("wifi-button");
+        event.scene.mark_dirty();
         return;
     }
     if event.scene.is_focused("info-button") {
@@ -169,46 +172,46 @@ pub fn handle_action<C, F>(event: &mut GuiEvent<C, F>) {
         event.scene.remove_view("info-button");
         return;
     }
-    if event.scene.is_focused(THEME_MENU) {
-        if menu_item_selected(event, THEME_MENU, "Dark") {
-            // THEME.insert(DARK_THEME);
-            event.scene.mark_dirty();
-            return;
-        }
-        if menu_item_selected(event, THEME_MENU, "Light") {
-            // THEME.insert(LIGHT_THEME);
-            // scene.set_theme(LIGHT_THEME);
-            return;
-        }
-        if menu_item_selected(event, THEME_MENU, "close") {
-            event.scene.hide_view(THEME_MENU);
-            event.scene.set_focused(MAIN_MENU);
-            return;
-        }
-    }
-    if event.scene.is_focused(FONT_MENU) {
-        if menu_item_selected(event, FONT_MENU, "Small") {
-            set_font(FONT_6X13, FONT_6X13_BOLD);
-        }
-        if menu_item_selected(event, FONT_MENU, "Medium") {
-            set_font(FONT_8X13, FONT_8X13_BOLD);
-        }
-        if menu_item_selected(event, FONT_MENU, "Large") {
-            set_font(FONT_9X15, FONT_9X15_BOLD);
-        }
-        if menu_item_selected(event, FONT_MENU, "close") {
-            event.scene.hide_view(FONT_MENU);
-            event.scene.set_focused(MAIN_MENU);
-            return;
-        }
-    }
-    if event.scene.is_focused("wifi") {
-        if menu_item_selected(event, "wifi", "close") {
-            event.scene.hide_view("wifi");
-            event.scene.set_focused(MAIN_MENU);
-            return;
-        }
-    }
+    // if event.scene.is_focused(THEME_MENU) {
+    //     if menu_item_selected(event, THEME_MENU, "Dark") {
+    //         // THEME.insert(DARK_THEME);
+    //         event.scene.mark_dirty();
+    //         return;
+    //     }
+    //     if menu_item_selected(event, THEME_MENU, "Light") {
+    //         // THEME.insert(LIGHT_THEME);
+    //         // scene.set_theme(LIGHT_THEME);
+    //         return;
+    //     }
+    //     if menu_item_selected(event, THEME_MENU, "close") {
+    //         event.scene.hide_view(THEME_MENU);
+    //         event.scene.set_focused(MAIN_MENU);
+    //         return;
+    //     }
+    // }
+    // if event.scene.is_focused(FONT_MENU) {
+    //     if menu_item_selected(event, FONT_MENU, "Small") {
+    //         set_font(FONT_6X13, FONT_6X13_BOLD);
+    //     }
+    //     if menu_item_selected(event, FONT_MENU, "Medium") {
+    //         set_font(FONT_8X13, FONT_8X13_BOLD);
+    //     }
+    //     if menu_item_selected(event, FONT_MENU, "Large") {
+    //         set_font(FONT_9X15, FONT_9X15_BOLD);
+    //     }
+    //     if menu_item_selected(event, FONT_MENU, "close") {
+    //         event.scene.hide_view(FONT_MENU);
+    //         event.scene.set_focused(MAIN_MENU);
+    //         return;
+    //     }
+    // }
+    // if event.scene.is_focused("wifi") {
+    //     if menu_item_selected(event, "wifi", "close") {
+    //         event.scene.hide_view("wifi");
+    //         event.scene.set_focused(MAIN_MENU);
+    //         return;
+    //     }
+    // }
     if event.scene.is_focused("browser") {
         if menu_item_selected(event, "browser", "Bookmarks") {
             //         // show the bookmarks
@@ -318,7 +321,7 @@ pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     let textview = PageView::new(full_screen_bounds, Page::new());
     scene.add_view_to_root(textview);
     let mut menuview = make_menuview(
-        "main",
+        MAIN_MENU,
         vec![
             "Browser".into(),
             "Network".into(),
@@ -404,7 +407,7 @@ pub fn update_view_from_input<C, F>(event: &mut GuiEvent<C, F>) {
     match &event.event_type {
         EventType::Keyboard(key) => {
             if *key == b' ' {
-                if is_visible(event, MAIN_MENU) == false {
+                if is_visible(event, MAIN_MENU) == false && event.scene.is_focused(PAGE_VIEW) {
                     event.scene.show_view(MAIN_MENU);
                     event.scene.set_focused(MAIN_MENU);
                     return;
