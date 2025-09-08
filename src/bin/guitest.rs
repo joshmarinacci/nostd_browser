@@ -11,8 +11,6 @@ use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use embassy_executor::Spawner;
-// use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-// use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
 use embedded_graphics::mono_font::ascii::FONT_6X10;
 use embedded_graphics::mono_font::MonoTextStyle;
@@ -43,6 +41,8 @@ use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder};
 use nostd_browser::common::{TDeckDisplay};
 use static_cell::StaticCell;
+use nostd_browser::menuview::make_menuview;
+use nostd_browser::tdeck::{EmbeddedDrawingContext, Wrapper};
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {
@@ -69,133 +69,26 @@ pub const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
 static I2C: StaticCell<I2c<Blocking>> = StaticCell::new();
 
 // static TRACKBALL_CHANNEL: Channel<CriticalSectionRawMutex, GuiEvent<Rgb565>, 2> = Channel::new();
+
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     esp_println::logger::init_logger_from_env();
-
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
 
     esp_alloc::heap_allocator!(size: 128 * 1024);
     info!("heap is {}", esp_alloc::HEAP.stats());
 
-    info!("init-ting embassy");
-    esp_hal_embassy::init(TimerGroup::new(peripherals.TIMG1).timer0);
 
-    let mut delay = Delay::new();
-    // have to turn on the board and wait 500ms before using the keyboard
-    let mut board_power = Output::new(peripherals.GPIO10, High, OutputConfig::default());
-    board_power.set_high();
-    delay.delay_millis(1000);
+    let mut wrapper = Wrapper::init(peripherals);
+    esp_hal_embassy::init(wrapper.timer);
 
-    // set up the keyboard
-    let i2c = I2c::new(
-        peripherals.I2C0,
-        Config::default()
-            .with_frequency(Rate::from_khz(100))
-            .with_timeout(BusTimeout::Disabled),
-    )
-        .unwrap()
-        .with_sda(peripherals.GPIO18)
-        .with_scl(peripherals.GPIO8);
-    info!("initialized I2C keyboard");
-    let i2c_ref = I2C.init(i2c);
-
-    // set up the display
-    {
-        // set TFT CS to high
-        let mut tft_cs = Output::new(peripherals.GPIO12, High, OutputConfig::default());
-        tft_cs.set_high();
-        let tft_miso = Input::new(
-            peripherals.GPIO38,
-            InputConfig::default().with_pull(Pull::Up),
-        );
-        let tft_sck = peripherals.GPIO40;
-        let tft_mosi = peripherals.GPIO41;
-        let tft_dc = Output::new(peripherals.GPIO11, Low, OutputConfig::default());
-        let mut tft_enable = Output::new(peripherals.GPIO42, High, OutputConfig::default());
-        tft_enable.set_high();
-
-        info!("creating spi device");
-        let spi = Spi::new(
-            peripherals.SPI2,
-            SpiConfig::default()
-                .with_mode(Mode::_3)
-                .with_frequency(Rate::from_mhz(80)), // .with_mode(Mode::_0)
-        )
-            .unwrap()
-            .with_sck(tft_sck)
-            .with_miso(tft_miso)
-            .with_mosi(tft_mosi);
-        static DISPLAY_BUF: StaticCell<[u8; 512]> = StaticCell::new();
-        let buffer = DISPLAY_BUF.init([0u8; 512]);
-
-        info!("setting up the display");
-        let spi_delay = Delay::new();
-        let spi_device = ExclusiveDevice::new(spi, tft_cs, spi_delay).unwrap();
-        let di = SpiInterface::new(spi_device, tft_dc, buffer);
-        let display = Builder::new(ST7789, di)
-            // .reset_pin(tft_enable)
-            .display_size(240, 320)
-            .invert_colors(ColorInversion::Inverted)
-            .color_order(ColorOrder::Rgb)
-            .orientation(Orientation::new().rotate(Rotation::Deg90))
-            // .display_size(320,240)
-            .init(&mut delay)
-            .unwrap();
-        static DISPLAY: StaticCell<TDeckDisplay> = StaticCell::new();
-        let display_ref = DISPLAY.init(display);
-        let scene = make_gui_scene().await;
-
-        let trackball_click = Input::new(
-            peripherals.GPIO0,
-            InputConfig::default().with_pull(Pull::Up),
-        );
-        // connect to the left and right trackball pins
-        let trackball_right = Input::new(
-            peripherals.GPIO2,
-            InputConfig::default().with_pull(Pull::Up),
-        );
-        let trackball_left = Input::new(
-            peripherals.GPIO1,
-            InputConfig::default().with_pull(Pull::Up),
-        );
-        let trackball_up = Input::new(
-            peripherals.GPIO3,
-            InputConfig::default().with_pull(Pull::Up),
-        );
-        let trackball_down = Input::new(
-            peripherals.GPIO15,
-            InputConfig::default().with_pull(Pull::Up),
-        );
-
-
-        spawner
-            .spawn(update_display(display_ref, i2c_ref, scene, trackball_click, trackball_right, trackball_left, trackball_up, trackball_down))
-            .ok();
-    }
-}
-#[embassy_executor::task]
-async fn update_display(
-    display: &'static mut TDeckDisplay,
-    i2c: &'static mut I2c<'static, Blocking>,
-    mut scene: Scene<Rgb565>,
-    click: Input<'static>,
-    left: Input<'static>,
-    right: Input<'static>,
-    up: Input<'static>,
-    down: Input<'static>,
-
-) {
-    let touch = Gt911Blocking::default();
-    touch.init(i2c).unwrap();
     let theme:Theme<Rgb565> = Theme {
         bg: Rgb565::WHITE,
         fg: Rgb565::BLACK,
         panel_bg: Rgb565::CSS_LIGHT_GRAY,
     };
-
-    let mut ctx:EmbeddedDrawingContext = EmbeddedDrawingContext::new(display);
+    let mut scene = make_gui_scene();
     let mut handlers: Vec<Callback<Rgb565>> = vec![];
     handlers.push(|event| {
         info!("event happened {} {:?}", event.target, event.event_type);
@@ -209,190 +102,138 @@ async fn update_display(
     });
 
     let mut last_touch_event:Option<gt911::Point> = None;
-    let mut last_click_low = false;
-    let mut last_right_high = false;
-    let mut last_left_high = false;
-    let mut last_up_high = false;
-    let mut last_down_high = false;
-    let mut cursor = Point::new(50, 50);
-
     loop {
-        if let Ok(point) = touch.get_touch(i2c) {
-            // emit tap when the touch event ends
-            if let None = &point {
-                if let Some(point) = last_touch_event {
-                    let pt = GPoint::new(320 - point.y as i32, 240-point.x as i32);
-                    click_at(&mut scene,&mut handlers,pt);
-                }
-            }
-            last_touch_event = point;
-        }
-        let mut data = [0u8; 1];
-        let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
-        match kb_res {
-            Ok(_) => {
-                if data[0] != 0x00 {
-                    type_at_focused(&mut scene, &handlers, data[0])
-                }
-            }
-            Err(_) => {
-                // info!("kb_res = {}", e);
-            }
-        }
-
+        // let typed = wrapper.poll_keyboard().clone();
+        // if let Some(key) = typed {
+        //     type_at_focused(&mut scene, &handlers, key)
+        // }
         {
-
-            if click.is_low() != last_click_low {
-                last_click_low = click.is_low();
-            }
-            if right.is_high() != last_right_high {
-                last_right_high = right.is_high();
-                cursor.x += 1;
-            }
-            if left.is_high() != last_left_high {
-                last_left_high = left.is_high();
-                cursor.x -= 1;
-            }
-            if up.is_high() != last_up_high {
-                last_up_high = up.is_high();
-                cursor.y -= 1;
-                scroll_at_focused(&mut scene, &handlers, 0,-1);
-            }
-            if down.is_high() != last_down_high {
-                last_down_high = down.is_high();
-                cursor.y += 1;
-                scroll_at_focused(&mut scene, &handlers, 0,1);
+            if let Ok(point) = wrapper.touch.get_touch(&mut wrapper.i2c) {
+            // if let Ok(points) = wrapper.poll_touchscreen() {
+                // stack allocated Vec containing 0-5 points
+                if let None = &point {
+                    if let Some(point) = last_touch_event {
+                        let pt = GPoint::new(320 - point.y as i32, 240-point.x as i32);
+                        click_at(&mut scene,&mut handlers,pt);
+                    }
+                }
+                last_touch_event = point;
             }
         }
-
-        draw_scene(&mut scene,&mut ctx,&theme);
+        {
+            let mut ctx: EmbeddedDrawingContext = EmbeddedDrawingContext::new(&mut wrapper.display);
+            draw_scene(&mut scene, &mut ctx, &theme);
+        }
         Timer::after(Duration::from_millis(20)).await;
+
+
+        // loop {
+        //     let mut data = [0u8; 1];
+        //     let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
+        //     match kb_res {
+        //         Ok(_) => {
+        //             if data[0] != 0x00 {
+        //                 type_at_focused(&mut scene, &handlers, data[0])
+        //             }
+        //         }
+        //         Err(_) => {
+        //             // info!("kb_res = {}", e);
+        //         }
+        //     }
+        //
+        //     {
+        //
+        //         if click.is_low() != last_click_low {
+        //             last_click_low = click.is_low();
+        //         }
+        //         if right.is_high() != last_right_high {
+        //             last_right_high = right.is_high();
+        //             cursor.x += 1;
+        //         }
+        //         if left.is_high() != last_left_high {
+        //             last_left_high = left.is_high();
+        //             cursor.x -= 1;
+        //         }
+        //         if up.is_high() != last_up_high {
+        //             last_up_high = up.is_high();
+        //             cursor.y -= 1;
+        //             scroll_at_focused(&mut scene, &handlers, 0,-1);
+        //         }
+        //         if down.is_high() != last_down_high {
+        //             last_down_high = down.is_high();
+        //             cursor.y += 1;
+        //             scroll_at_focused(&mut scene, &handlers, 0,1);
+        //         }
+        //     }
+        //
+        // }
     }
+
 }
 
-struct EmbeddedDrawingContext {
-    pub display:&'static mut TDeckDisplay
-}
-
-impl EmbeddedDrawingContext {
-    fn new(display: &'static mut TDeckDisplay) -> EmbeddedDrawingContext {
-        EmbeddedDrawingContext {
-            display,
-        }
-    }
-}
-
-impl DrawingContext<Rgb565> for EmbeddedDrawingContext {
-    fn clear(&mut self, color: &Rgb565) {
-        self.display.clear(*color).unwrap();
-    }
-
-    fn fill_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
-        let pt = Point::new(bounds.x,bounds.y);
-        let size = Size::new(bounds.w as u32, bounds.h as u32);
-        Rectangle::new(pt,size)
-            .into_styled(PrimitiveStyle::with_fill(*color))
-            .draw(self.display).unwrap();
-
-    }
-
-    fn stroke_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
-        let pt = Point::new(bounds.x,bounds.y);
-        let size = Size::new(bounds.w as u32, bounds.h as u32);
-        Rectangle::new(pt,size)
-            .into_styled(PrimitiveStyle::with_stroke(*color,1))
-            .draw(self.display).unwrap();
-    }
-
-    fn fill_text(&mut self, bounds: &Bounds, text: &str, color: &Rgb565, halign: &HAlign) {
-        let style = MonoTextStyle::new(&FONT_6X10, *color);
-        let mut pt = Point::new(bounds.x, bounds.y);
-        pt.y += bounds.h / 2;
-        pt.y += (FONT_6X10.baseline as i32)/2;
-
-        let w = (FONT_6X10.character_size.width as i32) * (text.len() as i32);
-
-        match halign {
-            HAlign::Left => {
-                pt.x += 0;
-            }
-            HAlign::Center => {
-                pt.x += (bounds.w - w) / 2;
-            }
-            HAlign::Right => {
-
-            }
-        }
-
-        Text::new(text, pt, style)
-            .draw(self.display)
-            .unwrap();
-    }
-}
-
-#[embassy_executor::task]
-async fn handle_trackball(
-    click: Input<'static>,
-    left: Input<'static>,
-    right: Input<'static>,
-    up: Input<'static>,
-    down: Input<'static>,
-) {
-    let mut last_click_low = false;
-    let mut last_right_high = false;
-    let mut last_left_high = false;
-    let mut last_up_high = false;
-    let mut last_down_high = false;
-    info!("monitoring the trackball");
-    let mut cursor = Point::new(50, 50);
-    loop {
-        if click.is_low() != last_click_low {
-            info!("click");
-            last_click_low = click.is_low();
-            // TRACKBALL_CHANNEL.send(GuiEvent::ClickEvent()).await;
-        }
-        // info!("button pressed is {} ", tdeck_track_click.is_low());
-        if right.is_high() != last_right_high {
-            // info!("right");
-            last_right_high = right.is_high();
-            cursor.x += 1;
-            // TRACKBALL_CHANNEL
-            //     .send(GuiEvent::ScrollEvent(cursor, Point::new(1, 0)))
-            //     .await;
-        }
-        if left.is_high() != last_left_high {
-            // info!("left");
-            last_left_high = left.is_high();
-            cursor.x -= 1;
-            // TRACKBALL_CHANNEL
-            //     .send(GuiEvent::ScrollEvent(cursor, Point::new(-1, 0)))
-            //     .await;
-        }
-        if up.is_high() != last_up_high {
-            // info!("up");
-            last_up_high = up.is_high();
-            cursor.y -= 1;
-            // TRACKBALL_CHANNEL
-            //     .send(GuiEvent::ScrollEvent(cursor, Point::new(0, -1)))
-            //     .await;
-        }
-        if down.is_high() != last_down_high {
-            // info!("down");
-            last_down_high = down.is_high();
-            cursor.y += 1;
-            // TRACKBALL_CHANNEL
-            //     .send(GuiEvent::ScrollEvent(cursor, Point::new(0, 1)))
-            //     .await;
-        }
-        // wait one msec
-        Timer::after(Duration::from_millis(1)).await;
-    }
-}
-
-
+// #[embassy_executor::task]
+// async fn handle_trackball(
+//     click: Input<'static>,
+//     left: Input<'static>,
+//     right: Input<'static>,
+//     up: Input<'static>,
+//     down: Input<'static>,
+// ) {
+//     let mut last_click_low = false;
+//     let mut last_right_high = false;
+//     let mut last_left_high = false;
+//     let mut last_up_high = false;
+//     let mut last_down_high = false;
+//     info!("monitoring the trackball");
+//     let mut cursor = Point::new(50, 50);
+//     loop {
+//         if click.is_low() != last_click_low {
+//             info!("click");
+//             last_click_low = click.is_low();
+//             // TRACKBALL_CHANNEL.send(GuiEvent::ClickEvent()).await;
+//         }
+//         // info!("button pressed is {} ", tdeck_track_click.is_low());
+//         if right.is_high() != last_right_high {
+//             // info!("right");
+//             last_right_high = right.is_high();
+//             cursor.x += 1;
+//             // TRACKBALL_CHANNEL
+//             //     .send(GuiEvent::ScrollEvent(cursor, Point::new(1, 0)))
+//             //     .await;
+//         }
+//         if left.is_high() != last_left_high {
+//             // info!("left");
+//             last_left_high = left.is_high();
+//             cursor.x -= 1;
+//             // TRACKBALL_CHANNEL
+//             //     .send(GuiEvent::ScrollEvent(cursor, Point::new(-1, 0)))
+//             //     .await;
+//         }
+//         if up.is_high() != last_up_high {
+//             // info!("up");
+//             last_up_high = up.is_high();
+//             cursor.y -= 1;
+//             // TRACKBALL_CHANNEL
+//             //     .send(GuiEvent::ScrollEvent(cursor, Point::new(0, -1)))
+//             //     .await;
+//         }
+//         if down.is_high() != last_down_high {
+//             // info!("down");
+//             last_down_high = down.is_high();
+//             cursor.y += 1;
+//             // TRACKBALL_CHANNEL
+//             //     .send(GuiEvent::ScrollEvent(cursor, Point::new(0, 1)))
+//             //     .await;
+//         }
+//         // wait one msec
+//         Timer::after(Duration::from_millis(1)).await;
+//     }
+// }
+//
+//
 // const TEXT_INPUT: &str = "textinput";
 
-async fn make_gui_scene() -> Scene<Rgb565> {
+fn make_gui_scene() -> Scene<Rgb565> {
     let mut scene = Scene::new();
 
 
@@ -438,94 +279,3 @@ async fn make_gui_scene() -> Scene<Rgb565> {
     scene
 }
 
-struct MenuState {
-    data:Vec<String>,
-    selected:i32,
-}
-fn make_menuview<C>(name:&str, data:Vec<String>) -> View<C> {
-    View {
-        name: name.into(),
-        title: name.into(),
-        bounds: Bounds {
-            x:0,
-            y:0,
-            w:100,
-            h: (30*data.len()) as i32,
-        },
-        visible:true,
-        children: vec![],
-        draw: Some(|view, ctx, theme| {
-            ctx.fill_rect(&view.bounds, &theme.bg);
-            ctx.stroke_rect(&view.bounds, &theme.fg);
-            if let Some(state) = &view.state {
-                if let Some(state) = state.downcast_ref::<MenuState>() {
-                    for (i,item) in (&state.data).iter().enumerate() {
-                        let b = Bounds {
-                            x: view.bounds.x,
-                            y: view.bounds.y + (i as i32) * 30,
-                            w: view.bounds.w,
-                            h: 20,
-                        };
-                        if state.selected == (i as i32) {
-                            ctx.fill_rect(&b,&theme.fg);
-                            ctx.fill_text(&b,item.as_str(),&theme.bg, &HAlign::Left);
-                        }else {
-                            ctx.fill_text(&b, item.as_str(), &theme.fg, &HAlign::Left);
-                        }
-                    }
-                }
-            }
-        }),
-        input: Some(|event|{
-            match &event.event_type {
-                EventType::Tap(pt) => {
-                    if let Some(view) = event.scene.get_view_mut(event.target) {
-                        let name = view.name.clone();
-                        if view.bounds.contains(pt) {
-                            let y = pt.y - view.bounds.y;
-                            let selected = y/30;
-                            if let Some(state) = &mut view.state {
-                                if let Some(state) = state.downcast_mut::<MenuState>() {
-                                    if selected >= 0 && selected < state.data.len() as i32 {
-                                        state.selected = selected;
-                                        event.scene.set_focused(&name);
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                EventType::Scroll(dx,dy) => {
-                    if let Some(view) = event.scene.get_view_mut(event.target) {
-                        if let Some(state) = &mut view.state {
-                            if let Some(state) = state.downcast_mut::<MenuState>() {
-                                let len = state.data.len() as i32;
-                                if *dy > 0 {
-                                    state.selected = (state.selected + 1) % len;
-                                }
-                                if *dy < 0 {
-                                    state.selected = (state.selected -1 + len) % len;
-                                }
-                                event.scene.dirty = true;
-                            }
-                        }
-                    }
-                }
-                _ => {
-                    info!("unknown event type");
-                }
-            }
-        }),
-        layout: Some(|scene, name|{
-            info!("doing layout on menuview");
-            if let Some(parent) = scene.get_view_mut(name) {
-                if let Some(state) = &parent.state {
-                    if let Some(state) = state.downcast_ref::<MenuState>() {
-                        parent.bounds.h = 30 * (state.data.len() as i32)
-                    }
-                }
-            };
-        }),
-        state: Some(Box::new(MenuState{data,selected:0})),
-    }
-}

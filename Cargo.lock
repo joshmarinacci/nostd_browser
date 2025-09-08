@@ -1552,6 +1552,7 @@ dependencies = [
  "gui",
  "gui2",
  "hashbrown 0.15.5",
+ "heapless 0.8.0",
  "log",
  "mipidsi",
  "nostd_html_parser",
