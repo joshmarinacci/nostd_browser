@@ -26,7 +26,6 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
             h: (MH * (data.len() as i32)) as i32,
         },
         visible: true,
-        children: vec![],
         draw: Some(|view, ctx, theme| {
             ctx.fill_rect(&view.bounds, &theme.bg);
             ctx.stroke_rect(&view.bounds, &theme.fg);

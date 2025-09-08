@@ -8,7 +8,6 @@ pub fn make_overlay_label<C,F>(name:&str, title:&str) -> View<C,F> {
         title: title.into(),
         bounds: Bounds::new(0,0,100,20),
         visible:true,
-        children: vec![],
         state: None,
         layout: None,
         input: None,
@@ -31,11 +30,11 @@ pub fn make_overlay_label<C,F>(name:&str, title:&str) -> View<C,F> {
 //             .stroke_alignment(StrokeAlignment::Inside)
 //             .build();
 //         context.display.rect(&self.bounds, bounds_style);
-// 
+//
 //         let text_style = MonoTextStyle::new(&context.theme.font, context.theme.base_fg);
 //         context.display.text(&self.text,&self.bounds.top_left.add(Point::new(5,20)),text_style)
 //     }
-// 
+//
 //     fn handle_input(&mut self, event: GuiEvent) {
 //         match event {
 //             GuiEvent::KeyEvent(key) => {

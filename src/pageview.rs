@@ -78,7 +78,6 @@ impl PageView {
             title: "page".into(),
             bounds,
             visible: true,
-            children: vec![],
             state: Some(Box::new(pv)),
             input: None,
             layout: None,
