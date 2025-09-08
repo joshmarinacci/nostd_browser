@@ -403,10 +403,15 @@ pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
 pub fn update_view_from_input<C, F>(event: &mut GuiEvent<C, F>) {
     match &event.event_type {
         EventType::Keyboard(key) => {
-            if *key == b' ' && is_visible(event, MAIN_MENU) == false {
-                event.scene.show_view(MAIN_MENU);
-                event.scene.set_focused(MAIN_MENU);
-                return;
+            if *key == b' ' {
+                if is_visible(event, MAIN_MENU) == false {
+                    event.scene.show_view(MAIN_MENU);
+                    event.scene.set_focused(MAIN_MENU);
+                    return;
+                } else {
+                    info!("trigger an action");
+                    handle_action(event);
+                }
             }
         }
         EventType::Tap(pt) => {
@@ -415,7 +420,6 @@ pub fn update_view_from_input<C, F>(event: &mut GuiEvent<C, F>) {
         _ => {
         }
     }
-    // handle_action(event);
 }
 
 fn show_and_focus<C, F>(event: &mut GuiEvent<C, F>, name: &str) {

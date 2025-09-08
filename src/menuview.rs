@@ -73,7 +73,7 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
                     scroll_by(event.scene,event.target,1);
                 }
                 if *dy < 0 {
-                    scroll_by(event.scene,event.target,1);
+                    scroll_by(event.scene,event.target,-1);
                 }
             }
             EventType::Keyboard(key) => {
