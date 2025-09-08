@@ -1,19 +1,22 @@
+use gui2::{DrawingContext, HAlign, Theme, View};
 use crate::common::{NetCommand, TDeckDisplay, NET_COMMANDS};
 use crate::page::Page;
 use alloc::string::{ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
+use alloc::boxed::Box;
 use core::any::Any;
 use core::cmp::max;
 use embedded_graphics::geometry::{OriginDimensions, Point, Size};
-use embedded_graphics::mono_font::{MonoTextStyle, MonoTextStyleBuilder};
+use embedded_graphics::mono_font::{MonoFont, MonoTextStyle, MonoTextStyleBuilder};
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{RgbColor};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
+use gui2::geom::Bounds;
 use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
 use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
-use gui::{DrawContext, GuiEvent, Theme, View, ViewTarget};
+use embedded_graphics::mono_font::ascii::{FONT_6X13, FONT_6X13_BOLD, FONT_8X13, FONT_8X13_BOLD, FONT_9X15, FONT_9X15_BOLD};
 
 pub struct RenderedPage {
     pub link_count: i32,
@@ -49,13 +52,13 @@ pub struct PageView {
     pub history: Vec<RenderedPage>,
     pub history_index: usize,
     pub visible: bool,
-    pub bounds: Rectangle,
+    pub bounds: Bounds,
     pub columns: u32,
 }
 
 impl PageView {
-    pub fn new(bounds: Rectangle, page: Page) -> PageView {
-        PageView {
+    pub fn new<C>(bounds: Bounds, page: Page) -> View<C> {
+        let pv = PageView {
             dirty: true,
             visible: true,
             columns: 20,
@@ -69,6 +72,17 @@ impl PageView {
             ],
             history_index: 0,
             bounds,
+        };
+        View {
+            name:"page".into(),
+            title:"page".into(),
+            bounds,
+            visible: true,
+            children: vec![],
+            state:Some(Box::new(pv)),
+            input: None,
+            layout: None,
+            draw: Some(draw),
         }
     }
     pub fn load_page(&mut self, page: Page) {
@@ -109,7 +123,6 @@ impl PageView {
             self.history_index += 1;
         }
     }
-
     pub fn prev_link(&mut self) {
         let rp = self.get_current_rendered_page();
         rp.page.selection -= 1;
@@ -139,132 +152,125 @@ impl PageView {
                 .unwrap()
         }
     }
-
     fn get_current_rendered_page(&mut self) -> &mut RenderedPage {
         &mut self.history[self.history_index]
     }
+    fn get_imutable_page(&self) -> &RenderedPage {
+        &self.history[self.history_index]
+    }
 }
-impl View for PageView {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
-    fn as_any_mut(&mut self) -> &mut dyn Any {
-        self
-    }
-    fn visible(&self) -> bool {
-        self.visible
-    }
-    fn set_visible(&mut self, visible: bool) {
-        self.visible = visible;
-    }
-    fn layout(&mut self, display: &mut dyn ViewTarget, theme: &Theme) {
-        self.bounds = Rectangle::new(Point::new(0, 0),  Size::new(display.size().width, display.size().height));
-        self.columns = display.size().width/theme.font.character_size.width
-    }
-
-    fn bounds(&self) -> Rectangle {
-        self.bounds.clone()
-    }
-
-    fn draw(&mut self, context:&mut DrawContext) {
-        if !self.visible {
+    // fn layout(&mut self, display: &mut dyn ViewTarget, theme: &Theme) {
+    //     self.bounds = Rectangle::new(Point::new(0, 0),  Size::new(display.size().width, display.size().height));
+    //     self.columns = display.size().width/theme.font.character_size.width
+    // }
+    //
+    fn draw<C>(view: &mut View<C>, context:&mut dyn DrawingContext<C>, theme:&Theme<C>) {
+        if !view.visible {
             return;
         }
-        self.dirty = false;
-        let font = context.theme.font;
+        // let font = context.theme.font;
+        let font = FONT_9X15_BOLD;
         let line_height = font.character_size.height + 2;
-        let viewport_height: i32 = (context.display.size().height / line_height) as i32;
+        // let viewport_height: i32 = (context.display.size().height / line_height) as i32;
+        let viewport_height:i32 = 240/line_height as i32;
         let char_width = font.character_size.width as i32;
 
-        context.display.rect(&self.bounds,PrimitiveStyle::with_fill(context.theme.base_bg));
+        context.fill_rect(&view.bounds, &theme.bg);
+        // context.display.rect(&self.bounds,PrimitiveStyle::with_fill(context.theme.base_bg));
 
         // select the lines in the current viewport
-        let rpage = self.get_current_rendered_page();
-        let mut end: usize = (rpage.scroll_index as i32 + viewport_height) as usize;
-        if end >= rpage.lines.len() {
-            end = rpage.lines.len();
-        }
-        let start = max(rpage.scroll_index, 0) as usize;
-        let viewport_lines = &rpage.lines[start..end];
+        if let Some(state) = &view.state {
+            if let Some(state) = state.downcast_ref::<PageView>() {
+                let rpage = state.get_imutable_page();
+                let mut end: usize = (rpage.scroll_index as i32 + viewport_height) as usize;
+                if end >= rpage.lines.len() {
+                    end = rpage.lines.len();
+                }
+                let start = max(rpage.scroll_index, 0) as usize;
+                let viewport_lines = &rpage.lines[start..end];
 
-        let x_inset = 8;
-        let y_inset = 5;
+                let x_inset = 8;
+                let y_inset = 5;
 
-        let mut link_count = -1;
-        // draw the lines
-        for (j, line) in viewport_lines.iter().enumerate() {
-            let mut inset_chars: usize = 0;
-            let y = j as i32 * (line_height as i32) + 10;
-            let style = match line.block_type {
-                BlockType::Paragraph => MonoTextStyle::new(&context.theme.font, context.theme.base_fg),
-                BlockType::ListItem => MonoTextStyle::new(&context.theme.font, context.theme.base_fg),
-                BlockType::Header => MonoTextStyle::new(&context.theme.bold, context.theme.base_fg),
-            };
-            // draw a bullet
-            if line.block_type == BlockType::ListItem {
-                context.display.rect(&Rectangle::new(Point::new(2, y), Size::new(4, 3)),
-                    PrimitiveStyle::with_fill(context.theme.base_fg));
-            }
-            for run in &line.runs {
-                let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
-                let text_style = match &run.style {
-                    RunStyle::Link(_) => {
-                        // info!("found a link: {:?}", href);
-                        link_count += 1;
-                        let builder = MonoTextStyleBuilder::new()
-                            .font(&context.theme.font)
-                            .underline();
-                        if rpage.page.selection == link_count {
-                            builder
-                                .text_color(context.theme.accent_fg)
-                                .background_color(context.theme.highlight_fg)
-                                .build()
-                        } else {
-                            builder
-                                .text_color(context.theme.accent_fg)
-                                .background_color(context.theme.base_bg)
-                                .build()
-                        }
+                let mut link_count = -1;
+                // draw the lines
+                for (j, line) in viewport_lines.iter().enumerate() {
+                    let mut inset_chars: usize = 0;
+                    let y = j as i32 * (line_height as i32) + 10;
+                    // let style = match line.block_type {
+                    //     BlockType::Paragraph => MonoTextStyle::new(&font, &theme.fg),
+                    //     BlockType::ListItem => MonoTextStyle::new(&font, &theme.fg),
+                    //     BlockType::Header => MonoTextStyle::new(&font, &theme.fg),
+                    // };
+                    // draw a bullet
+                    if line.block_type == BlockType::ListItem {
+                        context.fill_rect(&Bounds::new(2,y,4,3),&theme.fg);
+                        // context.display.rect(&Rectangle::new(Point::new(2, y), Size::new(4, 3)),
+                        //     PrimitiveStyle::with_fill(context.theme.base_fg));
                     }
-                    RunStyle::Plain => style,
-                    RunStyle::Bold => style,
-                };
-                context.display.text(&run.text, &pos, text_style);
-                inset_chars += run.text.len();
-            }
-        }
-    }
-
-    fn handle_input(&mut self, event: GuiEvent) {
-        match event {
-            GuiEvent::KeyEvent(key) => {
-                match key {
-                    b'j' => {
-                        let page = self.get_current_rendered_page();
-                        page.scroll_index = (page.scroll_index + 10) % (page.lines.len() as i32)
-                    },
-                    b'k' => {
-                        let page = self.get_current_rendered_page();
-                        page.scroll_index = max(page.scroll_index - 10, 0)
-                    },
-                    b'a' => self.prev_link(),
-                    b's' => self.next_link(),
-                    13 => self.nav_current_link(),
-                    _ => {
-                        warn!("Unhandled key {:?}", key);
+                    for run in &line.runs {
+                        let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
+                        // let text_style = match &run.style {
+                        //     RunStyle::Link(_) => {
+                        //         // info!("found a link: {:?}", href);
+                        //         link_count += 1;
+                        //         // let builder = MonoTextStyleBuilder::new()
+                        //         //     .font(&context.theme.font)
+                        //         //     .underline();
+                        //         // if rpage.page.selection == link_count {
+                        //         //     builder
+                        //         //         .text_color(context.theme.accent_fg)
+                        //         //         .background_color(context.theme.highlight_fg)
+                        //         //         .build()
+                        //         // } else {
+                        //         //     builder
+                        //         //         .text_color(context.theme.accent_fg)
+                        //         //         .background_color(context.theme.base_bg)
+                        //         //         .build()
+                        //         // }
+                        //     }
+                        //     // RunStyle::Plain => style,
+                        //     // RunStyle::Bold => style,
+                        // };
+                        context.fill_text(&Bounds::new(pos.x,pos.y,100,10),&run.text, &theme.fg, &HAlign::Left);
+                        // context.display.text(&run.text, &pos, text_style);
+                        inset_chars += run.text.len();
                     }
                 }
-                self.dirty = true
             }
-            GuiEvent::ScrollEvent(_pt, delta) => {
-                if (delta.x < 0) || (delta.y < 0) {
-                    self.prev_link();
-                };
-                if (delta.x > 0) || (delta.y > 0) {
-                    self.next_link();
-                };
-            }
-            _ => {}
         }
     }
-}
+    //
+    // fn handle_input(&mut self, event: GuiEvent) {
+    //     match event {
+    //         GuiEvent::KeyEvent(key) => {
+    //             match key {
+    //                 b'j' => {
+    //                     let page = self.get_current_rendered_page();
+    //                     page.scroll_index = (page.scroll_index + 10) % (page.lines.len() as i32)
+    //                 },
+    //                 b'k' => {
+    //                     let page = self.get_current_rendered_page();
+    //                     page.scroll_index = max(page.scroll_index - 10, 0)
+    //                 },
+    //                 b'a' => self.prev_link(),
+    //                 b's' => self.next_link(),
+    //                 13 => self.nav_current_link(),
+    //                 _ => {
+    //                     warn!("Unhandled key {:?}", key);
+    //                 }
+    //             }
+    //             self.dirty = true
+    //         }
+    //         GuiEvent::ScrollEvent(_pt, delta) => {
+    //             if (delta.x < 0) || (delta.y < 0) {
+    //                 self.prev_link();
+    //             };
+    //             if (delta.x > 0) || (delta.y > 0) {
+    //                 self.next_link();
+    //             };
+    //         }
+    //         _ => {}
+    //     }
+    // }
+

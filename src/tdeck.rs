@@ -21,7 +21,7 @@ use mipidsi::interface::SpiInterface;
 use mipidsi::models::ST7789;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use static_cell::StaticCell;
-use esp_hal::peripherals::{ADC1, GPIO4};
+use esp_hal::peripherals::{ADC1, GPIO4, WIFI, TIMG0, RNG};
 use esp_hal::peripherals::Peripherals;
 use esp_hal::delay::Delay;
 use esp_hal::spi::master::{Config as SpiConfig, Spi};
@@ -36,17 +36,7 @@ use crate::common::TDeckDisplay;
 const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
 
 pub struct Wrapper {
-    // pub display: Display<
-    //     SpiInterface<
-    //         'static,
-    //         RefCellDevice<'static, Spi<'static, Blocking>, Output<'static>, Delay>,
-    //         Output<'static>,
-    //     >,
-    //     ST7789,
-    //     NoResetPin,
-    // >,
     pub display: TDeckDisplay,
-    pub timer:Timer<'static>,
     pub i2c: I2c<'static, Blocking>,
     pub delay: Delay,
     adc: Adc<'static, ADC1<'static>, Blocking>,
@@ -57,6 +47,9 @@ pub struct Wrapper {
     pub down:TrackballPin,
     pub click:TrackballPin,
     pub touch:Gt911Blocking<I2c<'static, Blocking>>,
+    pub wifi:WIFI<'static>,
+    pub timg0:TIMG0<'static>,
+    pub rng:RNG<'static>,
     // pub volume_mgr: VolumeManager<SdCard<RefCellDevice<'static, Spi<'static, Blocking>,Output<'static>, Delay>,Delay>, DummyTimesource>,
 }
 
@@ -274,14 +267,17 @@ impl Wrapper {
         info!("returning finished wrapper");
         // set up the trackball button pins
 
+        let timer =   TimerGroup::new(peripherals.TIMG1).timer0;
+        esp_hal_embassy::init(timer);
 
         Wrapper {
             display,
             i2c,
             delay,
             touch,
-            timer:  TimerGroup::new(peripherals.TIMG1).timer0,
-            // volume_mgr,
+            wifi: peripherals.WIFI,
+            timg0:peripherals.TIMG0,
+            rng:peripherals.RNG,
             adc: Adc::new(peripherals.ADC1, adc_config),
             battery_pin: pin,
             left: TrackballPin {

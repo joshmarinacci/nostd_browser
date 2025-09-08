@@ -10,6 +10,7 @@ struct MenuState {
     data:Vec<String>,
     selected:i32,
 }
+const MH:i32 = 20;
 pub fn make_menuview<C>(name:&str, data:Vec<String>) -> View<C> {
     View {
         name: name.into(),
@@ -18,7 +19,7 @@ pub fn make_menuview<C>(name:&str, data:Vec<String>) -> View<C> {
             x:0,
             y:0,
             w:100,
-            h: (30*data.len()) as i32,
+            h: (MH*(data.len() as i32)) as i32,
         },
         visible:true,
         children: vec![],
@@ -30,7 +31,7 @@ pub fn make_menuview<C>(name:&str, data:Vec<String>) -> View<C> {
                     for (i,item) in (&state.data).iter().enumerate() {
                         let b = Bounds {
                             x: view.bounds.x,
-                            y: view.bounds.y + (i as i32) * 30,
+                            y: view.bounds.y + (i as i32) * MH,
                             w: view.bounds.w,
                             h: 20,
                         };
@@ -51,7 +52,7 @@ pub fn make_menuview<C>(name:&str, data:Vec<String>) -> View<C> {
                         let name = view.name.clone();
                         if view.bounds.contains(pt) {
                             let y = pt.y - view.bounds.y;
-                            let selected = y/30;
+                            let selected = y/MH;
                             if let Some(state) = &mut view.state {
                                 if let Some(state) = state.downcast_mut::<MenuState>() {
                                     if selected >= 0 && selected < state.data.len() as i32 {
@@ -89,7 +90,7 @@ pub fn make_menuview<C>(name:&str, data:Vec<String>) -> View<C> {
             if let Some(parent) = scene.get_view_mut(name) {
                 if let Some(state) = &parent.state {
                     if let Some(state) = state.downcast_ref::<MenuState>() {
-                        parent.bounds.h = 30 * (state.data.len() as i32)
+                        parent.bounds.h = MH * (state.data.len() as i32)
                     }
                 }
             };
