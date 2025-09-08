@@ -16,7 +16,7 @@ use embassy_net::{Runner, Stack, StackResources};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
-use embedded_graphics::mono_font::ascii::{FONT_7X13, FONT_7X13_BOLD, FONT_9X15};
+use embedded_graphics::mono_font::ascii::{FONT_7X13, FONT_7X13_BOLD, FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
@@ -48,7 +48,7 @@ use gui2::geom::{Bounds, Point as GPoint};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder, Display, NoResetPin};
-use nostd_browser::browser::{make_gui_scene, update_view_from_input, PAGE_VIEW};
+use nostd_browser::browser::{make_gui_scene, update_view_from_input, AppTheme, DARK_THEME, PAGE_VIEW};
 use nostd_browser::common::{
     NetCommand, NetStatus, TDeckDisplay, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL,
 };
@@ -81,8 +81,6 @@ const SSID: Option<&str> = option_env!("SSID");
 const PASSWORD: Option<&str> = option_env!("PASSWORD");
 
 const AUTO_CONNECT: Option<&str> = option_env!("AUTO_CONNECT");
-
-pub const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
 
 static PAGE_BYTES: &[u8] = include_bytes!("homepage.html");
 
@@ -291,16 +289,12 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
     runner.run().await
 }
 
+
 #[embassy_executor::task]
 async fn update_display(mut wrapper: Wrapper) {
-    let theme: Theme<Rgb565, MonoFont> = Theme {
-        bg: Rgb565::WHITE,
-        fg: Rgb565::BLACK,
-        panel_bg: Rgb565::CSS_LIGHT_GRAY,
-        font: FONT_7X13,
-        bold_font: FONT_7X13_BOLD,
-    };
+
     let mut scene = make_gui_scene();
+
 
     let mut handlers: Vec<Callback<Rgb565, MonoFont>> = vec![];
     handlers.push(|event| {
@@ -311,6 +305,14 @@ async fn update_display(mut wrapper: Wrapper) {
     let mut last_touch_event: Option<gt911::Point> = None;
     scene.focused = Some(PAGE_VIEW.into());
     loop {
+        let theme: Theme<Rgb565, MonoFont> = Theme {
+            bg: Rgb565::WHITE,
+            fg: Rgb565::BLACK,
+            panel_bg: Rgb565::CSS_LIGHT_GRAY,
+            font: FONT_7X13,
+            bold_font: FONT_7X13_BOLD,
+        };
+
         if let Ok(page) = PAGE_CHANNEL.try_receive() {
             if let Some(view) = scene.get_view_mut("pageview") {
                 if let Some(state) = &mut view.state {
@@ -347,40 +349,7 @@ async fn update_display(mut wrapper: Wrapper) {
         Timer::after(Duration::from_millis(20)).await;
     }
 
-    //     let display = DISPLAY.init(display);
-    //     let mut wrapper = TDeckDisplayWrapper::new(display);
     //     loop {
-    //         let display_width = wrapper.display.size().width;
-    //         let font = FONT_9X15;
-    //         let char_width = font.character_size.width as i32;
-    //         let columns = ((display_width as i32) / char_width) as u32;
-    //         // info!("width is {} char width = {} columns is {}", display_width, char_width, columns);
-    //         if let Ok(page) = PAGE_CHANNEL.try_receive() {
-    //             // if let Some(tv) = get_pageview_mut(&mut scene,"page") {
-    //             //     tv.load_page(page);
-    //             //     let bounds = tv.bounds();
-    //             //     // scene.mark_dirty(bounds);
-    //             // }
-    //             info!("heap is {}", esp_alloc::HEAP.stats());
-    //         }
-    //         let mut data = [0u8; 1];
-    //         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
-    //         match kb_res {
-    //             Ok(_) => {
-    //                 if data[0] != 0x00 {
-    //                     // let evt: GuiEvent = GuiEvent::KeyEvent(data[0]);
-    //                     // update_view_from_input(evt, &mut scene, wrapper.display).await;
-    //                 }
-    //             }
-    //             Err(_) => {
-    //                 // info!("kb_res = {}", e);
-    //             }
-    //         }
-    //
-    //         // if let Ok(evt) = TRACKBALL_CHANNEL.try_receive() {
-    //         //     update_view_from_input(evt, &mut scene, wrapper.display).await;
-    //         // }
-    //
     //         if let Ok(status) = NET_STATUS.try_receive() {
     //             // info!("got the status {status:?}");
     //             let txt = match &status {
@@ -393,10 +362,6 @@ async fn update_display(mut wrapper: Wrapper) {
     //             //     };
     //             // });
     //         }
-    //
-    //         // scene.draw(&mut wrapper);
-    //         Timer::after(Duration::from_millis(20)).await;
-    //     }
 }
 
 async fn load_file_url(href: &str) -> &[u8] {

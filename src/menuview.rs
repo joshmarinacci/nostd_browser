@@ -6,9 +6,9 @@ use gui2::geom::Bounds;
 use gui2::{EventType, HAlign, View};
 use log::info;
 
-struct MenuState {
-    data:Vec<String>,
-    selected:i32,
+pub struct MenuState {
+    pub data:Vec<String>,
+    pub selected:i32,
 }
 const MH:i32 = 20;
 pub fn make_menuview<C, F>(name:&str, data:Vec<String>) -> View<C, F> {

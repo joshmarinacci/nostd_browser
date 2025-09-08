@@ -52,12 +52,7 @@ pub mod comps;
 //     shadow: false,
 // };
 //
-// pub trait ViewTarget {
-//     fn size(&self) -> Size;
-//     fn text(&mut self, txt:&str, pos:&Point, style:MonoTextStyle<Rgb565>);
-//     fn rect(&mut self, rectangle: &Rectangle, style: PrimitiveStyle<Rgb565>);
-// }
-//
+
 // pub struct DrawContext<'a> {
 //     pub display: &'a mut dyn ViewTarget,
 //     clip: &'a Rectangle,
@@ -75,28 +70,6 @@ pub mod comps;
 //     fn draw(&mut self, context: &mut DrawContext);
 //     fn handle_input(&mut self, event: GuiEvent);
 // }
-// impl Debug for Box<dyn View> {
-//     fn fmt(&self, f: &mut Formatter<'_>) -> core::fmt::Result {
-//         let val = self as &dyn Any;
-//         // info!("is menu {}", TypeId::of::<MenuView>() == val.type_id());
-//         // info!(
-//         //     "is box menuview {}",
-//         //     TypeId::of::<Box<MenuView>>() == val.type_id()
-//         // );
-//         // info!(
-//         //     "is box view {}",
-//         //     TypeId::of::<Box<dyn View>>() == val.type_id()
-//         // );
-//         match val.downcast_ref::<Box<MenuView>>() {
-//             Some(_menu) => {
-//                 write!(f, "is a menu view")
-//             }
-//             None => {
-//                 write!(f, "some other object")
-//             }
-//         }
-//     }
-// }
 // pub struct Scene {
 //     draw_order: Vec<String>,
 //     focused: Option<String>,
@@ -106,20 +79,6 @@ pub mod comps;
 //     clip: Rectangle,
 //     theme: Theme,
 //     auto_redraw: bool,
-// }
-//
-// impl Scene {
-//     pub fn find_views_at(&self, p0: &Point) -> Vec<String> {
-//         let mut found:Vec<String> = vec![];
-//         for name in &self.draw_order {
-//             if let Some(view) = self.get_view(name) {
-//                 if(view.bounds().contains(*p0)) {
-//                     found.push(name.to_string());
-//                 }
-//             }
-//         }
-//         return found;
-//     }
 // }
 //
 // impl Scene {
