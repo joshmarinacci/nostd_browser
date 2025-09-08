@@ -14,14 +14,13 @@ use mipidsi::{Display, NoResetPin};
 
 pub type TDeckDisplay = Display<
     SpiInterface<
-    'static,
-    RefCellDevice<'static, Spi<'static, Blocking>, Output<'static>, Delay>,
-    Output<'static>,
+        'static,
+        RefCellDevice<'static, Spi<'static, Blocking>, Output<'static>, Delay>,
+        Output<'static>,
     >,
     ST7789,
     NoResetPin,
 >;
-
 
 pub static PAGE_CHANNEL: Channel<CriticalSectionRawMutex, Page, 2> = Channel::new();
 

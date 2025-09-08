@@ -1,9 +1,10 @@
 #![no_std]
 extern crate alloc;
 
+pub mod browser;
 pub mod common;
+pub mod menuview;
 pub mod page;
 pub mod pageview;
-pub mod browser;
 pub mod tdeck;
-pub mod menuview;
+mod comps;

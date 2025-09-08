@@ -1,57 +1,6 @@
 #![no_std]
 extern crate alloc;
-
-// use crate::pageview::PageView;
-use alloc::boxed::Box;
-use alloc::string::{String, ToString};
-use alloc::vec;
-use alloc::vec::Vec;
-use core::any::Any;
 use core::fmt::{Debug, Formatter};
-use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
-use embedded_graphics::mono_font::{MonoFont, MonoTextStyle};
-use embedded_graphics::Pixel;
-use embedded_graphics::pixelcolor::{Rgb565, WebColors};
-use embedded_graphics::prelude::{Dimensions, DrawTarget, Point, RgbColor, Size};
-use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
-use hashbrown::HashMap;
-use log::{info, warn};
-
-pub mod comps;
-//
-// pub const BASE_FONT: MonoFont = FONT_9X15;
-// pub const BOLD_FONT: MonoFont = FONT_9X15_BOLD;
-// pub struct Theme {
-//     pub base_bg: Rgb565,
-//     pub base_bd: Rgb565,
-//     pub base_fg: Rgb565,
-//     pub accent_fg: Rgb565,
-//     pub highlight_fg: Rgb565,
-//     pub shadow: bool,
-//     pub font: MonoFont<'static>,
-//     pub bold: MonoFont<'static>,
-// }
-// pub const LIGHT_THEME: Theme = Theme {
-//     base_bg: Rgb565::WHITE,
-//     base_bd: Rgb565::BLACK,
-//     base_fg: Rgb565::BLACK,
-//     accent_fg: Rgb565::BLUE,
-//     highlight_fg: Rgb565::CSS_ORANGE_RED,
-//     shadow: false,
-//     font: BASE_FONT,
-//     bold: BOLD_FONT,
-// };
-// pub const DARK_THEME: Theme = Theme {
-//     base_bg: Rgb565::BLACK,
-//     base_bd: Rgb565::WHITE,
-//     base_fg: Rgb565::WHITE,
-//     accent_fg: Rgb565::CSS_DARK_BLUE,
-//     highlight_fg: Rgb565::CSS_DARK_ORANGE,
-//     font: BASE_FONT,
-//     bold: BOLD_FONT,
-//     shadow: false,
-// };
-//
 
 // pub struct DrawContext<'a> {
 //     pub display: &'a mut dyn ViewTarget,
@@ -60,16 +9,7 @@ pub mod comps;
 //     is_focused: bool
 // }
 //
-// pub trait View {
-//     fn as_any(&self) -> &dyn Any;
-//     fn as_any_mut(&mut self) -> &mut dyn Any;
-//     fn visible(&self) -> bool;
-//     fn set_visible(&mut self, visible: bool);
-//     fn layout(&mut self, display: &mut dyn ViewTarget, theme: &Theme);
-//     fn bounds(&self) -> Rectangle;
-//     fn draw(&mut self, context: &mut DrawContext);
-//     fn handle_input(&mut self, event: GuiEvent);
-// }
+
 // pub struct Scene {
 //     draw_order: Vec<String>,
 //     focused: Option<String>,
@@ -112,18 +52,6 @@ pub mod comps;
 // }
 //
 // impl Scene {
-//     pub fn new() -> Scene {
-//         Scene {
-//             dirty: true,
-//             layout_dirty: true,
-//             draw_order: Vec::new(),
-//             focused: None,
-//             keys: HashMap::new(),
-//             clip: Rectangle::zero(),
-//             theme: LIGHT_THEME,
-//             auto_redraw: false,
-//         }
-//     }
 //     pub fn add(&mut self, name: &str, view: Box<dyn View>) {
 //         let bounds = view.bounds();
 //         self.keys.insert(name.to_string(), view);
@@ -146,20 +74,6 @@ pub mod comps;
 // }
 //
 // impl Scene {
-//     pub fn get_view(&self, name: &str) -> Option<&Box<dyn View>> {
-//         if let Some(view) = self.keys.get(name) {
-//             Some(view)
-//         } else {
-//             None
-//         }
-//     }
-//     pub fn get_view_mut(&mut self, name: &str) -> Option<&mut Box<dyn View>> {
-//         if let Some(view) = self.keys.get_mut(name) {
-//             Some(view)
-//         } else {
-//             None
-//         }
-//     }
 //     pub fn mutate_view<F: Fn(&mut Box<dyn View>)>(&mut self, name: &str, callback: F) {
 //         if let Some(view) = self.keys.get_mut(name) {
 //             callback(view);
@@ -168,85 +82,6 @@ pub mod comps;
 //         } else {
 //             warn!("mutate_view: Missing view with name '{}'", name);
 //         }
-//     }
-//
-//     pub fn get_menu(&self, name: &str) -> Option<&MenuView> {
-//         if let Some(view) = self.keys.get(name) {
-//             if let Some(menu) = view.as_any().downcast_ref::<MenuView>() {
-//                 Some(menu)
-//             } else {
-//                 None
-//             }
-//         } else {
-//             warn!("get_menu: Missing menu by name '{}'", name);
-//             None
-//         }
-//     }
-//     pub fn get_menu_mut(&mut self, name: &str) -> Option<&mut MenuView> {
-//         if let Some(view) = self.keys.get_mut(name) {
-//             if let Some(menu) = view.as_any_mut().downcast_mut::<MenuView>() {
-//                 Some(menu)
-//             } else {
-//                 None
-//             }
-//         } else {
-//             warn!("get_menu: Missing menu by name '{}'", name);
-//             None
-//         }
-//     }
-//
-//     pub fn menu_equals(&self, name: &str, value: &str) -> bool {
-//         if let Some(menu) = self.get_menu(name) {
-//             let item = &menu.items[menu.highlighted_index];
-//             return if item == value { true } else { false };
-//         }
-//         warn!("menu_equals: no view found for the name: {name}");
-//         false
-//     }
-//     pub fn hide(&mut self, name: &str) {
-//         info!("hide: {name}");
-//         if let Some(menu) = self.get_view_mut(name) {
-//             menu.set_visible(false);
-//             let bounds = menu.bounds();
-//             self.mark_dirty(bounds);
-//         } else {
-//             warn!("hide_menu: no view found for the name: {name}");
-//         }
-//     }
-//     pub fn show_menu(&mut self, name: &str) {
-//         if let Some(menu) = self.get_view_mut(name) {
-//             let bounds = menu.bounds();
-//             menu.set_visible(true);
-//             self.set_focused(name);
-//             self.mark_dirty(bounds);
-//         } else {
-//             warn!("show_menu: no menu found for the name: {name}");
-//         }
-//     }
-//     // pub fn get_textview_mut(&mut self, name: &str) -> Option<&mut PageView> {
-//     //     if let Some(view) = self.keys.get_mut(name) {
-//     //         if let Some(menu) = view.as_any_mut().downcast_mut::<PageView>() {
-//     //             Some(menu)
-//     //         } else {
-//     //             None
-//     //         }
-//     //     } else {
-//     //         warn!("Missing textview by name '{}'", name);
-//     //         None
-//     //     }
-//     // }
-//     pub fn is_focused(&self, name: &str) -> bool {
-//         if let Some(f2) = &self.focused {
-//             if f2.eq_ignore_ascii_case(name) {
-//                 return true;
-//             }
-//         }
-//         warn!("is_focused: Missing view by name '{}'", name);
-//         false
-//     }
-//     pub fn mark_dirty(&mut self, bounds: Rectangle) {
-//         self.dirty = true;
-//         self.clip = union(&self.clip, &bounds);
 //     }
 //     fn mark_layout_dirty(&mut self) {
 //         self.layout_dirty = true
@@ -261,29 +96,6 @@ pub mod comps;
 //         } else {
 //             warn!("no focused view found for event '{evt:?}'");
 //         }
-//     }
-//     pub fn set_focused(&mut self, name: &str) {
-//         if let Some(view) = self.get_view(name) {
-//             let bounds = view.bounds();
-//             self.mark_dirty(bounds);
-//             self.focused = Some(name.to_string());
-//             info!("set focused {}", name);
-//         } else {
-//             warn!("Missing view by name '{}'", name);
-//         }
-//     }
-//     pub fn get_focused_view(&self) -> Option<&Box<dyn View>> {
-//         if let Some(name) = &self.focused {
-//             self.get_view(name)
-//         } else {
-//             None
-//         }
-//     }
-//     pub fn get_focused_view_as_mut(&mut self) -> Option<&mut Box<dyn View>> {
-//         if let Some(name) = &self.focused {
-//             return self.get_view_mut(&name.clone());
-//         }
-//         None
 //     }
 // }
 //
@@ -341,59 +153,4 @@ pub mod comps;
 //     let x2 = (a.top_left.x + a.size.width as i32).max(b.top_left.x + b.size.width as i32);
 //     let y2 = (a.top_left.y + a.size.height as i32).max(b.top_left.y + b.size.height as i32);
 //     Rectangle::with_corners(Point::new(x, y), Point::new(x2, y2))
-// }
-//
-// #[derive(Debug, Copy, Clone)]
-// pub enum GuiEvent {
-//     KeyEvent(u8),
-//     ScrollEvent(Point, Point),
-//     ClickEvent(),
-//     TouchEvent(Point),
-// }
-//
-//
-// pub struct Canvas {
-//     pub size:Size,
-//     pub data: [u8; 10000],
-// }
-//
-// impl Canvas {
-//     pub fn new(size:Size, data: [u8; 10000]) -> Self {
-//         Canvas {
-//             size:size,
-//             data:data
-//         }
-//     }
-// }
-//
-// impl Dimensions for Canvas {
-//     fn bounding_box(&self) -> Rectangle {
-//         Rectangle::new(Point::new(0,0), self.size)
-//     }
-// }
-//
-// impl DrawTarget for Canvas {
-//     type Color = Rgb565;
-//     type Error = core::convert::Infallible;
-//
-//     fn draw_iter<I>(&mut self, pixels: I) -> Result<(), Self::Error>
-//     where
-//         I: IntoIterator<Item=Pixel<Self::Color>>
-//     {
-//         info!("drawing pixels");
-//         for pixel in pixels {
-//             info!("drawing pixel {:?}", pixel);
-//             let r = pixel.1.r();
-//             let index = 0;
-//             self.data[index] = r;
-//         }
-//         Ok(())
-//     }
-//     // fn fill_contiguous<I>(&mut self, area: &Rectangle, colors: I) -> Result<(), Self::Error>
-//     // where
-//     //     I: IntoIterator<Item=Self::Color>,
-//     // {
-//     //     info!("fill contiguous");
-//     //     Ok(())
-//     // }
 // }

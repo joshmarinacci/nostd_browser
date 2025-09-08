@@ -48,7 +48,9 @@ use gui2::geom::{Bounds, Point as GPoint};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder, Display, NoResetPin};
-use nostd_browser::browser::{make_gui_scene, update_view_from_input, AppTheme, DARK_THEME, PAGE_VIEW};
+use nostd_browser::browser::{
+    make_gui_scene, update_view_from_input, AppTheme, DARK_THEME, PAGE_VIEW,
+};
 use nostd_browser::common::{
     NetCommand, NetStatus, TDeckDisplay, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL,
 };
@@ -289,12 +291,9 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
     runner.run().await
 }
 
-
 #[embassy_executor::task]
 async fn update_display(mut wrapper: Wrapper) {
-
     let mut scene = make_gui_scene();
-
 
     let mut handlers: Vec<Callback<Rgb565, MonoFont>> = vec![];
     handlers.push(|event| {

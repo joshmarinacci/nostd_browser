@@ -6,27 +6,30 @@
     holding buffers for the duration of a data transfer."
 )]
 extern crate alloc;
-use alloc::{vec};
 use alloc::string::{String, ToString};
+use alloc::vec;
 use alloc::vec::Vec;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
 use embedded_graphics::mono_font::ascii::{FONT_7X13, FONT_7X13_BOLD};
-use embedded_graphics::mono_font::{MonoFont};
+use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use esp_hal::clock::CpuClock;
 use esp_hal::gpio::Level::{High, Low};
-use esp_hal::i2c::master::{I2c};
+use esp_hal::i2c::master::I2c;
 use esp_hal::Blocking;
-use gui2::{click_at, connect_parent_child, draw_scene, pick_at, scroll_at_focused, type_at_focused, Callback, DrawingContext, EventType, GuiEvent, HAlign, Scene, Theme, View};
 use gui2::comps::{make_button, make_label, make_panel, make_text_input};
 use gui2::geom::{Bounds, Point as GPoint};
+use gui2::{
+    click_at, connect_parent_child, draw_scene, pick_at, scroll_at_focused, type_at_focused,
+    Callback, DrawingContext, EventType, GuiEvent, HAlign, Scene, Theme, View,
+};
 use log::{error, info};
 
-use static_cell::StaticCell;
 use nostd_browser::menuview::make_menuview;
 use nostd_browser::tdeck::{EmbeddedDrawingContext, Wrapper};
+use static_cell::StaticCell;
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {
@@ -57,10 +60,9 @@ async fn main(spawner: Spawner) {
     esp_alloc::heap_allocator!(size: 128 * 1024);
     info!("heap is {}", esp_alloc::HEAP.stats());
 
-
     let mut wrapper = Wrapper::init(peripherals);
 
-    let theme:Theme<Rgb565, MonoFont> = Theme {
+    let theme: Theme<Rgb565, MonoFont> = Theme {
         bg: Rgb565::WHITE,
         fg: Rgb565::BLACK,
         panel_bg: Rgb565::CSS_LIGHT_GRAY,
@@ -74,13 +76,13 @@ async fn main(spawner: Spawner) {
         // show menu when tapping the button
         if let EventType::Tap(point) = &event.event_type {
             if event.target == "button1" {
-                event.scene.set_visible("menuview");
+                event.scene.show_view("menuview");
                 event.scene.set_focused("menuview");
             }
         }
     });
 
-    let mut last_touch_event:Option<gt911::Point> = None;
+    let mut last_touch_event: Option<gt911::Point> = None;
     loop {
         if let Some(key) = wrapper.poll_keyboard() {
             type_at_focused(&mut scene, &handlers, key);
@@ -89,8 +91,8 @@ async fn main(spawner: Spawner) {
             // stack allocated Vec containing 0-5 points
             if let None = &point {
                 if let Some(point) = last_touch_event {
-                    let pt = GPoint::new(320 - point.y as i32, 240-point.x as i32);
-                    click_at(&mut scene,&mut handlers,pt);
+                    let pt = GPoint::new(320 - point.y as i32, 240 - point.x as i32);
+                    click_at(&mut scene, &mut handlers, pt);
                 }
             }
             last_touch_event = point;
@@ -100,7 +102,6 @@ async fn main(spawner: Spawner) {
             draw_scene(&mut scene, &mut ctx, &theme);
         }
         Timer::after(Duration::from_millis(20)).await;
-
 
         // loop {
         //     let mut data = [0u8; 1];
@@ -143,7 +144,6 @@ async fn main(spawner: Spawner) {
         //
         // }
     }
-
 }
 
 // #[embassy_executor::task]
@@ -211,30 +211,31 @@ async fn main(spawner: Spawner) {
 fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     let mut scene = Scene::new();
 
-
-    let panel = make_panel("panel", Bounds::new(20,20,260,200));
+    let panel = make_panel("panel", Bounds::new(20, 20, 260, 200));
     scene.add_view_to_root(panel);
 
-    let mut label = make_label("label1","A label");
+    let mut label = make_label("label1", "A label");
     label.bounds.x = 40;
     label.bounds.y = 30;
     connect_parent_child(&mut scene, "panel", &label.name);
     scene.add_view(label);
 
-    let mut button = make_button("button1","A Button");
+    let mut button = make_button("button1", "A Button");
     button.bounds.x = 40;
     button.bounds.y = 60;
     connect_parent_child(&mut scene, "panel", "button1");
     scene.add_view(button);
 
-
-    let mut text_input = make_text_input("textinput","type text here");
+    let mut text_input = make_text_input("textinput", "type text here");
     text_input.bounds.x = 40;
     text_input.bounds.y = 100;
     connect_parent_child(&mut scene, "panel", &text_input.name);
     scene.add_view(text_input);
 
-    let mut menuview = make_menuview("menuview",vec!["first".into(), "second".into(), "third".into()]);
+    let mut menuview = make_menuview(
+        "menuview",
+        vec!["first".into(), "second".into(), "third".into()],
+    );
     menuview.bounds.x = 100;
     menuview.bounds.y = 30;
     menuview.visible = false;
@@ -253,4 +254,3 @@ fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     // }
     scene
 }
-

@@ -1,7 +1,7 @@
+use crate::common::TDeckDisplay;
 use alloc::string::String;
 use core::cell::RefCell;
 use embedded_graphics::draw_target::DrawTarget;
-use embedded_graphics::Drawable;
 use embedded_graphics::geometry::Size;
 use embedded_graphics::mono_font::ascii::FONT_6X10;
 use embedded_graphics::mono_font::{MonoFont, MonoTextStyle};
@@ -9,29 +9,29 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::Primitive;
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
+use embedded_graphics::Drawable;
 use embedded_hal_bus::spi::RefCellDevice;
 use esp_hal::analog::adc::{Adc, AdcConfig, AdcPin, Attenuation};
-use esp_hal::Blocking;
-use esp_hal::gpio::{Input, InputConfig, Output, OutputConfig, Pull};
+use esp_hal::delay::Delay;
 use esp_hal::gpio::Level::{High, Low};
+use esp_hal::gpio::{Input, InputConfig, Output, OutputConfig, Pull};
+use esp_hal::i2c::master::{BusTimeout, Config, Error, I2c};
+use esp_hal::peripherals::Peripherals;
+use esp_hal::peripherals::{ADC1, GPIO4, RNG, TIMG0, WIFI};
+use esp_hal::spi::master::{Config as SpiConfig, Spi};
 use esp_hal::time::Rate;
+use esp_hal::timer::timg::{Timer, TimerGroup};
+use esp_hal::Blocking;
+use gt911::{Error as Gt911Error, Gt911, Gt911Blocking, Point};
+use gui2::geom::Bounds;
+use gui2::{DrawingContext, HAlign};
+use heapless::Vec;
 use log::info;
-use mipidsi::{Builder, Display, NoResetPin};
 use mipidsi::interface::SpiInterface;
 use mipidsi::models::ST7789;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
+use mipidsi::{Builder, Display, NoResetPin};
 use static_cell::StaticCell;
-use esp_hal::peripherals::{ADC1, GPIO4, WIFI, TIMG0, RNG};
-use esp_hal::peripherals::Peripherals;
-use esp_hal::delay::Delay;
-use esp_hal::spi::master::{Config as SpiConfig, Spi};
-use esp_hal::i2c::master::{BusTimeout, Config, Error, I2c};
-use esp_hal::timer::timg::{Timer, TimerGroup};
-use gt911::{Error as Gt911Error, Gt911, Gt911Blocking, Point};
-use gui2::{DrawingContext, HAlign};
-use gui2::geom::Bounds;
-use heapless::Vec;
-use crate::common::TDeckDisplay;
 
 const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
 
@@ -41,22 +41,22 @@ pub struct Wrapper {
     pub delay: Delay,
     adc: Adc<'static, ADC1<'static>, Blocking>,
     battery_pin: AdcPin<GPIO4<'static>, ADC1<'static>>,
-    pub left:TrackballPin,
-    pub right:TrackballPin,
-    pub up:TrackballPin,
-    pub down:TrackballPin,
-    pub click:TrackballPin,
-    pub touch:Gt911Blocking<I2c<'static, Blocking>>,
-    pub wifi:WIFI<'static>,
-    pub timg0:TIMG0<'static>,
-    pub rng:RNG<'static>,
+    pub left: TrackballPin,
+    pub right: TrackballPin,
+    pub up: TrackballPin,
+    pub down: TrackballPin,
+    pub click: TrackballPin,
+    pub touch: Gt911Blocking<I2c<'static, Blocking>>,
+    pub wifi: WIFI<'static>,
+    pub timg0: TIMG0<'static>,
+    pub rng: RNG<'static>,
     // pub volume_mgr: VolumeManager<SdCard<RefCellDevice<'static, Spi<'static, Blocking>,Output<'static>, Delay>,Delay>, DummyTimesource>,
 }
 
 pub struct TrackballPin {
-    pin:Input<'static>,
-    prev:bool,
-    pub changed:bool,
+    pin: Input<'static>,
+    prev: bool,
+    pub changed: bool,
 }
 impl TrackballPin {
     fn poll(&mut self) {
@@ -80,9 +80,7 @@ impl Wrapper {
                     None
                 }
             }
-            Err(e) => {
-                None
-            }
+            Err(e) => None,
         }
     }
 
@@ -105,17 +103,15 @@ impl Wrapper {
     }
 }
 
-static SPI_BUS:StaticCell<RefCell<Spi<Blocking>>> = StaticCell::new();
+static SPI_BUS: StaticCell<RefCell<Spi<Blocking>>> = StaticCell::new();
 
 pub struct EmbeddedDrawingContext<'a> {
-    pub display:&'a mut TDeckDisplay
+    pub display: &'a mut TDeckDisplay,
 }
 
 impl EmbeddedDrawingContext<'_> {
     pub fn new(display: &mut TDeckDisplay) -> EmbeddedDrawingContext {
-        EmbeddedDrawingContext {
-            display,
-        }
+        EmbeddedDrawingContext { display }
     }
 }
 
@@ -127,25 +123,26 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
     fn fill_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
         let pt = embedded_graphics::geometry::Point::new(bounds.x, bounds.y);
         let size = Size::new(bounds.w as u32, bounds.h as u32);
-        Rectangle::new(pt,size)
+        Rectangle::new(pt, size)
             .into_styled(PrimitiveStyle::with_fill(*color))
-            .draw(self.display).unwrap();
-
+            .draw(self.display)
+            .unwrap();
     }
 
     fn stroke_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
         let pt = embedded_graphics::geometry::Point::new(bounds.x, bounds.y);
         let size = Size::new(bounds.w as u32, bounds.h as u32);
-        Rectangle::new(pt,size)
-            .into_styled(PrimitiveStyle::with_stroke(*color,1))
-            .draw(self.display).unwrap();
+        Rectangle::new(pt, size)
+            .into_styled(PrimitiveStyle::with_stroke(*color, 1))
+            .draw(self.display)
+            .unwrap();
     }
 
     fn fill_text(&mut self, bounds: &Bounds, text: &str, color: &Rgb565, halign: &HAlign) {
         let style = MonoTextStyle::new(&FONT_6X10, *color);
         let mut pt = embedded_graphics::geometry::Point::new(bounds.x, bounds.y);
         pt.y += bounds.h / 2;
-        pt.y += (FONT_6X10.baseline as i32)/2;
+        pt.y += (FONT_6X10.baseline as i32) / 2;
 
         let w = (FONT_6X10.character_size.width as i32) * (text.len() as i32);
 
@@ -156,17 +153,12 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
             HAlign::Center => {
                 pt.x += (bounds.w - w) / 2;
             }
-            HAlign::Right => {
-
-            }
+            HAlign::Right => {}
         }
 
-        Text::new(text, pt, style)
-            .draw(self.display)
-            .unwrap();
+        Text::new(text, pt, style).draw(self.display).unwrap();
     }
 }
-
 
 // pub struct DummyTimesource();
 
@@ -210,10 +202,10 @@ impl Wrapper {
             peripherals.SPI2,
             SpiConfig::default().with_frequency(Rate::from_mhz(40)), // .with_mode(Mode::_0)
         )
-            .unwrap()
-            .with_sck(tft_sck)
-            .with_miso(tft_miso)
-            .with_mosi(tft_mosi);
+        .unwrap()
+        .with_sck(tft_sck)
+        .with_miso(tft_miso)
+        .with_mosi(tft_mosi);
 
         info!("setting up the display");
         let spi_delay = Delay::new();
@@ -221,8 +213,8 @@ impl Wrapper {
         let shared_spi_bus = RefCell::new(spi);
         let shared_spi_bus = SPI_BUS.init(shared_spi_bus);
 
-
-        let tft_device = RefCellDevice::new(shared_spi_bus, tft_cs, spi_delay).expect("failed to create spi device");
+        let tft_device = RefCellDevice::new(shared_spi_bus, tft_cs, spi_delay)
+            .expect("failed to create spi device");
         // let mut buffer = [0u8; 512];
         static DISPLAY_BUF: StaticCell<[u8; 512]> = StaticCell::new();
         let buffer = DISPLAY_BUF.init([0u8; 512]);
@@ -251,15 +243,14 @@ impl Wrapper {
                 .with_frequency(Rate::from_khz(100))
                 .with_timeout(BusTimeout::Disabled),
         )
-            .unwrap()
-            .with_sda(peripherals.GPIO18)
-            .with_scl(peripherals.GPIO8);
+        .unwrap()
+        .with_sda(peripherals.GPIO18)
+        .with_scl(peripherals.GPIO8);
 
         // initialize battery monitor
         let analog_pin = peripherals.GPIO4;
         let mut adc_config: AdcConfig<ADC1> = AdcConfig::new();
         let mut pin: AdcPin<GPIO4, ADC1> = adc_config.enable_pin(analog_pin, Attenuation::_11dB);
-
 
         let touch = Gt911Blocking::default();
         touch.init(&mut i2c).unwrap();
@@ -267,7 +258,7 @@ impl Wrapper {
         info!("returning finished wrapper");
         // set up the trackball button pins
 
-        let timer =   TimerGroup::new(peripherals.TIMG1).timer0;
+        let timer = TimerGroup::new(peripherals.TIMG1).timer0;
         esp_hal_embassy::init(timer);
 
         Wrapper {
@@ -276,8 +267,8 @@ impl Wrapper {
             delay,
             touch,
             wifi: peripherals.WIFI,
-            timg0:peripherals.TIMG0,
-            rng:peripherals.RNG,
+            timg0: peripherals.TIMG0,
+            rng: peripherals.RNG,
             adc: Adc::new(peripherals.ADC1, adc_config),
             battery_pin: pin,
             left: TrackballPin {
@@ -286,39 +277,39 @@ impl Wrapper {
                 pin: Input::new(
                     peripherals.GPIO1,
                     InputConfig::default().with_pull(Pull::Up),
-                )
+                ),
             },
             right: TrackballPin {
-                changed:false,
-                prev:false,
+                changed: false,
+                prev: false,
                 pin: Input::new(
                     peripherals.GPIO2,
                     InputConfig::default().with_pull(Pull::Up),
-                )
+                ),
             },
             up: TrackballPin {
-                changed:false,
-                prev:false,
+                changed: false,
+                prev: false,
                 pin: Input::new(
                     peripherals.GPIO3,
                     InputConfig::default().with_pull(Pull::Up),
-                )
+                ),
             },
             down: TrackballPin {
-                changed:false,
-                prev:false,
+                changed: false,
+                prev: false,
                 pin: Input::new(
-                    peripherals.GPIO5,
+                    peripherals.GPIO15,
                     InputConfig::default().with_pull(Pull::Up),
-                )
+                ),
             },
             click: TrackballPin {
-                changed:false,
-                prev:false,
+                changed: false,
+                prev: false,
                 pin: Input::new(
                     peripherals.GPIO0,
                     InputConfig::default().with_pull(Pull::Up),
-                )
+                ),
             },
             // trackball_click_input: Input::new(
             //     peripherals.GPIO0,
