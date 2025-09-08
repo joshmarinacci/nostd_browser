@@ -7,8 +7,8 @@
 )]
 extern crate alloc;
 use alloc::string::ToString;
-use alloc::{format, vec};
 use alloc::vec::Vec;
+use alloc::{format, vec};
 use embassy_executor::Spawner;
 use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
@@ -16,7 +16,8 @@ use embassy_net::{Runner, Stack, StackResources};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
-use embedded_graphics::mono_font::ascii::{FONT_9X15};
+use embedded_graphics::mono_font::ascii::{FONT_7X13, FONT_7X13_BOLD, FONT_9X15};
+use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use embedded_hal_bus::spi::ExclusiveDevice;
@@ -37,20 +38,24 @@ use esp_wifi::wifi::{
     WifiState,
 };
 use esp_wifi::{init, EspWifiController};
-use gui2::{click_at, draw_scene, type_at_focused, Callback, EventType, Scene, Theme};
+use gui2::{
+    click_at, draw_scene, scroll_at_focused, type_at_focused, Callback, EventType, Scene, Theme,
+};
 use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
+use gui2::geom::{Bounds, Point as GPoint};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder, Display, NoResetPin};
-use nostd_browser::common::{NetCommand, NetStatus, TDeckDisplay, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
-use nostd_browser::page::Page;
-use static_cell::StaticCell;
 use nostd_browser::browser::{make_gui_scene, update_view_from_input, PAGE_VIEW};
+use nostd_browser::common::{
+    NetCommand, NetStatus, TDeckDisplay, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL,
+};
+use nostd_browser::page::Page;
 use nostd_browser::pageview::PageView;
 use nostd_browser::tdeck::{EmbeddedDrawingContext, Wrapper};
-use gui2::geom::{Bounds, Point as GPoint};
+use static_cell::StaticCell;
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {
@@ -79,7 +84,6 @@ const AUTO_CONNECT: Option<&str> = option_env!("AUTO_CONNECT");
 
 pub const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
 
-
 static PAGE_BYTES: &[u8] = include_bytes!("homepage.html");
 
 #[esp_hal_embassy::main]
@@ -91,8 +95,6 @@ async fn main(spawner: Spawner) {
     info!("heap is {}", esp_alloc::HEAP.stats());
 
     let wrapper = Wrapper::init(peripherals);
-
-
 
     // if AUTO_CONNECT.is_some() {
     //     let mut rng = Rng::new(wrapper.rng);
@@ -139,9 +141,7 @@ async fn main(spawner: Spawner) {
     //         .await;
     // }
 
-    spawner
-        .spawn(update_display(wrapper))
-        .ok();
+    spawner.spawn(update_display(wrapper)).ok();
 
     PAGE_CHANNEL
         .sender()
@@ -292,131 +292,136 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
 }
 
 #[embassy_executor::task]
-async fn update_display(
-    mut wrapper: Wrapper,
-) {
-    let theme:Theme<Rgb565> = Theme {
+async fn update_display(mut wrapper: Wrapper) {
+    let theme: Theme<Rgb565, MonoFont> = Theme {
         bg: Rgb565::WHITE,
         fg: Rgb565::BLACK,
         panel_bg: Rgb565::CSS_LIGHT_GRAY,
+        font: FONT_7X13,
+        bold_font: FONT_7X13_BOLD,
     };
     let mut scene = make_gui_scene();
 
-    let mut handlers: Vec<Callback<Rgb565>> = vec![];
+    let mut handlers: Vec<Callback<Rgb565, MonoFont>> = vec![];
     handlers.push(|event| {
         info!("event happened {} {:?}", event.target, event.event_type);
         update_view_from_input(event);
     });
 
-
-    let mut last_touch_event:Option<gt911::Point> = None;
+    let mut last_touch_event: Option<gt911::Point> = None;
     scene.focused = Some(PAGE_VIEW.into());
     loop {
-        {
-            if let Ok(page) = PAGE_CHANNEL.try_receive() {
-                if let Some(view) = scene.get_view_mut("pageview") {
-                    if let Some(state) = &mut view.state {
-                        if let Some(state) = state.downcast_mut::<PageView>() {
-                            state.load_page(page);
-                        }
+        if let Ok(page) = PAGE_CHANNEL.try_receive() {
+            if let Some(view) = scene.get_view_mut("pageview") {
+                if let Some(state) = &mut view.state {
+                    if let Some(state) = state.downcast_mut::<PageView>() {
+                        state.load_page(page);
                     }
                 }
-                scene.dirty = true;
-                info!("heap is {}", esp_alloc::HEAP.stats());
             }
-            if let Ok(point) = wrapper.touch.get_touch(&mut wrapper.i2c) {
-                if let None = &point {
-                    if let Some(point) = last_touch_event {
-                        let pt = GPoint::new(320 - point.y as i32, 240 - point.x as i32);
-                        click_at(&mut scene, &mut handlers, pt);
-                    }
+            scene.dirty = true;
+            info!("heap is {}", esp_alloc::HEAP.stats());
+        }
+        if let Ok(point) = wrapper.touch.get_touch(&mut wrapper.i2c) {
+            if let None = &point {
+                if let Some(point) = last_touch_event {
+                    let pt = GPoint::new(320 - point.y as i32, 240 - point.x as i32);
+                    click_at(&mut scene, &mut handlers, pt);
                 }
-                last_touch_event = point;
             }
-            if let Some(key) = wrapper.poll_keyboard() {
-                type_at_focused(&mut scene, &handlers, key)
-            }
+            last_touch_event = point;
         }
-        {
-            let mut ctx: EmbeddedDrawingContext = EmbeddedDrawingContext::new(&mut wrapper.display);
-            draw_scene(&mut scene, &mut ctx, &theme);
+        if let Some(key) = wrapper.poll_keyboard() {
+            type_at_focused(&mut scene, &handlers, key)
         }
+
+        wrapper.poll_trackball();
+        if wrapper.up.changed {
+            scroll_at_focused(&mut scene, &handlers, 0, -1);
+        }
+        if wrapper.down.changed {
+            scroll_at_focused(&mut scene, &handlers, 0, 1);
+        }
+        let mut ctx: EmbeddedDrawingContext = EmbeddedDrawingContext::new(&mut wrapper.display);
+        draw_scene(&mut scene, &mut ctx, &theme);
         Timer::after(Duration::from_millis(20)).await;
     }
 
     //     let display = DISPLAY.init(display);
-//     let mut wrapper = TDeckDisplayWrapper::new(display);
-//     loop {
-//         let display_width = wrapper.display.size().width;
-//         let font = FONT_9X15;
-//         let char_width = font.character_size.width as i32;
-//         let columns = ((display_width as i32) / char_width) as u32;
-//         // info!("width is {} char width = {} columns is {}", display_width, char_width, columns);
-//         if let Ok(page) = PAGE_CHANNEL.try_receive() {
-//             // if let Some(tv) = get_pageview_mut(&mut scene,"page") {
-//             //     tv.load_page(page);
-//             //     let bounds = tv.bounds();
-//             //     // scene.mark_dirty(bounds);
-//             // }
-//             info!("heap is {}", esp_alloc::HEAP.stats());
-//         }
-//         let mut data = [0u8; 1];
-//         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
-//         match kb_res {
-//             Ok(_) => {
-//                 if data[0] != 0x00 {
-//                     // let evt: GuiEvent = GuiEvent::KeyEvent(data[0]);
-//                     // update_view_from_input(evt, &mut scene, wrapper.display).await;
-//                 }
-//             }
-//             Err(_) => {
-//                 // info!("kb_res = {}", e);
-//             }
-//         }
-//
-//         // if let Ok(evt) = TRACKBALL_CHANNEL.try_receive() {
-//         //     update_view_from_input(evt, &mut scene, wrapper.display).await;
-//         // }
-//
-//         if let Ok(status) = NET_STATUS.try_receive() {
-//             // info!("got the status {status:?}");
-//             let txt = match &status {
-//                 NetStatus::Info(txt) => txt,
-//                 _ => &format!("{:?}", status).to_string(),
-//             };
-//             // scene.mutate_view("status", |view| {
-//             //     if let Some(overlay) = view.as_any_mut().downcast_mut::<OverlayLabel>() {
-//             //         overlay.set_text(txt);
-//             //     };
-//             // });
-//         }
-//
-//         // scene.draw(&mut wrapper);
-//         Timer::after(Duration::from_millis(20)).await;
-//     }
+    //     let mut wrapper = TDeckDisplayWrapper::new(display);
+    //     loop {
+    //         let display_width = wrapper.display.size().width;
+    //         let font = FONT_9X15;
+    //         let char_width = font.character_size.width as i32;
+    //         let columns = ((display_width as i32) / char_width) as u32;
+    //         // info!("width is {} char width = {} columns is {}", display_width, char_width, columns);
+    //         if let Ok(page) = PAGE_CHANNEL.try_receive() {
+    //             // if let Some(tv) = get_pageview_mut(&mut scene,"page") {
+    //             //     tv.load_page(page);
+    //             //     let bounds = tv.bounds();
+    //             //     // scene.mark_dirty(bounds);
+    //             // }
+    //             info!("heap is {}", esp_alloc::HEAP.stats());
+    //         }
+    //         let mut data = [0u8; 1];
+    //         let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
+    //         match kb_res {
+    //             Ok(_) => {
+    //                 if data[0] != 0x00 {
+    //                     // let evt: GuiEvent = GuiEvent::KeyEvent(data[0]);
+    //                     // update_view_from_input(evt, &mut scene, wrapper.display).await;
+    //                 }
+    //             }
+    //             Err(_) => {
+    //                 // info!("kb_res = {}", e);
+    //             }
+    //         }
+    //
+    //         // if let Ok(evt) = TRACKBALL_CHANNEL.try_receive() {
+    //         //     update_view_from_input(evt, &mut scene, wrapper.display).await;
+    //         // }
+    //
+    //         if let Ok(status) = NET_STATUS.try_receive() {
+    //             // info!("got the status {status:?}");
+    //             let txt = match &status {
+    //                 NetStatus::Info(txt) => txt,
+    //                 _ => &format!("{:?}", status).to_string(),
+    //             };
+    //             // scene.mutate_view("status", |view| {
+    //             //     if let Some(overlay) = view.as_any_mut().downcast_mut::<OverlayLabel>() {
+    //             //         overlay.set_text(txt);
+    //             //     };
+    //             // });
+    //         }
+    //
+    //         // scene.draw(&mut wrapper);
+    //         Timer::after(Duration::from_millis(20)).await;
+    //     }
 }
 
-async fn load_file_url(href:&str) -> &[u8] {
+async fn load_file_url(href: &str) -> &[u8] {
     PAGE_BYTES
 }
-async  fn handle_file_url(href:&str) {
-    info!("sdcard url {}",href);
+async fn handle_file_url(href: &str) {
+    info!("sdcard url {}", href);
     let path = &href[5..];
     info!("loading path {}", path);
 
-
     let bytes = load_file_url(&href).await;
-    PAGE_CHANNEL.sender().send(Page::from_bytes(bytes,&href)).await;
+    PAGE_CHANNEL
+        .sender()
+        .send(Page::from_bytes(bytes, &href))
+        .await;
 }
 
-async fn handle_bookmarks(href:&str) {
+async fn handle_bookmarks(href: &str) {
     PAGE_CHANNEL
         .sender()
         .send(Page::from_bytes(PAGE_BYTES, &href))
         .await;
 }
 
-async fn handle_http_url(href:&str, network_stack: Stack<'static>, tls_seed: u64) {
+async fn handle_http_url(href: &str, network_stack: Stack<'static>, tls_seed: u64) {
     NET_STATUS.send(NetStatus::LoadingPage()).await;
     let mut rx_buffer = [0; 4096 * 2];
     let mut tx_buffer = [0; 4096 * 2];
@@ -450,10 +455,12 @@ async fn handle_http_url(href:&str, network_stack: Stack<'static>, tls_seed: u64
                 .send(Page::from_bytes(res, &href))
                 .await;
             NET_STATUS.send(NetStatus::PageLoaded()).await;
-        },
+        }
         Err(err) => {
             info!("Got error: {:?}", err);
-            NET_STATUS.send(NetStatus::Error(format!("{:?}",err))).await;
+            NET_STATUS
+                .send(NetStatus::Error(format!("{:?}", err)))
+                .await;
         }
     }
 }

@@ -57,7 +57,7 @@ pub struct PageView {
 }
 
 impl PageView {
-    pub fn new<C>(bounds: Bounds, page: Page) -> View<C> {
+    pub fn new<C, F>(bounds: Bounds, page: Page) -> View<C, F> {
         let pv = PageView {
             dirty: true,
             visible: true,
@@ -164,7 +164,7 @@ impl PageView {
     //     self.columns = display.size().width/theme.font.character_size.width
     // }
     //
-    fn draw<C>(view: &mut View<C>, context:&mut dyn DrawingContext<C>, theme:&Theme<C>) {
+    fn draw<C, F>(view: &mut View<C, F>, context:&mut dyn DrawingContext<C, F>, theme:&Theme<C, F>) {
         if !view.visible {
             return;
         }

@@ -3,6 +3,7 @@ use log::info;
 use crate::common::{NetCommand, TDeckDisplay, NET_COMMANDS};
 use alloc::{format, vec};
 use embedded_graphics::geometry::{Dimensions, Point, Size};
+use embedded_graphics::mono_font::MonoFont;
 use nostd_html_parser::blocks::{Block, BlockType};
 // use embedded_graphics::mono_font::ascii::{FONT_6X13, FONT_6X13_BOLD, FONT_8X13, FONT_8X13_BOLD, FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::pixelcolor::Rgb565;
@@ -18,7 +19,7 @@ const FONT_MENU: &'static str = "font";
 const THEME_MENU: &'static str = "theme";
 pub const PAGE_VIEW: &'static str = "page";
 
-pub async fn handle_action<C>(scene: &mut Scene<C>, display: &TDeckDisplay) {
+pub async fn handle_action<C, F>(scene: &mut Scene<C, F>, display: &TDeckDisplay) {
     let panel_bounds = Bounds::new(20,20,
                                    (display.bounding_box().size.width-40) as i32,
                                    (display.bounding_box().size.height-40) as i32);
@@ -238,7 +239,7 @@ pub async fn handle_action<C>(scene: &mut Scene<C>, display: &TDeckDisplay) {
     // }
 }
 
-pub fn make_gui_scene() -> Scene<Rgb565> {
+pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     let mut scene = Scene::new();
 
     let panel = make_panel("panel", Bounds::new(20,20,260,200));
@@ -316,12 +317,12 @@ pub fn make_gui_scene() -> Scene<Rgb565> {
     scene
 }
 
-pub fn update_view_from_input<C>(event: &mut GuiEvent<C>) {
+pub fn update_view_from_input<C, F>(event: &mut GuiEvent<C, F>) {
     info!("update view from input {:?} {:?}", event.target, event.event_type);
     match event.event_type {
         EventType::Keyboard(key) => {
             if key == b' ' {
-                open_menu(event,MAIN_MENU);
+                show_and_focus(event, MAIN_MENU);
             } else {
                 // scene.mutate_view(PAGE_VIEW, |view| {
                 //     view.handle_input(event);
@@ -351,7 +352,7 @@ pub fn update_view_from_input<C>(event: &mut GuiEvent<C>) {
     // }
 }
 
-fn open_menu<C>(event: &mut GuiEvent<C>, name: &str) {
+fn show_and_focus<C, F>(event: &mut GuiEvent<C, F>, name: &str) {
     if let Some(menu) = event.scene.get_view_mut(name) {
         menu.visible = true;
     }

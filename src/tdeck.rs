@@ -4,7 +4,7 @@ use embedded_graphics::draw_target::DrawTarget;
 use embedded_graphics::Drawable;
 use embedded_graphics::geometry::Size;
 use embedded_graphics::mono_font::ascii::FONT_6X10;
-use embedded_graphics::mono_font::MonoTextStyle;
+use embedded_graphics::mono_font::{MonoFont, MonoTextStyle};
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::Primitive;
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
@@ -119,7 +119,7 @@ impl EmbeddedDrawingContext<'_> {
     }
 }
 
-impl DrawingContext<Rgb565> for EmbeddedDrawingContext<'_> {
+impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
     fn clear(&mut self, color: &Rgb565) {
         self.display.clear(*color).unwrap();
     }

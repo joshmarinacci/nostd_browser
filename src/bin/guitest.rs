@@ -7,39 +7,23 @@
 )]
 extern crate alloc;
 use alloc::{vec};
-use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use embassy_executor::Spawner;
 use embassy_time::{Duration, Timer};
-use embedded_graphics::mono_font::ascii::FONT_6X10;
-use embedded_graphics::mono_font::MonoTextStyle;
+use embedded_graphics::mono_font::ascii::{FONT_7X13, FONT_7X13_BOLD};
+use embedded_graphics::mono_font::{MonoFont};
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
-use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
-use embedded_graphics::text::Text;
-use embedded_hal_bus::spi::ExclusiveDevice;
 use esp_hal::clock::CpuClock;
-use esp_hal::delay::Delay;
 use esp_hal::gpio::Level::{High, Low};
-use esp_hal::gpio::{Input, InputConfig, Output, OutputConfig, Pull};
-use esp_hal::i2c::master::{BusTimeout, Config, I2c};
-use esp_hal::spi::master::{Config as SpiConfig, Spi};
-use esp_hal::spi::Mode;
-use esp_hal::time::Rate;
-use esp_hal::timer::timg::TimerGroup;
+use esp_hal::i2c::master::{I2c};
 use esp_hal::Blocking;
-// use esp_hal::peripherals::Peripherals;
-use gt911::Gt911Blocking;
 use gui2::{click_at, connect_parent_child, draw_scene, pick_at, scroll_at_focused, type_at_focused, Callback, DrawingContext, EventType, GuiEvent, HAlign, Scene, Theme, View};
 use gui2::comps::{make_button, make_label, make_panel, make_text_input};
 use gui2::geom::{Bounds, Point as GPoint};
 use log::{error, info};
 
-use mipidsi::interface::SpiInterface;
-use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
-use mipidsi::{models::ST7789, Builder};
-use nostd_browser::common::{TDeckDisplay};
 use static_cell::StaticCell;
 use nostd_browser::menuview::make_menuview;
 use nostd_browser::tdeck::{EmbeddedDrawingContext, Wrapper};
@@ -64,12 +48,6 @@ esp_bootloader_esp_idf::esp_app_desc!();
 //     }};
 // }
 
-pub const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
-
-static I2C: StaticCell<I2c<Blocking>> = StaticCell::new();
-
-// static TRACKBALL_CHANNEL: Channel<CriticalSectionRawMutex, GuiEvent<Rgb565>, 2> = Channel::new();
-
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
     esp_println::logger::init_logger_from_env();
@@ -81,15 +59,16 @@ async fn main(spawner: Spawner) {
 
 
     let mut wrapper = Wrapper::init(peripherals);
-    esp_hal_embassy::init(wrapper.timer);
 
-    let theme:Theme<Rgb565> = Theme {
+    let theme:Theme<Rgb565, MonoFont> = Theme {
         bg: Rgb565::WHITE,
         fg: Rgb565::BLACK,
         panel_bg: Rgb565::CSS_LIGHT_GRAY,
+        font: FONT_7X13,
+        bold_font: FONT_7X13_BOLD,
     };
     let mut scene = make_gui_scene();
-    let mut handlers: Vec<Callback<Rgb565>> = vec![];
+    let mut handlers: Vec<Callback<Rgb565, MonoFont>> = vec![];
     handlers.push(|event| {
         info!("event happened {} {:?}", event.target, event.event_type);
         // show menu when tapping the button
@@ -103,22 +82,18 @@ async fn main(spawner: Spawner) {
 
     let mut last_touch_event:Option<gt911::Point> = None;
     loop {
-        // let typed = wrapper.poll_keyboard().clone();
-        // if let Some(key) = typed {
-        //     type_at_focused(&mut scene, &handlers, key)
-        // }
-        {
-            if let Ok(point) = wrapper.touch.get_touch(&mut wrapper.i2c) {
-            // if let Ok(points) = wrapper.poll_touchscreen() {
-                // stack allocated Vec containing 0-5 points
-                if let None = &point {
-                    if let Some(point) = last_touch_event {
-                        let pt = GPoint::new(320 - point.y as i32, 240-point.x as i32);
-                        click_at(&mut scene,&mut handlers,pt);
-                    }
+        if let Some(key) = wrapper.poll_keyboard() {
+            type_at_focused(&mut scene, &handlers, key);
+        }
+        if let Ok(point) = wrapper.touch.get_touch(&mut wrapper.i2c) {
+            // stack allocated Vec containing 0-5 points
+            if let None = &point {
+                if let Some(point) = last_touch_event {
+                    let pt = GPoint::new(320 - point.y as i32, 240-point.x as i32);
+                    click_at(&mut scene,&mut handlers,pt);
                 }
-                last_touch_event = point;
             }
+            last_touch_event = point;
         }
         {
             let mut ctx: EmbeddedDrawingContext = EmbeddedDrawingContext::new(&mut wrapper.display);
@@ -233,7 +208,7 @@ async fn main(spawner: Spawner) {
 //
 // const TEXT_INPUT: &str = "textinput";
 
-fn make_gui_scene() -> Scene<Rgb565> {
+fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     let mut scene = Scene::new();
 
 

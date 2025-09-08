@@ -11,7 +11,7 @@ struct MenuState {
     selected:i32,
 }
 const MH:i32 = 20;
-pub fn make_menuview<C>(name:&str, data:Vec<String>) -> View<C> {
+pub fn make_menuview<C, F>(name:&str, data:Vec<String>) -> View<C, F> {
     View {
         name: name.into(),
         title: name.into(),
