@@ -33,7 +33,7 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
             if let Some(state) = &view.get_state::<MenuState>() {
                 for (i, item) in (&state.data).iter().enumerate() {
                     let b = Bounds {
-                        x: bounds.x,
+                        x: bounds.x + 5,
                         y: bounds.y + (i as i32) * MH,
                         w: bounds.w,
                         h: 20,
@@ -96,10 +96,8 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
         layout: Some(|scene, name| {
             info!("doing layout on menuview");
             if let Some(view) = scene.get_view_mut(name) {
-                if let Some(state) = &view.state {
-                    if let Some(state) = state.downcast_ref::<MenuState>() {
-                        view.bounds.h = MH * (state.data.len() as i32)
-                    }
+                if let Some(state) = view.get_state::<MenuState>() {
+                    view.bounds.h = MH * (state.data.len() as i32)
                 }
             };
         }),
