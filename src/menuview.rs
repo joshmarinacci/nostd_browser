@@ -48,6 +48,7 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
                 }
             }
         }),
+        draw2: None,
         input: Some(|event| match &event.event_type {
             EventType::Tap(pt) => {
                 if let Some(view) = event.scene.get_view_mut(event.target) {

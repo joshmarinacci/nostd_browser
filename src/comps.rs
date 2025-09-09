@@ -15,6 +15,7 @@ pub fn make_overlay_label<C,F>(name:&str, title:&str) -> View<C,F> {
             ctx.fill_rect(&v.bounds,&theme.fg);
             ctx.fill_text(&v.bounds, &v.title, &theme.bg, &HAlign::Right);
         }),
+        draw2: None,
     }
 }
 

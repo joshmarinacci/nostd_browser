@@ -82,6 +82,7 @@ impl PageView {
             input: None,
             layout: None,
             draw: Some(draw),
+            draw2: None,
         }
     }
     pub fn load_page(&mut self, page: Page) {
