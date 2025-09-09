@@ -15,7 +15,7 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::RgbColor;
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use gui2::geom::Bounds;
-use gui2::{DrawingContext, HAlign, Theme, View};
+use gui2::{DrawingContext, EventType, GuiEvent, HAlign, Theme, View};
 use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
 use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
@@ -79,7 +79,7 @@ impl PageView {
             bounds,
             visible: true,
             state: Some(Box::new(pv)),
-            input: None,
+            input: Some(handle_input),
             layout: None,
             draw: Some(draw),
             draw2: None,
@@ -245,36 +245,38 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
         }
     }
 }
-//
-// fn handle_input(&mut self, event: GuiEvent) {
-//     match event {
-//         GuiEvent::KeyEvent(key) => {
-//             match key {
-//                 b'j' => {
-//                     let page = self.get_current_rendered_page();
-//                     page.scroll_index = (page.scroll_index + 10) % (page.lines.len() as i32)
-//                 },
-//                 b'k' => {
-//                     let page = self.get_current_rendered_page();
-//                     page.scroll_index = max(page.scroll_index - 10, 0)
-//                 },
-//                 b'a' => self.prev_link(),
-//                 b's' => self.next_link(),
-//                 13 => self.nav_current_link(),
-//                 _ => {
-//                     warn!("Unhandled key {:?}", key);
-//                 }
-//             }
-//             self.dirty = true
-//         }
-//         GuiEvent::ScrollEvent(_pt, delta) => {
-//             if (delta.x < 0) || (delta.y < 0) {
-//                 self.prev_link();
-//             };
-//             if (delta.x > 0) || (delta.y > 0) {
-//                 self.next_link();
-//             };
-//         }
-//         _ => {}
-//     }
-// }
+
+fn handle_input<C, F>(event: &mut GuiEvent<C, F>) {
+    if let Some(state) = event.scene.get_view_state::<PageView>(event.target) {
+        match event.event_type {
+            EventType::Keyboard(key) => {
+                match key {
+                    b'j' => {
+                        let page = state.get_current_rendered_page();
+                        page.scroll_index = (page.scroll_index + 10) % (page.lines.len() as i32)
+                    },
+                    b'k' => {
+                        let page = state.get_current_rendered_page();
+                        page.scroll_index = max(page.scroll_index - 10, 0)
+                    },
+                    b'a' => state.prev_link(),
+                    b's' => state.next_link(),
+                    13 => state.nav_current_link(),
+                    _ => {
+                        warn!("Unhandled key {:?}", key);
+                    }
+                }
+                state.dirty = true
+            }
+            EventType::Scroll(dx,dy) => {
+                if (dx < 0) || (dy < 0) {
+                    state.prev_link();
+                };
+                if (dx > 0) || (dy > 0) {
+                    state.next_link();
+                };
+            }
+            _ => {}
+        }
+    }
+}

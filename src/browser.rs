@@ -226,29 +226,16 @@ pub fn handle_action<C, F>(event: &mut GuiEvent<C, F>) {
         if menu_item_selected(event, "browser", "Back") {
             event.scene.hide_view(MAIN_MENU);
             event.scene.hide_view("browser");
-            // event.scene.get_view_mut(PAGE_VIEW)
-            //     .and_then(|view|view.state)
-            //     .and_then(|view|view.downcast_mut::<PageView>())
-            //     .and_then(|view|view.prev_page());
-
-            if let Some(view) = event.scene.get_view_mut(PAGE_VIEW) {
-                if let Some(view) = &mut view.state {
-                    if let Some(page_view) = view.downcast_mut::<PageView>() {
-                        page_view.prev_page();
-                    }
-                }
+            if let Some(state) = event.scene.get_view_state::<PageView>(PAGE_VIEW) {
+                state.prev_page();
             }
             event.scene.set_focused(PAGE_VIEW);
         }
         if menu_item_selected(event, "browser", "Forward") {
             event.scene.hide_view(MAIN_MENU);
             event.scene.hide_view("browser");
-            if let Some(view) = event.scene.get_view_mut(PAGE_VIEW) {
-                if let Some(view) = &mut view.state {
-                    if let Some(page_view) = view.downcast_mut::<PageView>() {
-                        page_view.next_page();
-                    }
-                }
+            if let Some(page_view) = event.scene.get_view_state::<PageView>(PAGE_VIEW) {
+                page_view.next_page();
             }
             event.scene.set_focused(PAGE_VIEW);
         }
@@ -298,23 +285,14 @@ fn show_wifi_panel<C, F>(event: &mut GuiEvent<C, F>) {
     event.scene.set_focused(WIFI_BUTTON);
 }
 
-fn set_font(plain: MonoFont, bold: MonoFont) {
-    todo!()
-}
-
 fn menu_item_selected<C, F>(event: &mut GuiEvent<C, F>, name: &str, text: &str) -> bool {
-    if let Some(view) = event.scene.get_view(name) {
-        if let Some(state) = &view.state {
-            if let Some(state) = state.downcast_ref::<MenuState>() {
-                info!("menu_item_selected: state={:?}", state.selected);
-                let selected_text = &state.data[state.selected as usize];
-                if selected_text == text {
-                    return true;
-                }
-            }
+    if let Some(state) = event.scene.get_view_state::<MenuState>(name) {
+        let selected_text = &state.data[state.selected as usize];
+        if selected_text == text {
+            return true;
         }
     }
-    return false;
+    false
 }
 
 pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
@@ -376,32 +354,28 @@ pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     scene.add_view_to_root(browser_menu);
 
     // set up a fake page
-    if let Some(view) = scene.get_view_mut(PAGE_VIEW) {
-        if let Some(state) = &mut view.state {
-            if let Some(tv) = state.downcast_mut::<PageView>() {
-                let mut blocks = vec![];
-                blocks.push(Block::new_of_type(BlockType::Header, "Header Text"));
-                for i in [0..10] {
-                    blocks.push(Block::new_of_type(
-                        BlockType::ListItem,
-                        &format!("list item {i:?}"),
-                    ));
-                }
-                blocks.push(Block::new_of_type(
-                    BlockType::Paragraph,
-                    "This is some long body text that needs to be broken into multiple lines",
-                ));
-                let page = Page {
-                    selection: 0,
-                    blocks,
-                    links: vec![],
-                    url: "".to_string(),
-                };
-                tv.load_page(page);
-            }
+    if let Some(page_view) = scene.get_view_state::<PageView>(PAGE_VIEW) {
+        let mut blocks = vec![];
+        blocks.push(Block::new_of_type(BlockType::Header, "Header Text"));
+        for i in [0..10] {
+            blocks.push(Block::new_of_type(
+                BlockType::ListItem,
+                &format!("list item {i:?}"),
+            ));
         }
+        blocks.push(Block::new_of_type(
+            BlockType::Paragraph,
+            "This is some long body text that needs to be broken into multiple lines",
+        ));
+        let page = Page {
+            selection: 0,
+            blocks,
+            links: vec![],
+            url: "".to_string(),
+        };
+        page_view.load_page(page);
     }
-
+    
     scene.set_focused(PAGE_VIEW);
 
     // let info_panel_bounds = Rectangle::new(Point::new(120, 210), Size::new(200, 30));
