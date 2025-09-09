@@ -15,7 +15,7 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::RgbColor;
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use gui2::geom::Bounds;
-use gui2::{DrawingContext, EventType, GuiEvent, HAlign, Theme, View};
+use gui2::{Action, DrawingContext, EventType, GuiEvent, HAlign, Theme, View};
 use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
 use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
@@ -246,7 +246,7 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
     }
 }
 
-fn handle_input<C, F>(event: &mut GuiEvent<C, F>) {
+fn handle_input<C, F>(event: &mut GuiEvent<C, F>) -> Option<Action>{
     if let Some(state) = event.scene.get_view_state::<PageView>(event.target) {
         match event.event_type {
             EventType::Keyboard(key) => {
@@ -279,4 +279,5 @@ fn handle_input<C, F>(event: &mut GuiEvent<C, F>) {
             _ => {}
         }
     }
+    None
 }

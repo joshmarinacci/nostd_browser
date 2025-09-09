@@ -3,7 +3,7 @@ use alloc::string::String;
 use alloc::vec;
 use alloc::vec::Vec;
 use gui2::geom::Bounds;
-use gui2::{EventType, GuiEvent, HAlign, Scene, View};
+use gui2::{Action, EventType, GuiEvent, HAlign, Scene, View};
 use log::info;
 
 pub struct MenuState {
@@ -48,51 +48,60 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
             }
         }),
         draw2: None,
-        input: Some(|event| match &event.event_type {
-            EventType::Tap(pt) => {
-                if let Some(view) = event.scene.get_view_mut(event.target) {
-                    let name = view.name.clone();
-                    if view.bounds.contains(pt) {
-                        let y = pt.y - view.bounds.y;
-                        let selected = y / MH;
-                        if let Some(state) = view.get_state::<MenuState>() {
-                            if selected >= 0 && selected < state.data.len() as i32 {
-                                state.selected = selected;
-                                event.scene.set_focused(&name);
+        input: Some(|event| {
+            match &event.event_type {
+                EventType::Tap(pt) => {
+                    event.scene.mark_dirty();
+                    event.scene.set_focused(event.target);
+                    if let Some(view) = event.scene.get_view_mut(event.target) {
+                        let name = view.name.clone();
+                        if view.bounds.contains(pt) {
+                            let y = pt.y - view.bounds.y;
+                            let selected = y / MH;
+                            if let Some(state) = view.get_state::<MenuState>() {
+                                if selected >= 0 && selected < state.data.len() as i32 {
+                                    state.selected = selected;
+                                    return Some(Action::Command(state.data[state.selected as usize].clone()));
+                                }
                             }
                         }
                     }
+                    return Some(Action::Command("select".into()))
                 }
-                event.scene.mark_dirty();
-            }
-            EventType::Scroll(dx, dy) => {
-                if *dy > 0 {
-                    scroll_by(event.scene,event.target,1);
-                }
-                if *dy < 0 {
-                    scroll_by(event.scene,event.target,-1);
-                }
-            }
-            EventType::Keyboard(key) => {
-                match *key {
-                    b'j' => {
-                        scroll_by(event.scene, event.target, 1);
+                EventType::Scroll(dx, dy) => {
+                    if *dy > 0 {
+                        scroll_by(event.scene,event.target,1);
                     }
-                    b'k' => {
-                        scroll_by(event.scene, event.target, -1);
-                    }
-                    13 => {
-                        info!("enter")
-                    },
-                    _ => {
-                        info!("other keypress {key}");
+                    if *dy < 0 {
+                        scroll_by(event.scene,event.target,-1);
                     }
                 }
+                EventType::Keyboard(key) => {
+                    match *key {
+                        b'j' => {
+                            scroll_by(event.scene, event.target, 1);
+                        }
+                        b'k' => {
+                            scroll_by(event.scene, event.target, -1);
+                        }
+                        13 => {
+                            info!("enter");
+                            if let Some(state) = event.scene.get_view_state::<MenuState>(event.target) {
+                                return Some(Action::Command(state.data[state.selected as usize].clone()));
+                            }
+                        },
+                        _ => {
+                            info!("other keypress {key}");
+                        }
+                    }
+                }
+                _ => {
+                    info!("unknown event type");
+                }
             }
-            _ => {
-                info!("unknown event type");
-            }
-        }),
+            None
+        }
+        ),
         layout: Some(|scene, name| {
             info!("doing layout on menuview");
             if let Some(view) = scene.get_view_mut(name) {
@@ -115,12 +124,3 @@ fn scroll_by<C, F>(scene: &mut Scene<C, F>, name: &str, amt: i32) {
         scene.mark_dirty();
     }
 }
-//             GuiEvent::TouchEvent(pt) => {
-//                 let pos = pt.sub(self.position);
-//                 let line_height = (BASE_FONT.character_size.height + 2) as i32;
-//                 let index:usize = (pos.y / line_height) as usize;
-//                 if  index < self.items.len() {
-//                     self.highlighted_index = index;
-//                     self.dirty = true;
-//                 }
-//             }
