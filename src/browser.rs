@@ -103,6 +103,31 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
                     "Open URL" => {
                         show_url_panel(event);
                     }
+                    "Bookmarks" => {
+                        //         // show the bookmarks
+                        //         NET_COMMANDS
+                        //             .send(NetCommand::Load("bookmarks.html".to_string()))
+                        //             .await;
+                        event.scene.hide_view(MAIN_MENU);
+                        event.scene.hide_view(BROWSER_MENU);
+                        event.scene.set_focused(PAGE_VIEW);
+                    }
+                    "Back" => {
+                        event.scene.hide_view(MAIN_MENU);
+                        event.scene.hide_view(BROWSER_MENU);
+                        if let Some(state) = event.scene.get_view_state::<PageView>(PAGE_VIEW) {
+                            state.prev_page();
+                        }
+                        event.scene.set_focused(PAGE_VIEW);
+                    }
+                    "Forward" => {
+                        event.scene.hide_view(MAIN_MENU);
+                        event.scene.hide_view(BROWSER_MENU);
+                        if let Some(page_view) = event.scene.get_view_state::<PageView>(PAGE_VIEW) {
+                            page_view.next_page();
+                        }
+                        event.scene.set_focused(PAGE_VIEW);
+                    }
                     "close" => {
                         event.scene.hide_view(BROWSER_MENU);
                         event.scene.set_focused(MAIN_MENU);
@@ -153,89 +178,10 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
 pub fn handle_action<C, F>(event: &mut GuiEvent<C, F>) {
     let panel_bounds = Bounds::new(20, 20, 320 - 40, 240 - 40);
     info!("handle action {}", event.target);
-    // if event.target == MAIN_MENU {
-    // info!("clicked on the main menu");
-    // if menu_item_selected(event, MAIN_MENU, "Theme") {
-    //     show_and_focus(event, THEME_MENU);
-    //     return;
-    // }
-    // if menu_item_selected(event, MAIN_MENU, "Font") {
-    //     show_and_focus(event, FONT_MENU);
-    //     return;
-    // }
-    // }
     if event.scene.is_focused(INFO_BUTTON) {
         info!("clicked the info button");
         event.scene.remove_parent_and_children(INFO_PANEL);
         return;
-    }
-    // if event.scene.is_focused(THEME_MENU) {
-    //     if menu_item_selected(event, THEME_MENU, "Dark") {
-    //         // THEME.insert(DARK_THEME);
-    //         event.scene.mark_dirty();
-    //         return;
-    //     }
-    //     if menu_item_selected(event, THEME_MENU, "Light") {
-    //         // THEME.insert(LIGHT_THEME);
-    //         // scene.set_theme(LIGHT_THEME);
-    //         return;
-    //     }
-    //     if menu_item_selected(event, THEME_MENU, "close") {
-    //         event.scene.hide_view(THEME_MENU);
-    //         event.scene.set_focused(MAIN_MENU);
-    //         return;
-    //     }
-    // }
-    // if event.scene.is_focused(FONT_MENU) {
-    //     if menu_item_selected(event, FONT_MENU, "Small") {
-    //         set_font(FONT_6X13, FONT_6X13_BOLD);
-    //     }
-    //     if menu_item_selected(event, FONT_MENU, "Medium") {
-    //         set_font(FONT_8X13, FONT_8X13_BOLD);
-    //     }
-    //     if menu_item_selected(event, FONT_MENU, "Large") {
-    //         set_font(FONT_9X15, FONT_9X15_BOLD);
-    //     }
-    //     if menu_item_selected(event, FONT_MENU, "close") {
-    //         event.scene.hide_view(FONT_MENU);
-    //         event.scene.set_focused(MAIN_MENU);
-    //         return;
-    //     }
-    // }
-    // if event.scene.is_focused("wifi") {
-    //     if menu_item_selected(event, "wifi", "close") {
-    //         event.scene.hide_view("wifi");
-    //         event.scene.set_focused(MAIN_MENU);
-    //         return;
-    //     }
-    // }
-    if event.scene.is_focused(BROWSER_MENU) {
-        if menu_item_selected(event, BROWSER_MENU, "Bookmarks") {
-            //         // show the bookmarks
-            //         NET_COMMANDS
-            //             .send(NetCommand::Load("bookmarks.html".to_string()))
-            //             .await;
-            event.scene.hide_view(MAIN_MENU);
-            event.scene.hide_view(BROWSER_MENU);
-            event.scene.set_focused(PAGE_VIEW);
-            return;
-        }
-        if menu_item_selected(event, BROWSER_MENU, "Back") {
-            event.scene.hide_view(MAIN_MENU);
-            event.scene.hide_view(BROWSER_MENU);
-            if let Some(state) = event.scene.get_view_state::<PageView>(PAGE_VIEW) {
-                state.prev_page();
-            }
-            event.scene.set_focused(PAGE_VIEW);
-        }
-        if menu_item_selected(event, BROWSER_MENU, "Forward") {
-            event.scene.hide_view(MAIN_MENU);
-            event.scene.hide_view(BROWSER_MENU);
-            if let Some(page_view) = event.scene.get_view_state::<PageView>(PAGE_VIEW) {
-                page_view.next_page();
-            }
-            event.scene.set_focused(PAGE_VIEW);
-        }
     }
     if event.scene.is_focused("url-input") {
         if let Some(view) = event.scene.get_view_mut("url-input") {
