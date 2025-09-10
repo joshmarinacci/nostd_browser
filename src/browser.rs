@@ -90,6 +90,17 @@ pub fn handle_action2<C,F>(event: &mut GuiEvent<C, F>) {
                     }
                 }
             }
+            if event.target == BROWSER_MENU {
+                match cmd.as_str() {
+                    "close" => {
+                        event.scene.hide_view(BROWSER_MENU);
+                        event.scene.set_focused(MAIN_MENU);
+                    }
+                    _ => {
+                        info!("unknown menu item");
+                    }
+                }
+            }
             if event.target == WIFI_MENU {
                 match cmd.as_str() {
                     "status" => info!("status"),
@@ -176,17 +187,17 @@ pub fn handle_action<C, F>(event: &mut GuiEvent<C, F>) {
     //     }
     // }
     if event.scene.is_focused(BROWSER_MENU) {
-        if menu_item_selected(event, "browser", "Bookmarks") {
+        if menu_item_selected(event, BROWSER_MENU, "Bookmarks") {
             //         // show the bookmarks
             //         NET_COMMANDS
             //             .send(NetCommand::Load("bookmarks.html".to_string()))
             //             .await;
             event.scene.hide_view(MAIN_MENU);
-            event.scene.hide_view("browser");
+            event.scene.hide_view(BROWSER_MENU);
             event.scene.set_focused(PAGE_VIEW);
             return;
         }
-        if menu_item_selected(event, "browser", "Open URL") {
+        if menu_item_selected(event, BROWSER_MENU, "Open URL") {
             let panel = make_panel(URL_PANEL, panel_bounds);
             event.scene.add_view_to_parent(
                 make_label("url-label", "URL")
@@ -196,30 +207,25 @@ pub fn handle_action<C, F>(event: &mut GuiEvent<C, F>) {
             let button = make_button("url-button", "load").position_at(160 - 20, 200 - 20);
             event.scene.add_view_to_parent(button, &panel.name);
             event.scene.add_view_to_root(panel);
-            event.scene.hide_view("browser");
+            event.scene.hide_view(BROWSER_MENU);
             event.scene.set_focused("url-input");
             return;
         }
-        if menu_item_selected(event, "browser", "Back") {
+        if menu_item_selected(event, BROWSER_MENU, "Back") {
             event.scene.hide_view(MAIN_MENU);
-            event.scene.hide_view("browser");
+            event.scene.hide_view(BROWSER_MENU);
             if let Some(state) = event.scene.get_view_state::<PageView>(PAGE_VIEW) {
                 state.prev_page();
             }
             event.scene.set_focused(PAGE_VIEW);
         }
-        if menu_item_selected(event, "browser", "Forward") {
+        if menu_item_selected(event, BROWSER_MENU, "Forward") {
             event.scene.hide_view(MAIN_MENU);
-            event.scene.hide_view("browser");
+            event.scene.hide_view(BROWSER_MENU);
             if let Some(page_view) = event.scene.get_view_state::<PageView>(PAGE_VIEW) {
                 page_view.next_page();
             }
             event.scene.set_focused(PAGE_VIEW);
-        }
-        if menu_item_selected(event, "browser", "close") {
-            event.scene.hide_view("browser");
-            event.scene.set_focused(MAIN_MENU);
-            return;
         }
     }
     if event.scene.is_focused("url-input") {
@@ -231,7 +237,7 @@ pub fn handle_action<C, F>(event: &mut GuiEvent<C, F>) {
         }
         event.scene.remove_parent_and_children(URL_PANEL);
         event.scene.hide_view(MAIN_MENU);
-        event.scene.hide_view("browser");
+        event.scene.hide_view(BROWSER_MENU);
         event.scene.set_focused(PAGE_VIEW);
         return;
     }
