@@ -209,7 +209,7 @@ async fn main(spawner: Spawner) {
 // const TEXT_INPUT: &str = "textinput";
 
 fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
-    let mut scene = Scene::new();
+    let mut scene = Scene::new_with_bounds(Bounds::new(0,0,320,240));
 
     let panel = make_panel("panel", Bounds::new(20, 20, 260, 200));
     scene.add_view_to_root(panel);

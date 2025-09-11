@@ -38,7 +38,7 @@ use esp_wifi::wifi::{
     WifiState,
 };
 use esp_wifi::{init, EspWifiController};
-use gui2::{click_at, draw_scene, scroll_at_focused, type_at_focused, Callback, EventType, GuiEvent, Scene, Theme};
+use gui2::{action_at_focused, click_at, draw_scene, scroll_at_focused, type_at_focused, Callback, EventType, GuiEvent, Scene, Theme};
 use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
@@ -301,7 +301,7 @@ async fn update_display(mut wrapper: Wrapper) {
     });
 
     let mut last_touch_event: Option<gt911::Point> = None;
-    scene.focused = Some(PAGE_VIEW.into());
+    scene.set_focused(PAGE_VIEW);
     loop {
         let theme: Theme<Rgb565, MonoFont> = Theme {
             bg: state.theme.base_bg,
@@ -337,7 +337,7 @@ async fn update_display(mut wrapper: Wrapper) {
 
         wrapper.poll_trackball();
         if wrapper.click.changed {
-            click_at_focused(&mut scene, &handlers);
+            action_at_focused(&mut scene, &handlers);
         }
         if wrapper.up.changed {
             scroll_at_focused(&mut scene, &handlers, 0, -1);
@@ -346,6 +346,7 @@ async fn update_display(mut wrapper: Wrapper) {
             scroll_at_focused(&mut scene, &handlers, 0, 1);
         }
         let mut ctx: EmbeddedDrawingContext = EmbeddedDrawingContext::new(&mut wrapper.display);
+        ctx.clip = scene.dirty_rect.clone();
         draw_scene(&mut scene, &mut ctx, &theme);
         Timer::after(Duration::from_millis(20)).await;
     }
@@ -452,27 +453,5 @@ async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
             }
         }
         Timer::after(Duration::from_millis(100)).await;
-    }
-}
-
-
-fn click_at_focused<C, F>(scene: &mut Scene<C, F>, handlers: &Vec<Callback<C, F>>) {
-    if scene.focused.is_none() {
-        return
-    }
-    let focused = scene.focused.as_ref().unwrap().clone();
-    let mut event: GuiEvent<C, F> = GuiEvent {
-        scene: scene,
-        target: &focused,
-        event_type: EventType::Action(),
-        action: None,
-    };
-    if let Some(view) = &event.scene.get_view(&focused) {
-        if let Some(input) = view.input {
-            event.action = input(&mut event);
-        }
-        for cb in handlers {
-            cb(&mut event);
-        }
     }
 }

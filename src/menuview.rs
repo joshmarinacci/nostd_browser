@@ -33,10 +33,10 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
             if let Some(state) = &view.get_state::<MenuState>() {
                 for (i, item) in (&state.data).iter().enumerate() {
                     let b = Bounds {
-                        x: bounds.x + 5,
+                        x: bounds.x,
                         y: bounds.y + (i as i32) * MH,
                         w: bounds.w,
-                        h: 20,
+                        h: MH-1,
                     };
                     if state.selected == (i as i32) {
                         ctx.fill_rect(&b, &theme.fg);
@@ -51,7 +51,6 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
         input: Some(|event| {
             match &event.event_type {
                 EventType::Tap(pt) => {
-                    event.scene.mark_dirty();
                     event.scene.set_focused(event.target);
                     if let Some(view) = event.scene.get_view_mut(event.target) {
                         let name = view.name.clone();
@@ -126,6 +125,6 @@ fn scroll_by<C, F>(scene: &mut Scene<C, F>, name: &str, amt: i32) {
     if let Some(state) = scene.get_view_state::<MenuState>(name) {
         let len = state.data.len() as i32;
         state.selected = (state.selected  + amt + len) % len;
-        scene.mark_dirty();
+        scene.mark_dirty_view(name);
     }
 }

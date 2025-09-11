@@ -107,7 +107,7 @@ static SPI_BUS: StaticCell<RefCell<Spi<Blocking>>> = StaticCell::new();
 
 pub struct EmbeddedDrawingContext<'a> {
     pub display: &'a mut TDeckDisplay,
-    clip: Bounds,
+    pub clip: Bounds,
 }
 
 impl EmbeddedDrawingContext<'_> {
@@ -122,20 +122,17 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
     }
 
     fn fill_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
-        let pt = EGPoint::new(bounds.x, bounds.y);
-        let size = EGSize::new(bounds.w as u32, bounds.h as u32);
-        Rectangle::new(pt, size)
-            .intersection(&bounds_to_rect(self.clip))
+        // info!("fill rect {:?} {:?}", bounds, self.clip );
+        bounds_to_rect(bounds)
+            .intersection(&bounds_to_rect(&self.clip))
             .into_styled(PrimitiveStyle::with_fill(*color))
             .draw(self.display)
             .unwrap();
     }
 
     fn stroke_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
-        let pt = embedded_graphics::geometry::Point::new(bounds.x, bounds.y);
-        let size = Size::new(bounds.w as u32, bounds.h as u32);
-        Rectangle::new(pt, size)
-            .intersection(&bounds_to_rect(self.clip))
+        bounds_to_rect(bounds)
+            .intersection(&bounds_to_rect(&self.clip))
             .into_styled(PrimitiveStyle::with_stroke(*color, 1))
             .draw(self.display)
             .unwrap();
@@ -163,8 +160,8 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
     }
 }
 
-fn bounds_to_rect(bounds: Bounds) -> Rectangle {
-    return Rectangle::new(EGPoint::new(bounds.x,bounds.y), EGSize::new(bounds.w as u32,bounds.y as u32));
+fn bounds_to_rect(bounds: &Bounds) -> Rectangle {
+    Rectangle::new(EGPoint::new(bounds.x,bounds.y), EGSize::new(bounds.w as u32, bounds.h as u32))
 }
 // pub struct DummyTimesource();
 

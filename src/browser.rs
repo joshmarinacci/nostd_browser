@@ -150,10 +150,6 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
                     }
                 }
             }
-            if event.target == WIFI_BUTTON {
-                event.scene.remove_parent_and_children(WIFI_PANEL);
-                event.scene.set_focused(PAGE_VIEW);
-            }
         }
         Some(Action::Generic) => {
             info!("handling generic");
@@ -167,6 +163,10 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
             }
             if event.target == "url-load-button" {
                 event.scene.remove_parent_and_children(URL_PANEL);
+                event.scene.set_focused(PAGE_VIEW);
+            }
+            if event.target == WIFI_BUTTON {
+                event.scene.remove_parent_and_children(WIFI_PANEL);
                 event.scene.set_focused(PAGE_VIEW);
             }
         }
@@ -331,7 +331,7 @@ fn menu_item_selected<C, F>(event: &mut GuiEvent<C, F>, name: &str, text: &str) 
 }
 
 pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
-    let mut scene = Scene::new();
+    let mut scene = Scene::new_with_bounds(Bounds::new(0,0,320,240));
 
     let panel = make_panel("panel", Bounds::new(20, 20, 260, 200));
     scene.add_view_to_root(panel);
