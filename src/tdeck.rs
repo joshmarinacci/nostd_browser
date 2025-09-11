@@ -6,7 +6,7 @@ use embedded_graphics::geometry::Size;
 use embedded_graphics::mono_font::ascii::FONT_6X10;
 use embedded_graphics::mono_font::{MonoFont, MonoTextStyle};
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::{OriginDimensions, Primitive, Point as EGPoint, Size as EGSize};
+use embedded_graphics::prelude::{OriginDimensions, Primitive, Point as EGPoint, Size as EGSize, DrawTargetExt};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
@@ -122,28 +122,23 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
     }
 
     fn fill_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
-        // info!("fill rect {:?} {:?}", bounds, self.clip );
+        let mut display = self.display.clipped(&bounds_to_rect(&self.clip));
         bounds_to_rect(bounds)
-            .intersection(&bounds_to_rect(&self.clip))
             .into_styled(PrimitiveStyle::with_fill(*color))
-            .draw(self.display)
+            .draw(&mut display)
             .unwrap();
     }
 
     fn stroke_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
+        let mut display = self.display.clipped(&bounds_to_rect(&self.clip));
         bounds_to_rect(bounds)
-            .intersection(&bounds_to_rect(&self.clip))
             .into_styled(PrimitiveStyle::with_stroke(*color, 1))
-            .draw(self.display)
+            .draw(&mut display)
             .unwrap();
     }
 
     fn fill_text(&mut self, bounds: &Bounds, text: &str, color: &Rgb565, halign: &HAlign) {
-        let db = bounds_to_rect(bounds)
-            .intersection(&bounds_to_rect(&self.clip));
-        if db.is_zero_sized() {
-            return;
-        }
+        let mut display = self.display.clipped(&bounds_to_rect(&self.clip));
 
         let style = MonoTextStyle::new(&FONT_6X10, *color);
         let mut pt = embedded_graphics::geometry::Point::new(bounds.x, bounds.y);
@@ -162,7 +157,7 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
             HAlign::Right => {}
         }
 
-        Text::new(text, pt, style).draw(self.display).unwrap();
+        Text::new(text, pt, style).draw(&mut display).unwrap();
     }
 }
 
