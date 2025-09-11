@@ -38,9 +38,7 @@ use esp_wifi::wifi::{
     WifiState,
 };
 use esp_wifi::{init, EspWifiController};
-use gui2::{
-    click_at, draw_scene, scroll_at_focused, type_at_focused, Callback, EventType, Scene, Theme,
-};
+use gui2::{click_at, draw_scene, scroll_at_focused, type_at_focused, Callback, EventType, GuiEvent, Scene, Theme};
 use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
@@ -338,6 +336,9 @@ async fn update_display(mut wrapper: Wrapper) {
         }
 
         wrapper.poll_trackball();
+        if wrapper.click.changed {
+            click_at_focused(&mut scene, &handlers);
+        }
         if wrapper.up.changed {
             scroll_at_focused(&mut scene, &handlers, 0, -1);
         }
@@ -451,5 +452,25 @@ async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
             }
         }
         Timer::after(Duration::from_millis(100)).await;
+    }
+}
+
+
+fn click_at_focused<C, F>(scene: &mut Scene<C, F>, handlers: &Vec<Callback<C, F>>) {
+    if let Some(focused) = &scene.focused {
+        if let Some(view) = &mut scene.get_view(focused) {
+            let mut event: GuiEvent<C, F> = GuiEvent {
+                scene: scene,
+                target: &focused,
+                event_type: EventType::Action(),
+                action: None,
+            };
+            if let Some(input) = view.input {
+                event.action = input(&mut event);
+            }
+            for cb in handlers {
+                cb(&mut event);
+            }
+        }
     }
 }

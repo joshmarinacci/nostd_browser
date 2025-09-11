@@ -95,6 +95,11 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
                         }
                     }
                 }
+                EventType::Action() => {
+                    if let Some(state) = event.scene.get_view_state::<MenuState>(event.target) {
+                        return Some(Action::Command(state.data[state.selected as usize].clone()));
+                    }
+                }
                 _ => {
                     info!("unknown event type");
                 }

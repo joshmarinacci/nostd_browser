@@ -26,7 +26,7 @@ use gt911::{Error as Gt911Error, Gt911, Gt911Blocking, Point as TouchPoint};
 use gui2::geom::Bounds;
 use gui2::{DrawingContext, HAlign};
 use heapless::Vec;
-use log::info;
+use log::{error, info};
 use mipidsi::interface::SpiInterface;
 use mipidsi::models::ST7789;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
@@ -118,7 +118,7 @@ impl EmbeddedDrawingContext<'_> {
 
 impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
     fn clear(&mut self, color: &Rgb565) {
-        self.display.clear(*color).unwrap();
+        error!("dont use clear");
     }
 
     fn fill_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
