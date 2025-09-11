@@ -319,7 +319,7 @@ async fn update_display(mut wrapper: Wrapper) {
                     }
                 }
             }
-            scene.dirty = true;
+            scene.mark_dirty_view(PAGE_VIEW);
             info!("heap is {}", esp_alloc::HEAP.stats());
         }
         if let Ok(point) = wrapper.touch.get_touch(&mut wrapper.i2c) {

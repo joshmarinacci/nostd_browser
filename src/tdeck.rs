@@ -139,6 +139,12 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
     }
 
     fn fill_text(&mut self, bounds: &Bounds, text: &str, color: &Rgb565, halign: &HAlign) {
+        let db = bounds_to_rect(bounds)
+            .intersection(&bounds_to_rect(&self.clip));
+        if db.is_zero_sized() {
+            return;
+        }
+
         let style = MonoTextStyle::new(&FONT_6X10, *color);
         let mut pt = embedded_graphics::geometry::Point::new(bounds.x, bounds.y);
         pt.y += bounds.h / 2;
