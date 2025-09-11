@@ -247,6 +247,7 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
 }
 
 fn handle_input<C, F>(event: &mut GuiEvent<C, F>) -> Option<Action>{
+    event.scene.mark_dirty_view(event.target);
     if let Some(state) = event.scene.get_view_state::<PageView>(event.target) {
         match event.event_type {
             EventType::Keyboard(key) => {

@@ -150,9 +150,28 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
                     }
                 }
             }
+            if event.target == "url-input" {
+                info!("url input {}", cmd);
+                if let Some(view) = event.scene.get_view_mut("url-input") {
+                    info!("got the text {:?}", view.title);
+                    // NET_COMMANDS
+                    //     .send(NetCommand::Load(view.title.to_string()))
+                    // .await;
+                }
+                event.scene.remove_parent_and_children(URL_PANEL);
+                event.scene.hide_view(MAIN_MENU);
+                event.scene.hide_view(BROWSER_MENU);
+                event.scene.set_focused(PAGE_VIEW);
+                return;
+            }
         }
         Some(Action::Generic) => {
             info!("handling generic");
+            if event.target == INFO_BUTTON {
+                event.scene.remove_parent_and_children(INFO_PANEL);
+                event.scene.set_focused(PAGE_VIEW);
+                return;
+            }
             if event.target == "settings-close-button" {
                 event.scene.remove_parent_and_children(SETTINGS_PANEL);
                 event.scene.set_focused(PAGE_VIEW);
@@ -174,34 +193,8 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
             info!("no action")
         }
     }
-}
-pub fn handle_action<C, F>(event: &mut GuiEvent<C, F>) {
-    let panel_bounds = Bounds::new(20, 20, 320 - 40, 240 - 40);
-    info!("handle action {}", event.target);
-    if event.scene.is_focused(INFO_BUTTON) {
-        info!("clicked the info button");
-        event.scene.remove_parent_and_children(INFO_PANEL);
-        return;
-    }
-    if event.scene.is_focused("url-input") {
-        if let Some(view) = event.scene.get_view_mut("url-input") {
-            info!("got the text {:?}", view.title);
-            // NET_COMMANDS
-            //     .send(NetCommand::Load(view.title.to_string()))
-            // .await;
-        }
-        event.scene.remove_parent_and_children(URL_PANEL);
-        event.scene.hide_view(MAIN_MENU);
-        event.scene.hide_view(BROWSER_MENU);
-        event.scene.set_focused(PAGE_VIEW);
-        return;
-    }
-    if event.scene.is_focused("url-button") {
-        info!("clicked the button");
-        return;
-    }
-}
 
+}
 fn show_url_panel<C, F>(event: &mut GuiEvent<C, F>) {
     let panel = make_panel(URL_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
     event.scene.add_view_to_parent(
