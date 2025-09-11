@@ -6,7 +6,7 @@ use embedded_graphics::geometry::Size;
 use embedded_graphics::mono_font::ascii::FONT_6X10;
 use embedded_graphics::mono_font::{MonoFont, MonoTextStyle};
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::Primitive;
+use embedded_graphics::prelude::{OriginDimensions, Primitive, Point as EGPoint, Size as EGSize};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
@@ -22,7 +22,7 @@ use esp_hal::spi::master::{Config as SpiConfig, Spi};
 use esp_hal::time::Rate;
 use esp_hal::timer::timg::{Timer, TimerGroup};
 use esp_hal::Blocking;
-use gt911::{Error as Gt911Error, Gt911, Gt911Blocking, Point};
+use gt911::{Error as Gt911Error, Gt911, Gt911Blocking, Point as TouchPoint};
 use gui2::geom::Bounds;
 use gui2::{DrawingContext, HAlign};
 use heapless::Vec;
@@ -98,7 +98,7 @@ impl Wrapper {
         self.click.poll();
     }
 
-    pub fn poll_touchscreen(&mut self) -> Result<Vec<Point, 5>, Gt911Error<Error>> {
+    pub fn poll_touchscreen(&mut self) -> Result<Vec<TouchPoint, 5>, Gt911Error<Error>> {
         self.touch.get_multi_touch(&mut self.i2c)
     }
 }
@@ -107,11 +107,12 @@ static SPI_BUS: StaticCell<RefCell<Spi<Blocking>>> = StaticCell::new();
 
 pub struct EmbeddedDrawingContext<'a> {
     pub display: &'a mut TDeckDisplay,
+    clip: Bounds,
 }
 
 impl EmbeddedDrawingContext<'_> {
     pub fn new(display: &mut TDeckDisplay) -> EmbeddedDrawingContext {
-        EmbeddedDrawingContext { display }
+        EmbeddedDrawingContext { display, clip: Bounds::new_empty() }
     }
 }
 
@@ -121,9 +122,10 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
     }
 
     fn fill_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
-        let pt = embedded_graphics::geometry::Point::new(bounds.x, bounds.y);
-        let size = Size::new(bounds.w as u32, bounds.h as u32);
+        let pt = EGPoint::new(bounds.x, bounds.y);
+        let size = EGSize::new(bounds.w as u32, bounds.h as u32);
         Rectangle::new(pt, size)
+            .intersection(&bounds_to_rect(self.clip))
             .into_styled(PrimitiveStyle::with_fill(*color))
             .draw(self.display)
             .unwrap();
@@ -133,6 +135,7 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
         let pt = embedded_graphics::geometry::Point::new(bounds.x, bounds.y);
         let size = Size::new(bounds.w as u32, bounds.h as u32);
         Rectangle::new(pt, size)
+            .intersection(&bounds_to_rect(self.clip))
             .into_styled(PrimitiveStyle::with_stroke(*color, 1))
             .draw(self.display)
             .unwrap();
@@ -148,7 +151,7 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
 
         match halign {
             HAlign::Left => {
-                pt.x += 0;
+                pt.x += 5;
             }
             HAlign::Center => {
                 pt.x += (bounds.w - w) / 2;
@@ -160,6 +163,9 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
     }
 }
 
+fn bounds_to_rect(bounds: Bounds) -> Rectangle {
+    return Rectangle::new(EGPoint::new(bounds.x,bounds.y), EGSize::new(bounds.w as u32,bounds.y as u32));
+}
 // pub struct DummyTimesource();
 
 // impl TimeSource for DummyTimesource {
