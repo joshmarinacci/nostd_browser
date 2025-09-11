@@ -17,6 +17,7 @@ use gui2::geom::Bounds;
 use gui2::{connect_parent_child, Action, EventType, GuiEvent, Scene};
 use log::info;
 use nostd_html_parser::blocks::{Block, BlockType};
+use crate::comps::{make_rect_view, make_toggle_button};
 
 const MAIN_MENU: &'static str = "main";
 const BROWSER_MENU: &'static str = "browser";
@@ -67,7 +68,7 @@ pub const DARK_THEME: AppTheme = AppTheme {
     shadow: false,
 };
 
-pub const THEME: Option<Box<&AppTheme>> = None;
+pub const ACTIVE_THEME: Option<Box<&AppTheme>> = None;
 
 pub struct AppState {
     pub theme: AppTheme,
@@ -188,6 +189,14 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
                 event.scene.remove_parent_and_children(WIFI_PANEL);
                 event.scene.set_focused(PAGE_VIEW);
             }
+            if event.target == "settings-theme-light" {
+                info!("switching to the light theme");
+                ACTIVE_THEME.insert(Box::new(&LIGHT_THEME));
+            }
+            if event.target == "settings-theme-dark" {
+                info!("switching to the dark theme");
+                ACTIVE_THEME.insert(Box::new(&DARK_THEME));
+            }
         }
         None => {
             info!("no action")
@@ -260,7 +269,6 @@ fn show_info_panel<C, F>(event: &mut GuiEvent<C, F>) {
     event.scene.hide_view(MAIN_MENU);
     event.scene.set_focused(INFO_BUTTON);
 }
-
 fn show_wifi_panel<C, F>(event: &mut GuiEvent<C, F>) {
     let panel = make_panel(WIFI_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
     let label1a = make_label("wifi-label1a", "SSID").position_at(60, 80);
@@ -281,7 +289,6 @@ fn show_wifi_panel<C, F>(event: &mut GuiEvent<C, F>) {
     event.scene.hide_view(MAIN_MENU);
     event.scene.set_focused(WIFI_BUTTON);
 }
-
 fn show_settings_panel<C, F>(event: &mut GuiEvent<C, F>) {
     info!("showing settings panel");
     let panel = make_panel(SETTINGS_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
@@ -290,11 +297,11 @@ fn show_settings_panel<C, F>(event: &mut GuiEvent<C, F>) {
         &panel.name,
     );
     event.scene.add_view_to_parent(
-        make_button("settings-theme-light", "Light").position_at(100, 40),
+        make_toggle_button("settings-theme-light", "Light").position_at(100, 40),
         &panel.name,
     );
     event.scene.add_view_to_parent(
-        make_button("settings-theme-dark", "Dark").position_at(200, 40),
+        make_toggle_button("settings-theme-dark", "Dark").position_at(200, 40),
         &panel.name,
     );
     event.scene.add_view_to_parent(
@@ -311,16 +318,6 @@ fn show_settings_panel<C, F>(event: &mut GuiEvent<C, F>) {
         &panel.name,
     );
     event.scene.add_view_to_root(panel);
-}
-
-fn menu_item_selected<C, F>(event: &mut GuiEvent<C, F>, name: &str, text: &str) -> bool {
-    if let Some(state) = event.scene.get_view_state::<MenuState>(name) {
-        let selected_text = &state.data[state.selected as usize];
-        if selected_text == text {
-            return true;
-        }
-    }
-    false
 }
 
 pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
@@ -405,8 +402,9 @@ pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
 
     scene.set_focused(PAGE_VIEW);
 
-    // let info_panel_bounds = Rectangle::new(Point::new(120, 210), Size::new(200, 30));
     // scene.add("status", OverlayLabel::new("some info", info_panel_bounds));
+    let overlay = make_rect_view("touch-overlay");
+    scene.add_view_to_root(overlay);
     scene
 }
 

@@ -46,7 +46,7 @@ use gui2::geom::{Bounds, Point as GPoint};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder, Display, NoResetPin};
-use nostd_browser::browser::{make_gui_scene, update_view_from_input, AppState, AppTheme, DARK_THEME, LIGHT_THEME, PAGE_VIEW, THEME};
+use nostd_browser::browser::{make_gui_scene, update_view_from_input, AppState, AppTheme, DARK_THEME, LIGHT_THEME, PAGE_VIEW, ACTIVE_THEME};
 use nostd_browser::common::{
     NetCommand, NetStatus, TDeckDisplay, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL,
 };
@@ -290,9 +290,6 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
 #[embassy_executor::task]
 async fn update_display(mut wrapper: Wrapper) {
     let mut scene = make_gui_scene();
-    let state:AppState = AppState {
-        theme: LIGHT_THEME,
-    };
 
     let mut handlers: Vec<Callback<Rgb565, MonoFont>> = vec![];
     handlers.push(|event| {
@@ -300,15 +297,26 @@ async fn update_display(mut wrapper: Wrapper) {
         update_view_from_input(event);
     });
 
+    let default_theme = Theme {
+        panel_bg: Rgb565::WHITE,
+        fg:Rgb565::BLACK,
+        bg:Rgb565::WHITE,
+        font: FONT_9X15,
+        bold_font: FONT_9X15_BOLD,
+    };
     let mut last_touch_event: Option<gt911::Point> = None;
     scene.set_focused(PAGE_VIEW);
     loop {
-        let theme: Theme<Rgb565, MonoFont> = Theme {
-            bg: state.theme.base_bg,
-            fg: state.theme.base_fg,
-            panel_bg: state.theme.base_bg,
-            font: state.theme.font,
-            bold_font: state.theme.bold,
+        let theme:&Theme<Rgb565, MonoFont> = if let Some(active_theme) = ACTIVE_THEME {
+            &Theme {
+                bg: active_theme.base_bg,
+                fg: active_theme.base_fg,
+                panel_bg: active_theme.base_bg,
+                font: active_theme.font,
+                bold_font: active_theme.bold,
+            }
+        } else {
+            &default_theme
         };
 
         if let Ok(page) = PAGE_CHANNEL.try_receive() {
@@ -326,6 +334,10 @@ async fn update_display(mut wrapper: Wrapper) {
             if let None = &point {
                 if let Some(point) = last_touch_event {
                     let pt = GPoint::new(320 - point.y as i32, 240 - point.x as i32);
+                    if let Some(overlay) = scene.get_view_mut("touch-overlay")	{
+                        overlay.bounds = overlay.bounds.center_at(pt.x,pt.y);
+                        scene.mark_dirty_view("touch-overlay");
+                    }
                     click_at(&mut scene, &mut handlers, pt);
                 }
             }
