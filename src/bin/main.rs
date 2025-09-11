@@ -457,20 +457,22 @@ async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
 
 
 fn click_at_focused<C, F>(scene: &mut Scene<C, F>, handlers: &Vec<Callback<C, F>>) {
-    if let Some(focused) = &scene.focused {
-        if let Some(view) = &mut scene.get_view(focused) {
-            let mut event: GuiEvent<C, F> = GuiEvent {
-                scene: scene,
-                target: &focused,
-                event_type: EventType::Action(),
-                action: None,
-            };
-            if let Some(input) = view.input {
-                event.action = input(&mut event);
-            }
-            for cb in handlers {
-                cb(&mut event);
-            }
+    if scene.focused.is_none() {
+        return
+    }
+    let focused = scene.focused.as_ref().unwrap().clone();
+    let mut event: GuiEvent<C, F> = GuiEvent {
+        scene: scene,
+        target: &focused,
+        event_type: EventType::Action(),
+        action: None,
+    };
+    if let Some(view) = &event.scene.get_view(&focused) {
+        if let Some(input) = view.input {
+            event.action = input(&mut event);
+        }
+        for cb in handlers {
+            cb(&mut event);
         }
     }
 }
