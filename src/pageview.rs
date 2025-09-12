@@ -246,7 +246,7 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
     }
 }
 
-fn handle_input<C, F>(event: &mut GuiEvent<C, F>) -> Option<Action>{
+fn handle_input<C, F>(event: &mut GuiEvent<C, F>) -> Option<Action> {
     event.scene.mark_dirty_view(event.target);
     if let Some(state) = event.scene.get_view_state::<PageView>(event.target) {
         match event.event_type {
@@ -255,11 +255,11 @@ fn handle_input<C, F>(event: &mut GuiEvent<C, F>) -> Option<Action>{
                     b'j' => {
                         let page = state.get_current_rendered_page();
                         page.scroll_index = (page.scroll_index + 10) % (page.lines.len() as i32)
-                    },
+                    }
                     b'k' => {
                         let page = state.get_current_rendered_page();
                         page.scroll_index = max(page.scroll_index - 10, 0)
-                    },
+                    }
                     b'a' => state.prev_link(),
                     b's' => state.next_link(),
                     13 => state.nav_current_link(),
@@ -269,7 +269,7 @@ fn handle_input<C, F>(event: &mut GuiEvent<C, F>) -> Option<Action>{
                 }
                 state.dirty = true
             }
-            EventType::Scroll(dx,dy) => {
+            EventType::Scroll(dx, dy) => {
                 if (dx < 0) || (dy < 0) {
                     state.prev_link();
                 };

@@ -36,7 +36,7 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
                         x: bounds.x,
                         y: bounds.y + (i as i32) * MH,
                         w: bounds.w,
-                        h: MH-1,
+                        h: MH - 1,
                     };
                     if state.selected == (i as i32) {
                         ctx.fill_rect(&b, &theme.fg);
@@ -60,40 +60,42 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
                             if let Some(state) = view.get_state::<MenuState>() {
                                 if selected >= 0 && selected < state.data.len() as i32 {
                                     state.selected = selected;
-                                    return Some(Action::Command(state.data[state.selected as usize].clone()));
+                                    return Some(Action::Command(
+                                        state.data[state.selected as usize].clone(),
+                                    ));
                                 }
                             }
                         }
                     }
-                    return Some(Action::Command("select".into()))
+                    return Some(Action::Command("select".into()));
                 }
                 EventType::Scroll(dx, dy) => {
                     if *dy > 0 {
-                        scroll_by(event.scene,event.target,1);
+                        scroll_by(event.scene, event.target, 1);
                     }
                     if *dy < 0 {
-                        scroll_by(event.scene,event.target,-1);
+                        scroll_by(event.scene, event.target, -1);
                     }
                 }
-                EventType::Keyboard(key) => {
-                    match *key {
-                        b'j' => {
-                            scroll_by(event.scene, event.target, 1);
-                        }
-                        b'k' => {
-                            scroll_by(event.scene, event.target, -1);
-                        }
-                        13 => {
-                            info!("enter");
-                            if let Some(state) = event.scene.get_view_state::<MenuState>(event.target) {
-                                return Some(Action::Command(state.data[state.selected as usize].clone()));
-                            }
-                        },
-                        _ => {
-                            info!("other keypress {key}");
+                EventType::Keyboard(key) => match *key {
+                    b'j' => {
+                        scroll_by(event.scene, event.target, 1);
+                    }
+                    b'k' => {
+                        scroll_by(event.scene, event.target, -1);
+                    }
+                    13 => {
+                        info!("enter");
+                        if let Some(state) = event.scene.get_view_state::<MenuState>(event.target) {
+                            return Some(Action::Command(
+                                state.data[state.selected as usize].clone(),
+                            ));
                         }
                     }
-                }
+                    _ => {
+                        info!("other keypress {key}");
+                    }
+                },
                 EventType::Action() => {
                     if let Some(state) = event.scene.get_view_state::<MenuState>(event.target) {
                         return Some(Action::Command(state.data[state.selected as usize].clone()));
@@ -104,8 +106,7 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
                 }
             }
             None
-        }
-        ),
+        }),
         layout: Some(|scene, name| {
             info!("doing layout on menuview");
             if let Some(view) = scene.get_view_mut(name) {
@@ -124,7 +125,7 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
 fn scroll_by<C, F>(scene: &mut Scene<C, F>, name: &str, amt: i32) {
     if let Some(state) = scene.get_view_state::<MenuState>(name) {
         let len = state.data.len() as i32;
-        state.selected = (state.selected  + amt + len) % len;
+        state.selected = (state.selected + amt + len) % len;
         scene.mark_dirty_view(name);
     }
 }

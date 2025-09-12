@@ -38,7 +38,10 @@ use esp_wifi::wifi::{
     WifiState,
 };
 use esp_wifi::{init, EspWifiController};
-use gui2::{action_at_focused, click_at, draw_scene, scroll_at_focused, type_at_focused, Callback, EventType, GuiEvent, Scene, Theme};
+use gui2::{
+    action_at_focused, click_at, draw_scene, scroll_at_focused, type_at_focused, Callback,
+    EventType, GuiEvent, Scene, Theme,
+};
 use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
@@ -46,7 +49,10 @@ use gui2::geom::{Bounds, Point as GPoint};
 use mipidsi::interface::SpiInterface;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::{models::ST7789, Builder, Display, NoResetPin};
-use nostd_browser::browser::{make_gui_scene, update_view_from_input, AppState, AppTheme, DARK_THEME, LIGHT_THEME, PAGE_VIEW, ACTIVE_THEME};
+use nostd_browser::browser::{
+    make_gui_scene, update_view_from_input, AppState, AppTheme, ACTIVE_THEME, DARK_THEME,
+    LIGHT_THEME, PAGE_VIEW,
+};
 use nostd_browser::common::{
     NetCommand, NetStatus, TDeckDisplay, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL,
 };
@@ -299,15 +305,15 @@ async fn update_display(mut wrapper: Wrapper) {
 
     let default_theme = Theme {
         panel_bg: Rgb565::WHITE,
-        fg:Rgb565::BLACK,
-        bg:Rgb565::WHITE,
+        fg: Rgb565::BLACK,
+        bg: Rgb565::WHITE,
         font: FONT_9X15,
         bold_font: FONT_9X15_BOLD,
     };
     let mut last_touch_event: Option<gt911::Point> = None;
     scene.set_focused(PAGE_VIEW);
     loop {
-        let theme:&Theme<Rgb565, MonoFont> = if let Some(active_theme) = ACTIVE_THEME {
+        let theme: &Theme<Rgb565, MonoFont> = if let Some(active_theme) = ACTIVE_THEME {
             &Theme {
                 bg: active_theme.base_bg,
                 fg: active_theme.base_fg,
@@ -334,8 +340,8 @@ async fn update_display(mut wrapper: Wrapper) {
             if let None = &point {
                 if let Some(point) = last_touch_event {
                     let pt = GPoint::new(320 - point.y as i32, 240 - point.x as i32);
-                    if let Some(overlay) = scene.get_view_mut("touch-overlay")	{
-                        overlay.bounds = overlay.bounds.center_at(pt.x,pt.y);
+                    if let Some(overlay) = scene.get_view_mut("touch-overlay") {
+                        overlay.bounds = overlay.bounds.center_at(pt.x, pt.y);
                         scene.mark_dirty_view("touch-overlay");
                     }
                     click_at(&mut scene, &mut handlers, pt);

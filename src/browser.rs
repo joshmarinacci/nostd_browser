@@ -1,7 +1,9 @@
 use crate::common::{NetCommand, TDeckDisplay, NET_COMMANDS};
+use crate::comps::make_rect_view;
 use crate::menuview::{make_menuview, MenuState};
 use crate::page::Page;
 use crate::pageview::PageView;
+use crate::toggle_button::make_toggle_button;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::{format, vec};
@@ -17,7 +19,6 @@ use gui2::geom::Bounds;
 use gui2::{connect_parent_child, Action, EventType, GuiEvent, Scene};
 use log::info;
 use nostd_html_parser::blocks::{Block, BlockType};
-use crate::comps::{make_rect_view, make_toggle_button};
 
 const MAIN_MENU: &'static str = "main";
 const BROWSER_MENU: &'static str = "browser";
@@ -88,7 +89,7 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
                     "Settings" => {
                         event.scene.hide_view(MAIN_MENU);
                         show_settings_panel(event);
-                    },
+                    }
                     "Info" => show_info_panel(event),
                     "close" => {
                         event.scene.hide_view(MAIN_MENU);
@@ -202,7 +203,6 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
             info!("no action")
         }
     }
-
 }
 fn show_url_panel<C, F>(event: &mut GuiEvent<C, F>) {
     let panel = make_panel(URL_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
@@ -215,10 +215,12 @@ fn show_url_panel<C, F>(event: &mut GuiEvent<C, F>) {
     event.scene.add_view_to_parent(input, &panel.name);
     event.scene.add_view_to_parent(
         make_button("url-cancel-button", "cancel").position_at(60, 160),
-        &panel.name);
+        &panel.name,
+    );
     event.scene.add_view_to_parent(
         make_button("url-load-button", "load").position_at(160, 160),
-        &panel.name);
+        &panel.name,
+    );
     event.scene.add_view_to_root(panel);
     event.scene.hide_view(MAIN_MENU);
     event.scene.hide_view(BROWSER_MENU);
@@ -321,7 +323,7 @@ fn show_settings_panel<C, F>(event: &mut GuiEvent<C, F>) {
 }
 
 pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
-    let mut scene = Scene::new_with_bounds(Bounds::new(0,0,320,240));
+    let mut scene = Scene::new_with_bounds(Bounds::new(0, 0, 320, 240));
 
     let panel = make_panel("panel", Bounds::new(20, 20, 260, 200));
     scene.add_view_to_root(panel);

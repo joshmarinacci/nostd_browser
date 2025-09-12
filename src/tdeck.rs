@@ -6,7 +6,9 @@ use embedded_graphics::geometry::Size;
 use embedded_graphics::mono_font::ascii::FONT_6X10;
 use embedded_graphics::mono_font::{MonoFont, MonoTextStyle};
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::{OriginDimensions, Primitive, Point as EGPoint, Size as EGSize, DrawTargetExt};
+use embedded_graphics::prelude::{
+    DrawTargetExt, OriginDimensions, Point as EGPoint, Primitive, Size as EGSize,
+};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
@@ -112,7 +114,10 @@ pub struct EmbeddedDrawingContext<'a> {
 
 impl EmbeddedDrawingContext<'_> {
     pub fn new(display: &mut TDeckDisplay) -> EmbeddedDrawingContext {
-        EmbeddedDrawingContext { display, clip: Bounds::new_empty() }
+        EmbeddedDrawingContext {
+            display,
+            clip: Bounds::new_empty(),
+        }
     }
 }
 
@@ -162,7 +167,10 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
 }
 
 fn bounds_to_rect(bounds: &Bounds) -> Rectangle {
-    Rectangle::new(EGPoint::new(bounds.x,bounds.y), EGSize::new(bounds.w as u32, bounds.h as u32))
+    Rectangle::new(
+        EGPoint::new(bounds.x, bounds.y),
+        EGSize::new(bounds.w as u32, bounds.h as u32),
+    )
 }
 // pub struct DummyTimesource();
 
