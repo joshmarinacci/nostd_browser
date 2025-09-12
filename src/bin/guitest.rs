@@ -30,6 +30,7 @@ use log::{error, info};
 use nostd_browser::menuview::make_menuview;
 use nostd_browser::tdeck::{EmbeddedDrawingContext, Wrapper};
 use static_cell::StaticCell;
+use nostd_browser::toggle_button::make_toggle_button;
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {
@@ -83,6 +84,7 @@ async fn main(_spawner: Spawner) {
     });
 
     let mut last_touch_event: Option<gt911::Point> = None;
+    scene.mark_dirty_all();
     loop {
         if let Some(key) = wrapper.poll_keyboard() {
             type_at_focused(&mut scene, &handlers, key);
@@ -99,147 +101,47 @@ async fn main(_spawner: Spawner) {
         }
         {
             let mut ctx: EmbeddedDrawingContext = EmbeddedDrawingContext::new(&mut wrapper.display);
+            ctx.clip = scene.dirty_rect.clone();
             draw_scene(&mut scene, &mut ctx, &theme);
         }
         Timer::after(Duration::from_millis(20)).await;
-
-        // loop {
-        //     let mut data = [0u8; 1];
-        //     let kb_res = (*i2c).read(LILYGO_KB_I2C_ADDRESS, &mut data);
-        //     match kb_res {
-        //         Ok(_) => {
-        //             if data[0] != 0x00 {
-        //                 type_at_focused(&mut scene, &handlers, data[0])
-        //             }
-        //         }
-        //         Err(_) => {
-        //             // info!("kb_res = {}", e);
-        //         }
-        //     }
-        //
-        //     {
-        //
-        //         if click.is_low() != last_click_low {
-        //             last_click_low = click.is_low();
-        //         }
-        //         if right.is_high() != last_right_high {
-        //             last_right_high = right.is_high();
-        //             cursor.x += 1;
-        //         }
-        //         if left.is_high() != last_left_high {
-        //             last_left_high = left.is_high();
-        //             cursor.x -= 1;
-        //         }
-        //         if up.is_high() != last_up_high {
-        //             last_up_high = up.is_high();
-        //             cursor.y -= 1;
-        //             scroll_at_focused(&mut scene, &handlers, 0,-1);
-        //         }
-        //         if down.is_high() != last_down_high {
-        //             last_down_high = down.is_high();
-        //             cursor.y += 1;
-        //             scroll_at_focused(&mut scene, &handlers, 0,1);
-        //         }
-        //     }
-        //
-        // }
     }
 }
-
-// #[embassy_executor::task]
-// async fn handle_trackball(
-//     click: Input<'static>,
-//     left: Input<'static>,
-//     right: Input<'static>,
-//     up: Input<'static>,
-//     down: Input<'static>,
-// ) {
-//     let mut last_click_low = false;
-//     let mut last_right_high = false;
-//     let mut last_left_high = false;
-//     let mut last_up_high = false;
-//     let mut last_down_high = false;
-//     info!("monitoring the trackball");
-//     let mut cursor = Point::new(50, 50);
-//     loop {
-//         if click.is_low() != last_click_low {
-//             info!("click");
-//             last_click_low = click.is_low();
-//             // TRACKBALL_CHANNEL.send(GuiEvent::ClickEvent()).await;
-//         }
-//         // info!("button pressed is {} ", tdeck_track_click.is_low());
-//         if right.is_high() != last_right_high {
-//             // info!("right");
-//             last_right_high = right.is_high();
-//             cursor.x += 1;
-//             // TRACKBALL_CHANNEL
-//             //     .send(GuiEvent::ScrollEvent(cursor, Point::new(1, 0)))
-//             //     .await;
-//         }
-//         if left.is_high() != last_left_high {
-//             // info!("left");
-//             last_left_high = left.is_high();
-//             cursor.x -= 1;
-//             // TRACKBALL_CHANNEL
-//             //     .send(GuiEvent::ScrollEvent(cursor, Point::new(-1, 0)))
-//             //     .await;
-//         }
-//         if up.is_high() != last_up_high {
-//             // info!("up");
-//             last_up_high = up.is_high();
-//             cursor.y -= 1;
-//             // TRACKBALL_CHANNEL
-//             //     .send(GuiEvent::ScrollEvent(cursor, Point::new(0, -1)))
-//             //     .await;
-//         }
-//         if down.is_high() != last_down_high {
-//             // info!("down");
-//             last_down_high = down.is_high();
-//             cursor.y += 1;
-//             // TRACKBALL_CHANNEL
-//             //     .send(GuiEvent::ScrollEvent(cursor, Point::new(0, 1)))
-//             //     .await;
-//         }
-//         // wait one msec
-//         Timer::after(Duration::from_millis(1)).await;
-//     }
-// }
-//
-//
-// const TEXT_INPUT: &str = "textinput";
 
 fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     let mut scene = Scene::new_with_bounds(Bounds::new(0, 0, 320, 240));
 
     let panel = make_panel("panel", Bounds::new(20, 20, 260, 200));
+
+    scene.add_view_to_parent(make_label("label1", "A label").position_at(40,30), &panel.name);
+
+
+    scene.add_view_to_parent(
+        make_toggle_button("toggle1","Toggle").position_at(40,70),
+        &panel.name);
+
     scene.add_view_to_root(panel);
 
-    let mut label = make_label("label1", "A label");
-    label.bounds.x = 40;
-    label.bounds.y = 30;
-    connect_parent_child(&mut scene, "panel", &label.name);
-    scene.add_view(label);
-
-    let mut button = make_button("button1", "A Button");
-    button.bounds.x = 40;
-    button.bounds.y = 60;
-    connect_parent_child(&mut scene, "panel", "button1");
-    scene.add_view(button);
-
-    let mut text_input = make_text_input("textinput", "type text here");
-    text_input.bounds.x = 40;
-    text_input.bounds.y = 100;
-    connect_parent_child(&mut scene, "panel", &text_input.name);
-    scene.add_view(text_input);
-
-    let mut menuview = make_menuview(
-        "menuview",
-        vec!["first".into(), "second".into(), "third".into()],
-    );
-    menuview.bounds.x = 100;
-    menuview.bounds.y = 30;
-    menuview.visible = false;
-    scene.add_view_to_root(menuview);
+    // let mut button = make_button("button1", "A Button");
+    // button.bounds.x = 40;
+    // button.bounds.y = 60;
+    // connect_parent_child(&mut scene, "panel", "button1");
+    // scene.add_view(button);
+    //
+    // let mut text_input = make_text_input("textinput", "type text here");
+    // text_input.bounds.x = 40;
+    // text_input.bounds.y = 100;
+    // connect_parent_child(&mut scene, "panel", &text_input.name);
+    // scene.add_view(text_input);
+    //
+    // let mut menuview = make_menuview(
+    //     "menuview",
+    //     vec!["first".into(), "second".into(), "third".into()],
+    // );
+    // menuview.bounds.x = 100;
+    // menuview.bounds.y = 30;
+    // menuview.visible = false;
+    // scene.add_view_to_root(menuview);
 
     // let mut button = make_button("panel button");
     // button.bounds = Bounds::new(20,60,100,30);

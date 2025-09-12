@@ -35,7 +35,7 @@ fn draw_toggle_button<C, F>(
 ) {
     let (button_fill, button_color) = if let Some(state) = view.get_state::<SelectedState>() {
         if state.selected {
-            (&theme.bg, &theme.fg)
+            (&theme.fg, &theme.bg)
         } else {
             (&theme.bg, &theme.fg)
         }
@@ -52,5 +52,6 @@ fn input_toggle_button<C, F>(event: &mut GuiEvent<C, F>) -> Option<Action> {
     if let Some(state) = event.scene.get_view_state::<SelectedState>(event.target) {
         state.selected = !state.selected;
     }
+    event.scene.mark_dirty_view(event.target);
     None
 }

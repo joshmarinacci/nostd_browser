@@ -164,10 +164,14 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
 }
 
 fn bounds_to_rect(bounds: &Bounds) -> Rectangle {
-    Rectangle::new(
-        EGPoint::new(bounds.x, bounds.y),
-        EGSize::new(bounds.w as u32, bounds.h as u32),
-    )
+    if bounds.is_empty() {
+        Rectangle::zero()
+    } else {
+        Rectangle::new(
+            EGPoint::new(bounds.x, bounds.y),
+            EGSize::new(bounds.w as u32, bounds.h as u32),
+        )
+    }
 }
 // pub struct DummyTimesource();
 
