@@ -1,13 +1,10 @@
 use crate::common::TDeckDisplay;
-use alloc::string::String;
 use core::cell::RefCell;
-use embedded_graphics::draw_target::DrawTarget;
-use embedded_graphics::geometry::Size;
 use embedded_graphics::mono_font::ascii::FONT_6X10;
 use embedded_graphics::mono_font::{MonoFont, MonoTextStyle};
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{
-    DrawTargetExt, OriginDimensions, Point as EGPoint, Primitive, Size as EGSize,
+    DrawTargetExt, Point as EGPoint, Primitive, Size as EGSize,
 };
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
@@ -22,9 +19,9 @@ use esp_hal::peripherals::Peripherals;
 use esp_hal::peripherals::{ADC1, GPIO4, RNG, TIMG0, WIFI};
 use esp_hal::spi::master::{Config as SpiConfig, Spi};
 use esp_hal::time::Rate;
-use esp_hal::timer::timg::{Timer, TimerGroup};
+use esp_hal::timer::timg::{TimerGroup};
 use esp_hal::Blocking;
-use gt911::{Error as Gt911Error, Gt911, Gt911Blocking, Point as TouchPoint};
+use gt911::{Error as Gt911Error, Gt911Blocking, Point as TouchPoint};
 use gui2::geom::Bounds;
 use gui2::{DrawingContext, HAlign};
 use heapless::Vec;
@@ -32,7 +29,7 @@ use log::{error, info};
 use mipidsi::interface::SpiInterface;
 use mipidsi::models::ST7789;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
-use mipidsi::{Builder, Display, NoResetPin};
+use mipidsi::{Builder};
 use static_cell::StaticCell;
 
 const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
@@ -82,7 +79,7 @@ impl Wrapper {
                     None
                 }
             }
-            Err(e) => None,
+            Err(_e) => None,
         }
     }
 
@@ -122,7 +119,7 @@ impl EmbeddedDrawingContext<'_> {
 }
 
 impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
-    fn clear(&mut self, color: &Rgb565) {
+    fn clear(&mut self, _color: &Rgb565) {
         error!("dont use clear");
     }
 
@@ -262,7 +259,7 @@ impl Wrapper {
         // initialize battery monitor
         let analog_pin = peripherals.GPIO4;
         let mut adc_config: AdcConfig<ADC1> = AdcConfig::new();
-        let mut pin: AdcPin<GPIO4, ADC1> = adc_config.enable_pin(analog_pin, Attenuation::_11dB);
+        let pin: AdcPin<GPIO4, ADC1> = adc_config.enable_pin(analog_pin, Attenuation::_11dB);
 
         let touch = Gt911Blocking::default();
         touch.init(&mut i2c).unwrap();

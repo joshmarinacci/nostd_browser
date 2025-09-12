@@ -1,9 +1,8 @@
 use alloc::boxed::Box;
 use alloc::string::String;
-use alloc::vec;
 use alloc::vec::Vec;
 use gui2::geom::Bounds;
-use gui2::{Action, EventType, GuiEvent, HAlign, Scene, View};
+use gui2::{Action, EventType, HAlign, Scene, View};
 use log::info;
 
 pub struct MenuState {
@@ -53,7 +52,7 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
                 EventType::Tap(pt) => {
                     event.scene.set_focused(event.target);
                     if let Some(view) = event.scene.get_view_mut(event.target) {
-                        let name = view.name.clone();
+                        // let name = view.name.clone();
                         if view.bounds.contains(pt) {
                             let y = pt.y - view.bounds.y;
                             let selected = y / MH;
@@ -69,7 +68,7 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
                     }
                     return Some(Action::Command("select".into()));
                 }
-                EventType::Scroll(dx, dy) => {
+                EventType::Scroll(_dx, dy) => {
                     if *dy > 0 {
                         scroll_by(event.scene, event.target, 1);
                     }

@@ -2,7 +2,6 @@ use crate::page::Page;
 use alloc::string::String;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
-use embedded_graphics::Drawable;
 use embedded_hal_bus::spi::RefCellDevice;
 use esp_hal::delay::Delay;
 use esp_hal::gpio::Output;

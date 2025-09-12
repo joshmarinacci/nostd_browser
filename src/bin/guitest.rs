@@ -52,7 +52,7 @@ esp_bootloader_esp_idf::esp_app_desc!();
 // }
 
 #[esp_hal_embassy::main]
-async fn main(spawner: Spawner) {
+async fn main(_spawner: Spawner) {
     esp_println::logger::init_logger_from_env();
     let config = esp_hal::Config::default().with_cpu_clock(CpuClock::max());
     let peripherals = esp_hal::init(config);
@@ -74,7 +74,7 @@ async fn main(spawner: Spawner) {
     handlers.push(|event| {
         info!("event happened {} {:?}", event.target, event.event_type);
         // show menu when tapping the button
-        if let EventType::Tap(point) = &event.event_type {
+        if let EventType::Tap(_point) = &event.event_type {
             if event.target == "button1" {
                 event.scene.show_view("menuview");
                 event.scene.set_focused("menuview");

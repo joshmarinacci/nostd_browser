@@ -1,7 +1,7 @@
 use alloc::boxed::Box;
 use alloc::string::String;
 use gui2::geom::Bounds;
-use gui2::{find_children, DrawEvent, DrawingContext, HAlign, Scene, View};
+use gui2::{find_children, DrawEvent, HAlign, Scene, VAlign, View};
 use hashbrown::HashMap;
 
 struct FormLayoutState {
@@ -17,8 +17,8 @@ struct LayoutConstraint {
     row: usize,
     col_span: usize,
     row_span: usize,
-    halign: HAlign,
-    // valign: VAlign;
+    h_align: HAlign,
+    v_align: VAlign,
 }
 
 pub fn make_form<C, F>(name: &str) -> View<C, F> {
@@ -53,8 +53,8 @@ fn layout_form<C, F>(scene: &mut Scene<C, F>, name: &str) {
             let bounds = if let Some(cons) = &state.constraints.get(&kid) {
                 let x = (cons.col * state.col_width) as i32;
                 let y = (cons.row * state.row_height) as i32;
-                let w = (state.col_width) as i32;
-                let h = (state.row_height) as i32;
+                let w = state.col_width as i32;
+                let h = state.row_height as i32;
                 Bounds::new(x, y, w, h)
             } else {
                 Bounds::new(0, 0, 0, 0)

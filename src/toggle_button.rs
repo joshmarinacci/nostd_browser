@@ -1,3 +1,4 @@
+use core::option::Option::*;
 use alloc::boxed::Box;
 use core::any::Any;
 use gui2::geom::Bounds;

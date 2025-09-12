@@ -1,15 +1,13 @@
-use crate::common::{NetCommand, TDeckDisplay, NET_COMMANDS};
 use crate::comps::make_rect_view;
-use crate::menuview::{make_menuview, MenuState};
+use crate::menuview::{make_menuview};
 use crate::page::Page;
 use crate::pageview::PageView;
 use crate::toggle_button::make_toggle_button;
 use alloc::boxed::Box;
-use alloc::string::{String, ToString};
+use alloc::string::{ToString};
 use alloc::{format, vec};
-use embedded_graphics::geometry::{Dimensions, Point, Size};
 use embedded_graphics::mono_font::ascii::{
-    FONT_6X13, FONT_6X13_BOLD, FONT_8X13, FONT_8X13_BOLD, FONT_9X15, FONT_9X15_BOLD,
+    FONT_9X15, FONT_9X15_BOLD,
 };
 use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
@@ -429,7 +427,7 @@ pub fn update_view_from_input<C, F>(event: &mut GuiEvent<C, F>) {
         }
         _ => {}
     }
-    if let Some(action) = &event.action {
+    if let Some(_action) = &event.action {
         handle_action2(event);
     }
 }

@@ -1,19 +1,14 @@
-use crate::common::{NetCommand, TDeckDisplay, NET_COMMANDS};
+use crate::common::{NetCommand, NET_COMMANDS};
 use crate::page::Page;
 use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::vec::Vec;
 use alloc::{format, vec};
-use core::any::Any;
 use core::cmp::max;
-use embedded_graphics::geometry::{OriginDimensions, Point, Size};
+use embedded_graphics::geometry::{Point};
 use embedded_graphics::mono_font::ascii::{
-    FONT_6X13, FONT_6X13_BOLD, FONT_8X13, FONT_8X13_BOLD, FONT_9X15, FONT_9X15_BOLD,
+    FONT_9X15_BOLD,
 };
-use embedded_graphics::mono_font::{MonoFont, MonoTextStyle, MonoTextStyleBuilder};
-use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::RgbColor;
-use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use gui2::geom::Bounds;
 use gui2::{Action, DrawingContext, EventType, GuiEvent, HAlign, Theme, View};
 use log::{info, warn};
@@ -192,7 +187,7 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
             let x_inset = 8;
             let y_inset = 5;
 
-            let mut link_count = -1;
+            // let link_count = -1;
             // draw the lines
             for (j, line) in viewport_lines.iter().enumerate() {
                 let mut inset_chars: usize = 0;

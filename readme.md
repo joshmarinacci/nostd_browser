@@ -7,3 +7,15 @@ run with
 . ~/export-esp.sh
 SSID=wifi PASSWORD=wifi_password cargo run
 ```
+
+
+
+next to test
+
+* toggle button really works. state changes.
+* toggle group really works. state changes.
+* form layout properly lays out the form items
+* changing the theme really repaints the screen with new colors
+* font button creates and opens a new menu view which then hides when the item is selected.
+* touch debugger really draws at the touch surface
+* add unit tests for these using a stub ctx and theme implementation.

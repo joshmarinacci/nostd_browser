@@ -1,3 +1,4 @@
+use core::option::Option::Some;
 use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
@@ -33,7 +34,7 @@ impl SelectOneOfState {
     }
 }
 
-fn input_toggle_group<C, F>(event: &mut GuiEvent<C, F>) -> Option<Action> {
+fn input_toggle_group<C, F>(_event: &mut GuiEvent<C, F>) -> Option<Action> {
     None
 }
 
