@@ -31,6 +31,7 @@ use nostd_browser::menuview::make_menuview;
 use nostd_browser::tdeck::{EmbeddedDrawingContext, Wrapper};
 use static_cell::StaticCell;
 use nostd_browser::toggle_button::make_toggle_button;
+use nostd_browser::toggle_group::make_toggle_group;
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {
@@ -119,6 +120,12 @@ fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     scene.add_view_to_parent(
         make_toggle_button("toggle1","Toggle").position_at(40,70),
         &panel.name);
+
+
+    scene.add_view_to_parent(
+        make_toggle_group("toggle2",vec!["Foo","Bar","Baz"],0).position_at(40,120),
+        &panel.name
+    );
 
     scene.add_view_to_root(panel);
 
