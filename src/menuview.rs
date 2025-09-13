@@ -106,9 +106,9 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
             }
             None
         }),
-        layout: Some(|scene, name| {
+        layout: Some(|event| {
             info!("doing layout on menuview");
-            if let Some(view) = scene.get_view_mut(name) {
+            if let Some(view) = event.scene.get_view_mut(event.target) {
                 if let Some(state) = view.get_state::<MenuState>() {
                     view.bounds.h = MH * (state.data.len() as i32)
                 }

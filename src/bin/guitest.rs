@@ -25,6 +25,7 @@ use gui2::{
     click_at, connect_parent_child, draw_scene, pick_at, scroll_at_focused, type_at_focused,
     Callback, DrawingContext, EventType, GuiEvent, HAlign, Scene, Theme, View,
 };
+use gui2::form::{make_form, FormLayoutState};
 use log::{error, info};
 
 use nostd_browser::menuview::make_menuview;
@@ -112,20 +113,32 @@ async fn main(_spawner: Spawner) {
 fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     let mut scene = Scene::new_with_bounds(Bounds::new(0, 0, 320, 240));
 
-    let panel = make_panel("panel", Bounds::new(20, 20, 260, 200));
+    // let panel = make_panel("panel", Bounds::new(20, 20, 260, 200));
+    let mut panel = make_form("panel");
+    panel.bounds.x = 20;
+    panel.bounds.y = 20;
+    panel.bounds.w = 300;
+    panel.bounds.h = 200;
+    scene.add_view_to_parent(make_label("label1", "Label 1").position_at(40,30), &panel.name);
+    scene.add_view_to_parent(make_label("label2", "Label 2").position_at(40,30), &panel.name);
+    scene.add_view_to_parent(make_label("label3", "Label 3").position_at(40,30), &panel.name);
+    scene.add_view_to_parent(make_label("label4", "Label 4").position_at(40,30), &panel.name);
+    let mut layout = FormLayoutState::new_row_column(2, 30, 2, 80);
+    layout.place_at_row_column("label1", 0,0);
+    layout.place_at_row_column("label2", 0,1);
+    layout.place_at_row_column("label3", 1,0);
+    layout.place_at_row_column("label4", 1,1);
 
-    scene.add_view_to_parent(make_label("label1", "A label").position_at(40,30), &panel.name);
+    // scene.add_view_to_parent(
+    //     make_toggle_button("toggle1","Toggle").position_at(40,70),
+    //     &panel.name);
+    //
+    //
+    // scene.add_view_to_parent(
+    //     make_toggle_group("toggle2",vec!["Foo","Bar","Baz"],0).position_at(40,120),
+    //     &panel.name
+    // );
 
-
-    scene.add_view_to_parent(
-        make_toggle_button("toggle1","Toggle").position_at(40,70),
-        &panel.name);
-
-
-    scene.add_view_to_parent(
-        make_toggle_group("toggle2",vec!["Foo","Bar","Baz"],0).position_at(40,120),
-        &panel.name
-    );
 
     scene.add_view_to_root(panel);
 
