@@ -15,6 +15,7 @@ use gui2::comps::{make_button, make_label, make_panel, make_text_input};
 use gui2::geom::Bounds;
 use gui2::{connect_parent_child, Action, EventType, GuiEvent, Scene};
 use gui2::toggle_button::make_toggle_button;
+use gui2::toggle_group::{make_toggle_group, SelectOneOfState};
 use log::info;
 use nostd_html_parser::blocks::{Block, BlockType};
 
@@ -188,13 +189,16 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
                 event.scene.remove_parent_and_children(WIFI_PANEL);
                 event.scene.set_focused(PAGE_VIEW);
             }
-            if event.target == "settings-theme-light" {
-                info!("switching to the light theme");
-                ACTIVE_THEME.insert(Box::new(&LIGHT_THEME));
-            }
-            if event.target == "settings-theme-dark" {
-                info!("switching to the dark theme");
-                ACTIVE_THEME.insert(Box::new(&DARK_THEME));
+            if event.target == "settings-theme" {
+                info!("switching theme");
+                if let Some(state) = event.scene.get_view_state::<SelectOneOfState>(event.target) {
+                    if state.selected == 0 {
+                        ACTIVE_THEME.insert(Box::new(&LIGHT_THEME));
+                    }
+                    if state.selected == 1 {
+                        ACTIVE_THEME.insert(Box::new(&DARK_THEME));
+                    }
+                }
             }
         }
         None => {
@@ -297,11 +301,7 @@ fn show_settings_panel<C, F>(event: &mut GuiEvent<C, F>) {
         &panel.name,
     );
     event.scene.add_view_to_parent(
-        make_toggle_button("settings-theme-light", "Light").position_at(100, 40),
-        &panel.name,
-    );
-    event.scene.add_view_to_parent(
-        make_toggle_button("settings-theme-dark", "Dark").position_at(200, 40),
+        make_toggle_group("settings-theme", vec!["Light","Dark"],0).position_at(100, 40),
         &panel.name,
     );
     event.scene.add_view_to_parent(
