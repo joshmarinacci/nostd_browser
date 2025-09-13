@@ -15,6 +15,7 @@ use gui2::toggle_group::{make_toggle_group, SelectOneOfState};
 use gui2::{Action, EventType, GuiEvent, Scene};
 use log::info;
 use nostd_html_parser::blocks::{Block, BlockType};
+use crate::common::{NetCommand, NET_COMMANDS};
 
 const MAIN_MENU: &'static str = "main";
 const BROWSER_MENU: &'static str = "browser";
@@ -102,10 +103,8 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
                         show_url_panel(event);
                     }
                     "Bookmarks" => {
-                        //         // show the bookmarks
-                        //         NET_COMMANDS
-                        //             .send(NetCommand::Load("bookmarks.html".to_string()))
-                        //             .await;
+                        // show the bookmarks
+                        NET_COMMANDS.send(NetCommand::Load("bookmarks.html".to_string()));
                         event.scene.hide_view(MAIN_MENU);
                         event.scene.hide_view(BROWSER_MENU);
                         event.scene.set_focused(PAGE_VIEW);

@@ -12,13 +12,15 @@ use alloc::{format, vec};
 use embassy_executor::Spawner;
 use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
-use embassy_net::{Runner, Stack};
+use embassy_net::{Runner, Stack, StackResources};
 use embassy_time::{Duration, Timer};
 use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use esp_hal::clock::CpuClock;
+use esp_hal::rng::Rng;
+use esp_hal::timer::timg::TimerGroup;
 use esp_wifi::wifi::ScanTypeConfig::Active;
 use esp_wifi::wifi::{
     ClientConfiguration, Configuration, ScanConfig, WifiController, WifiDevice, WifiEvent,
@@ -114,37 +116,38 @@ async fn main(spawner: Spawner) {
         // spawner.spawn(page_downloader(network_stack, tls_seed)).ok();
         // info!("we are connected. on to the HTTP request");
     } else {
-        PAGE_CHANNEL
-            .sender()
-            .send(Page::from_bytes(PAGE_BYTES, "homepage.html"))
-            .await;
+        // PAGE_CHANNEL
+        //     .sender()
+        //     .send(Page::from_bytes(PAGE_BYTES, "homepage.html"))
+        //     .await;
     }
 
     spawner.spawn(update_display(wrapper)).ok();
 
+    Timer::after(Duration::from_millis(1000)).await;
     PAGE_CHANNEL
         .sender()
         .send(Page::from_bytes(PAGE_BYTES, "homepage.html"))
         .await;
 }
-// async fn wait_for_connection(stack: Stack<'_>) {
-//     info!("Waiting for link to be up");
-//     loop {
-//         if stack.is_link_up() {
-//             break;
-//         }
-//         Timer::after(Duration::from_millis(500)).await;
-//     }
-//
-//     info!("Waiting to get IP address...");
-//     loop {
-//         if let Some(config) = stack.config_v4() {
-//             info!("Got IP: {}", config.address);
-//             break;
-//         }
-//         Timer::after(Duration::from_millis(500)).await;
-//     }
-// }
+async fn wait_for_connection(stack: Stack<'_>) {
+    info!("Waiting for link to be up");
+    loop {
+        if stack.is_link_up() {
+            break;
+        }
+        Timer::after(Duration::from_millis(500)).await;
+    }
+
+    info!("Waiting to get IP address...");
+    loop {
+        if let Some(config) = stack.config_v4() {
+            info!("Got IP: {}", config.address);
+            break;
+        }
+        Timer::after(Duration::from_millis(500)).await;
+    }
+}
 
 #[embassy_executor::task]
 async fn connection(mut controller: WifiController<'static>) {
@@ -303,7 +306,7 @@ async fn update_display(mut wrapper: Wrapper) {
         };
 
         if let Ok(page) = PAGE_CHANNEL.try_receive() {
-            if let Some(state) = scene.get_view_state::<PageView>("pageview") {
+            if let Some(state) = scene.get_view_state::<PageView>(PAGE_VIEW) {
                 info!("page got a new page: {:?}", page);
                 state.load_page(page);
             }
@@ -355,92 +358,92 @@ async fn update_display(mut wrapper: Wrapper) {
     }
 }
 
-// // async fn load_file_url(href: &str) -> &[u8] {
-// //     PAGE_BYTES
-// // }
-// async fn handle_file_url(href: &str) {
-//     info!("sdcard url {}", href);
-//     let path = &href[5..];
-//     info!("loading path {}", path);
-//
-//     let bytes = load_file_url(&href).await;
-//     PAGE_CHANNEL
-//         .sender()
-//         .send(Page::from_bytes(bytes, &href))
-//         .await;
-// }
+async fn load_file_url(href: &str) -> &[u8] {
+    PAGE_BYTES
+}
+async fn handle_file_url(href: &str) {
+    info!("sdcard url {}", href);
+    let path = &href[5..];
+    info!("loading path {}", path);
 
-// async fn handle_bookmarks(href: &str) {
-//     PAGE_CHANNEL
-//         .sender()
-//         .send(Page::from_bytes(PAGE_BYTES, &href))
-//         .await;
-// }
+    let bytes = load_file_url(&href).await;
+    PAGE_CHANNEL
+        .sender()
+        .send(Page::from_bytes(bytes, &href))
+        .await;
+}
 
-// async fn handle_http_url(href: &str, network_stack: Stack<'static>, tls_seed: u64) {
-//     NET_STATUS.send(NetStatus::LoadingPage()).await;
-//     let mut rx_buffer = [0; 4096 * 2];
-//     let mut tx_buffer = [0; 4096 * 2];
-//     let dns = DnsSocket::new(network_stack);
-//     let tcp_state = TcpClientState::<1, 4096, 4096>::new();
-//     let tcp = TcpClient::new(network_stack, &tcp_state);
-//
-//     let tls = TlsConfig::new(
-//         tls_seed,
-//         &mut rx_buffer,
-//         &mut tx_buffer,
-//         reqwless::client::TlsVerify::None,
-//     );
-//
-//     let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
-//     // let mut client = HttpClient::new(&tcp, &dns);
-//     let mut buffer = [0u8; 4096 * 5];
-//     info!("making the actual request to {}", href);
-//     // let url = "https://joshondesign.com/2023/07/12/css_text_style_builder";
-//     let mut http_req = client
-//         .request(reqwless::request::Method::GET, &href)
-//         .await
-//         .unwrap();
-//     let resp = http_req.send(&mut buffer).await;
-//     match resp {
-//         Ok(response) => {
-//             info!("Got response");
-//             let res = response.body().read_to_end().await.unwrap();
-//             PAGE_CHANNEL
-//                 .sender()
-//                 .send(Page::from_bytes(res, &href))
-//                 .await;
-//             NET_STATUS.send(NetStatus::PageLoaded()).await;
-//         }
-//         Err(err) => {
-//             info!("Got error: {:?}", err);
-//             NET_STATUS
-//                 .send(NetStatus::Error(format!("{:?}", err)))
-//                 .await;
-//         }
-//     }
-// }
-// #[embassy_executor::task]
-// async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
-//     loop {
-//         if let Ok(cmd) = NET_COMMANDS.try_receive() {
-//             info!("Network command: {:?}", cmd);
-//             match cmd {
-//                 NetCommand::Load(href) => {
-//                     info!("Loading page: {}", href);
-//                     if href == "bookmarks.html" {
-//                         handle_bookmarks(&href).await;
-//                     } else if href.starts_with("file:") {
-//                         handle_file_url(&href).await;
-//                     } else {
-//                         // if !href.starts_with("http") {
-//                         //     info!("relative url");
-//                         // }
-//                         handle_http_url(&href, network_stack, tls_seed).await;
-//                     }
-//                 }
-//             }
-//         }
-//         Timer::after(Duration::from_millis(100)).await;
-//     }
-// }
+async fn handle_bookmarks(href: &str) {
+    PAGE_CHANNEL
+        .sender()
+        .send(Page::from_bytes(PAGE_BYTES, &href))
+        .await;
+}
+
+async fn handle_http_url(href: &str, network_stack: Stack<'static>, tls_seed: u64) {
+    NET_STATUS.send(NetStatus::LoadingPage()).await;
+    let mut rx_buffer = [0; 4096 * 2];
+    let mut tx_buffer = [0; 4096 * 2];
+    let dns = DnsSocket::new(network_stack);
+    let tcp_state = TcpClientState::<1, 4096, 4096>::new();
+    let tcp = TcpClient::new(network_stack, &tcp_state);
+
+    let tls = TlsConfig::new(
+        tls_seed,
+        &mut rx_buffer,
+        &mut tx_buffer,
+        reqwless::client::TlsVerify::None,
+    );
+
+    let mut client = HttpClient::new_with_tls(&tcp, &dns, tls);
+    // let mut client = HttpClient::new(&tcp, &dns);
+    let mut buffer = [0u8; 4096 * 5];
+    info!("making the actual request to {}", href);
+    // let url = "https://joshondesign.com/2023/07/12/css_text_style_builder";
+    let mut http_req = client
+        .request(reqwless::request::Method::GET, &href)
+        .await
+        .unwrap();
+    let resp = http_req.send(&mut buffer).await;
+    match resp {
+        Ok(response) => {
+            info!("Got response");
+            let res = response.body().read_to_end().await.unwrap();
+            PAGE_CHANNEL
+                .sender()
+                .send(Page::from_bytes(res, &href))
+                .await;
+            NET_STATUS.send(NetStatus::PageLoaded()).await;
+        }
+        Err(err) => {
+            info!("Got error: {:?}", err);
+            NET_STATUS
+                .send(NetStatus::Error(format!("{:?}", err)))
+                .await;
+        }
+    }
+}
+#[embassy_executor::task]
+async fn page_downloader(network_stack: Stack<'static>, tls_seed: u64) {
+    loop {
+        if let Ok(cmd) = NET_COMMANDS.try_receive() {
+            info!("Network command: {:?}", cmd);
+            match cmd {
+                NetCommand::Load(href) => {
+                    info!("Loading page: {}", href);
+                    if href == "bookmarks.html" {
+                        handle_bookmarks(&href).await;
+                    } else if href.starts_with("file:") {
+                        handle_file_url(&href).await;
+                    } else {
+                        // if !href.starts_with("http") {
+                        //     info!("relative url");
+                        // }
+                        handle_http_url(&href, network_stack, tls_seed).await;
+                    }
+                }
+            }
+        }
+        Timer::after(Duration::from_millis(100)).await;
+    }
+}
