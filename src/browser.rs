@@ -173,6 +173,25 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
                     info!("now active theme {}", ACTIVE_THEME.is_some());
                 }
             }
+            if event.target == "font-menu" {
+                match cmd.as_str() {
+                    "Small" => {
+                        info!("set font to small");
+                        event.scene.hide_view("font-menu");
+                    },
+                    "Medium" => {
+                        info!("set font to medium");
+                        event.scene.hide_view("font-menu");
+                    },
+                    "Large" => {
+                        info!("set font to large");
+                        event.scene.hide_view("font-menu");
+                    },
+                    _ => {
+                        info!("unknown menu item");
+                    }
+                }
+            }
         }
         Some(Action::Generic) => {
             info!("handling generic");
@@ -192,6 +211,11 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
             if event.target == "url-load-button" {
                 event.scene.remove_parent_and_children(URL_PANEL);
                 event.scene.set_focused(PAGE_VIEW);
+            }
+            if event.target == "settings-font-button" {
+                let font_menu = make_menuview("font-menu",vec!["Small","Medium","Large"])
+                    .position_at(150,70);
+                event.scene.add_view_to_root(font_menu);
             }
             if event.target == WIFI_BUTTON {
                 event.scene.remove_parent_and_children(WIFI_PANEL);
