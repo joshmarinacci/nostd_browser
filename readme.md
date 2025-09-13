@@ -17,5 +17,6 @@ next to test
 [x] form layout properly lays out the form items
 [x] touch debugger really draws at the touch surface
 [x] add unit tests for these using a stub ctx and theme implementation.
-[ ] changing the theme really repaints the screen with new colors
-[ ] font button creates and opens a new menu view which then hides when the item is selected.
+[x] font button creates and opens a new menu view which then hides when the item is selected.
+[ ] changing the theme and font really repaints the screen with new colors and font
+[ ] be able to scroll and tab through links
