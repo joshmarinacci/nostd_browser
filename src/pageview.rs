@@ -175,7 +175,7 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
     if let Some(state) = &view.state {
         if let Some(state) = state.downcast_ref::<PageView>() {
             let rpage = state.get_imutable_page();
-            let mut end: usize = (rpage.scroll_index as i32 + viewport_height) as usize;
+            let mut end: usize = (rpage.scroll_index + viewport_height) as usize;
             if end >= rpage.lines.len() {
                 end = rpage.lines.len();
             }

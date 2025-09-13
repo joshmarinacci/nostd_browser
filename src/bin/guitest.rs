@@ -6,7 +6,6 @@
     holding buffers for the duration of a data transfer."
 )]
 extern crate alloc;
-use alloc::string::{String, ToString};
 use alloc::vec;
 use alloc::vec::Vec;
 use embassy_executor::Spawner;
@@ -16,23 +15,18 @@ use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use esp_hal::clock::CpuClock;
-use esp_hal::gpio::Level::{High, Low};
-use esp_hal::i2c::master::I2c;
-use esp_hal::Blocking;
-use gui2::comps::{make_button, make_label, make_panel, make_text_input};
+use gui2::comps::{make_label};
 use gui2::form::{make_form, FormLayoutState};
 use gui2::geom::{Bounds, Point as GPoint};
 use gui2::toggle_button::make_toggle_button;
 use gui2::toggle_group::make_toggle_group;
 use gui2::{
-    click_at, connect_parent_child, draw_scene, pick_at, scroll_at_focused, type_at_focused,
+    click_at, draw_scene, type_at_focused,
     Callback, DrawingContext, EventType, GuiEvent, HAlign, Scene, Theme, View,
 };
 use log::{error, info};
 
-use nostd_browser::menuview::make_menuview;
 use nostd_browser::tdeck::{EmbeddedDrawingContext, Wrapper};
-use static_cell::StaticCell;
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {

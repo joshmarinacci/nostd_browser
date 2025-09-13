@@ -303,16 +303,24 @@ async fn update_display(mut wrapper: Wrapper) {
         };
 
         if let Ok(page) = PAGE_CHANNEL.try_receive() {
-            if let Some(view) = scene.get_view_mut("pageview") {
-                if let Some(state) = &mut view.state {
-                    if let Some(state) = state.downcast_mut::<PageView>() {
-                        state.load_page(page);
-                    }
-                }
+            if let Some(state) = scene.get_view_state::<PageView>("pageview") {
+                info!("page got a new page: {:?}", page);
+                state.load_page(page);
             }
             scene.mark_dirty_view(PAGE_VIEW);
             info!("heap is {}", esp_alloc::HEAP.stats());
         }
+        if let Ok(status) = NET_STATUS.try_receive() {
+            info!("got the status {status:?}");
+            let txt = match &status {
+                NetStatus::Info(txt) => txt,
+                _ => &format!("{:?}", status).to_string(),
+            };
+            if let Some(overlay) = scene.get_view_mut("overlay-status") {
+                overlay.title = txt.into();
+            }
+        }
+
         if let Ok(point) = wrapper.touch.get_touch(&mut wrapper.i2c) {
             if let None = &point {
                 if let Some(point) = last_touch_event {
@@ -345,20 +353,6 @@ async fn update_display(mut wrapper: Wrapper) {
         draw_scene(&mut scene, &mut ctx, &theme);
         Timer::after(Duration::from_millis(20)).await;
     }
-
-    //     loop {
-    //         if let Ok(status) = NET_STATUS.try_receive() {
-    //             // info!("got the status {status:?}");
-    //             let txt = match &status {
-    //                 NetStatus::Info(txt) => txt,
-    //                 _ => &format!("{:?}", status).to_string(),
-    //             };
-    //             // scene.mutate_view("status", |view| {
-    //             //     if let Some(overlay) = view.as_any_mut().downcast_mut::<OverlayLabel>() {
-    //             //         overlay.set_text(txt);
-    //             //     };
-    //             // });
-    //         }
 }
 
 // // async fn load_file_url(href: &str) -> &[u8] {

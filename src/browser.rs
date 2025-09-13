@@ -1,4 +1,4 @@
-use crate::comps::make_rect_view;
+use crate::comps::{make_overlay_label, make_rect_view};
 use crate::menuview::make_menuview;
 use crate::page::Page;
 use crate::pageview::PageView;
@@ -11,7 +11,6 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{RgbColor, WebColors};
 use gui2::comps::{make_button, make_label, make_panel, make_text_input};
 use gui2::geom::Bounds;
-use gui2::toggle_button::make_toggle_button;
 use gui2::toggle_group::{make_toggle_group, SelectOneOfState};
 use gui2::{connect_parent_child, Action, EventType, GuiEvent, Scene};
 use log::info;
@@ -400,9 +399,8 @@ pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
 
     scene.set_focused(PAGE_VIEW);
 
-    // scene.add("status", OverlayLabel::new("some info", info_panel_bounds));
-    let overlay = make_rect_view("touch-overlay");
-    scene.add_view_to_root(overlay);
+    scene.add_view_to_root(make_overlay_label("overlay-status", "some info").position_at(200, 200));
+    scene.add_view_to_root(make_rect_view("touch-overlay"));
     scene
 }
 

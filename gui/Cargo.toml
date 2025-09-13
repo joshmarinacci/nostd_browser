@@ -1,9 +1,0 @@
-[package]
-name = "gui"
-version = "0.1.0"
-edition = "2024"
-
-[dependencies]
-hashbrown = "0.15.5"
-log = "0.4.27"
-embedded-graphics = "0.8.1"

@@ -22,7 +22,7 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
             x: 0,
             y: 0,
             w: 100,
-            h: (MH * (data.len() as i32)) as i32,
+            h: (MH * (data.len() as i32)),
         },
         visible: true,
         draw: Some(|view, ctx, theme| {
