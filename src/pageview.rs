@@ -5,10 +5,8 @@ use alloc::string::ToString;
 use alloc::vec::Vec;
 use alloc::{format, vec};
 use core::cmp::max;
-use embedded_graphics::geometry::{Point};
-use embedded_graphics::mono_font::ascii::{
-    FONT_9X15_BOLD,
-};
+use embedded_graphics::geometry::Point;
+use embedded_graphics::mono_font::ascii::FONT_9X15_BOLD;
 use gui2::geom::Bounds;
 use gui2::{Action, DrawingContext, EventType, GuiEvent, HAlign, Theme, View};
 use log::{info, warn};

@@ -31,13 +31,9 @@ use gui2::{
 use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
-use gui2::geom::{Point as GPoint};
-use nostd_browser::browser::{
-    make_gui_scene, update_view_from_input, ACTIVE_THEME, PAGE_VIEW,
-};
-use nostd_browser::common::{
-    NetCommand, NetStatus, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL,
-};
+use gui2::geom::Point as GPoint;
+use nostd_browser::browser::{make_gui_scene, update_view_from_input, ACTIVE_THEME, PAGE_VIEW};
+use nostd_browser::common::{NetCommand, NetStatus, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
 use nostd_browser::page::Page;
 use nostd_browser::pageview::PageView;
 use nostd_browser::tdeck::{EmbeddedDrawingContext, Wrapper};

@@ -1,21 +1,19 @@
 use crate::comps::make_rect_view;
-use crate::menuview::{make_menuview};
+use crate::menuview::make_menuview;
 use crate::page::Page;
 use crate::pageview::PageView;
 use alloc::boxed::Box;
-use alloc::string::{ToString};
+use alloc::string::ToString;
 use alloc::{format, vec};
-use embedded_graphics::mono_font::ascii::{
-    FONT_9X15, FONT_9X15_BOLD,
-};
+use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{RgbColor, WebColors};
 use gui2::comps::{make_button, make_label, make_panel, make_text_input};
 use gui2::geom::Bounds;
-use gui2::{connect_parent_child, Action, EventType, GuiEvent, Scene};
 use gui2::toggle_button::make_toggle_button;
 use gui2::toggle_group::{make_toggle_group, SelectOneOfState};
+use gui2::{connect_parent_child, Action, EventType, GuiEvent, Scene};
 use log::info;
 use nostd_html_parser::blocks::{Block, BlockType};
 
@@ -301,7 +299,7 @@ fn show_settings_panel<C, F>(event: &mut GuiEvent<C, F>) {
         &panel.name,
     );
     event.scene.add_view_to_parent(
-        make_toggle_group("settings-theme", vec!["Light","Dark"],0).position_at(100, 40),
+        make_toggle_group("settings-theme", vec!["Light", "Dark"], 0).position_at(100, 40),
         &panel.name,
     );
     event.scene.add_view_to_parent(

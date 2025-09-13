@@ -3,9 +3,7 @@ use core::cell::RefCell;
 use embedded_graphics::mono_font::ascii::FONT_6X10;
 use embedded_graphics::mono_font::{MonoFont, MonoTextStyle};
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::{
-    DrawTargetExt, Point as EGPoint, Primitive, Size as EGSize,
-};
+use embedded_graphics::prelude::{DrawTargetExt, Point as EGPoint, Primitive, Size as EGSize};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
 use embedded_graphics::text::Text;
 use embedded_graphics::Drawable;
@@ -19,7 +17,7 @@ use esp_hal::peripherals::Peripherals;
 use esp_hal::peripherals::{ADC1, GPIO4, RNG, TIMG0, WIFI};
 use esp_hal::spi::master::{Config as SpiConfig, Spi};
 use esp_hal::time::Rate;
-use esp_hal::timer::timg::{TimerGroup};
+use esp_hal::timer::timg::TimerGroup;
 use esp_hal::Blocking;
 use gt911::{Error as Gt911Error, Gt911Blocking, Point as TouchPoint};
 use gui2::geom::Bounds;
@@ -29,7 +27,7 @@ use log::{error, info};
 use mipidsi::interface::SpiInterface;
 use mipidsi::models::ST7789;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
-use mipidsi::{Builder};
+use mipidsi::Builder;
 use static_cell::StaticCell;
 
 const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;

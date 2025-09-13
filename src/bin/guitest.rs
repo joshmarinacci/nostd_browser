@@ -20,14 +20,14 @@ use esp_hal::gpio::Level::{High, Low};
 use esp_hal::i2c::master::I2c;
 use esp_hal::Blocking;
 use gui2::comps::{make_button, make_label, make_panel, make_text_input};
+use gui2::form::{make_form, FormLayoutState};
 use gui2::geom::{Bounds, Point as GPoint};
+use gui2::toggle_button::make_toggle_button;
+use gui2::toggle_group::make_toggle_group;
 use gui2::{
     click_at, connect_parent_child, draw_scene, pick_at, scroll_at_focused, type_at_focused,
     Callback, DrawingContext, EventType, GuiEvent, HAlign, Scene, Theme, View,
 };
-use gui2::form::{make_form, FormLayoutState};
-use gui2::toggle_button::make_toggle_button;
-use gui2::toggle_group::make_toggle_group;
 use log::{error, info};
 
 use nostd_browser::menuview::make_menuview;
@@ -119,26 +119,37 @@ fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     panel.bounds.y = 20;
     panel.bounds.w = 300;
     panel.bounds.h = 200;
-    scene.add_view_to_parent(make_label("label1", "Label 1").position_at(40,30), &panel.name);
-    scene.add_view_to_parent(make_label("label2", "Label 2").position_at(40,30), &panel.name);
-    scene.add_view_to_parent(make_label("label3", "Label 3").position_at(40,30), &panel.name);
-    scene.add_view_to_parent(make_label("label4", "Label 4").position_at(40,30), &panel.name);
+    scene.add_view_to_parent(
+        make_label("label1", "Label 1").position_at(40, 30),
+        &panel.name,
+    );
+    scene.add_view_to_parent(
+        make_label("label2", "Label 2").position_at(40, 30),
+        &panel.name,
+    );
+    scene.add_view_to_parent(
+        make_label("label3", "Label 3").position_at(40, 30),
+        &panel.name,
+    );
+    scene.add_view_to_parent(
+        make_label("label4", "Label 4").position_at(40, 30),
+        &panel.name,
+    );
     let mut layout = FormLayoutState::new_row_column(2, 30, 2, 80);
-    layout.place_at_row_column("label1", 0,0);
-    layout.place_at_row_column("label2", 0,1);
-    layout.place_at_row_column("label3", 1,0);
-    layout.place_at_row_column("label4", 1,1);
+    layout.place_at_row_column("label1", 0, 0);
+    layout.place_at_row_column("label2", 0, 1);
+    layout.place_at_row_column("label3", 1, 0);
+    layout.place_at_row_column("label4", 1, 1);
 
     scene.add_view_to_parent(
-        make_toggle_button("toggle1","Toggle").position_at(40,70),
-        &panel.name);
-    
-    
-    scene.add_view_to_parent(
-        make_toggle_group("toggle2",vec!["Foo","Bar","Baz"],0).position_at(40,120),
-        &panel.name
+        make_toggle_button("toggle1", "Toggle").position_at(40, 70),
+        &panel.name,
     );
-    
+
+    scene.add_view_to_parent(
+        make_toggle_group("toggle2", vec!["Foo", "Bar", "Baz"], 0).position_at(40, 120),
+        &panel.name,
+    );
 
     scene.add_view_to_root(panel);
 
