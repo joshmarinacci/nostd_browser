@@ -12,7 +12,7 @@ use embedded_graphics::prelude::{RgbColor, WebColors};
 use gui2::comps::{make_button, make_label, make_panel, make_text_input};
 use gui2::geom::Bounds;
 use gui2::toggle_group::{make_toggle_group, SelectOneOfState};
-use gui2::{connect_parent_child, Action, EventType, GuiEvent, Scene};
+use gui2::{Action, EventType, GuiEvent, Scene};
 use log::info;
 use nostd_html_parser::blocks::{Block, BlockType};
 
@@ -279,12 +279,9 @@ fn show_wifi_panel<C, F>(event: &mut GuiEvent<C, F>) {
     let button = make_button(WIFI_BUTTON, "done").position_at(160 - 20, 200 - 20);
 
     event.scene.add_view_to_root(panel);
-    connect_parent_child(event.scene, WIFI_PANEL, &label1a.name);
-    connect_parent_child(event.scene, WIFI_PANEL, &label2a.name);
-    connect_parent_child(event.scene, WIFI_PANEL, &button.name);
-    event.scene.add_view(label1a);
-    event.scene.add_view(label2a);
-    event.scene.add_view(button);
+    event.scene.add_view_to_parent(label1a,WIFI_PANEL);
+    event.scene.add_view_to_parent(label2a,WIFI_PANEL);
+    event.scene.add_view_to_parent(button,WIFI_PANEL);
     // scene.add("wifi-label1b", label1b);
     // scene.add("wifi-label2b", label2b);
     event.scene.hide_view(MAIN_MENU);
