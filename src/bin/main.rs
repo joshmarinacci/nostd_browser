@@ -280,7 +280,7 @@ async fn update_display(mut wrapper: Wrapper) {
 
     let mut handlers: Vec<Callback<Rgb565, MonoFont>> = vec![];
     handlers.push(|event| {
-        info!("event happened {} {:?}", event.target, event.event_type);
+        // info!("event happened {} {:?}", event.target, event.event_type);
         update_view_from_input(event);
     });
 
