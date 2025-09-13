@@ -329,10 +329,11 @@ async fn update_display(mut wrapper: Wrapper) {
             if let None = &point {
                 if let Some(point) = last_touch_event {
                     let pt = GPoint::new(320 - point.y as i32, 240 - point.x as i32);
-                    if let Some(overlay) = scene.get_view_mut("touch-overlay") {
-                        overlay.bounds = overlay.bounds.center_at(pt.x, pt.y);
-                        scene.mark_dirty_view("touch-overlay");
-                    }
+                    // scene.mark_dirty_view("touch-overlay");
+                    // if let Some(overlay) = scene.get_view_mut("touch-overlay") {
+                    //     overlay.bounds = overlay.bounds.center_at(pt.x, pt.y);
+                    //     scene.mark_dirty_view("touch-overlay");
+                    // }
                     click_at(&mut scene, &mut handlers, pt);
                 }
             }

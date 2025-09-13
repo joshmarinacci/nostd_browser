@@ -26,7 +26,10 @@ pub fn make_rect_view<C, F>(name: &str) -> View<C, F> {
         bounds: Bounds::new(0, 0, 20, 20),
         visible: true,
         draw: None,
-        draw2: Some(|_e| info!("drawing rect")),
+        draw2: Some(|e| {
+            info!("bounds: {:?}", e.view.bounds);
+            e.ctx.fill_rect(&e.view.bounds, &e.theme.fg);
+        }),
         layout: None,
         state: None,
         input: None,

@@ -397,7 +397,7 @@ pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     scene.set_focused(PAGE_VIEW);
 
     scene.add_view_to_root(make_overlay_label("overlay-status", "some info").position_at(200, 200));
-    scene.add_view_to_root(make_rect_view("touch-overlay"));
+    // scene.add_view_to_root(make_rect_view("touch-overlay"));
     scene
 }
 
