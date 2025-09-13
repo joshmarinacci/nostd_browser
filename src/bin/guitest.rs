@@ -26,12 +26,12 @@ use gui2::{
     Callback, DrawingContext, EventType, GuiEvent, HAlign, Scene, Theme, View,
 };
 use gui2::form::{make_form, FormLayoutState};
+use gui2::toggle_button::make_toggle_button;
 use log::{error, info};
 
 use nostd_browser::menuview::make_menuview;
 use nostd_browser::tdeck::{EmbeddedDrawingContext, Wrapper};
 use static_cell::StaticCell;
-use nostd_browser::toggle_button::make_toggle_button;
 use nostd_browser::toggle_group::make_toggle_group;
 
 #[panic_handler]
@@ -129,9 +129,9 @@ fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     layout.place_at_row_column("label3", 1,0);
     layout.place_at_row_column("label4", 1,1);
 
-    // scene.add_view_to_parent(
-    //     make_toggle_button("toggle1","Toggle").position_at(40,70),
-    //     &panel.name);
+    scene.add_view_to_parent(
+        make_toggle_button("toggle1","Toggle").position_at(40,70),
+        &panel.name);
     //
     //
     // scene.add_view_to_parent(

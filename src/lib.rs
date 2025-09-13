@@ -8,5 +8,4 @@ pub mod menuview;
 pub mod page;
 pub mod pageview;
 pub mod tdeck;
-pub mod toggle_button;
 pub mod toggle_group;

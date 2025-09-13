@@ -2,7 +2,6 @@ use crate::comps::make_rect_view;
 use crate::menuview::{make_menuview};
 use crate::page::Page;
 use crate::pageview::PageView;
-use crate::toggle_button::make_toggle_button;
 use alloc::boxed::Box;
 use alloc::string::{ToString};
 use alloc::{format, vec};
@@ -15,6 +14,7 @@ use embedded_graphics::prelude::{RgbColor, WebColors};
 use gui2::comps::{make_button, make_label, make_panel, make_text_input};
 use gui2::geom::Bounds;
 use gui2::{connect_parent_child, Action, EventType, GuiEvent, Scene};
+use gui2::toggle_button::make_toggle_button;
 use log::info;
 use nostd_html_parser::blocks::{Block, BlockType};
 
