@@ -161,6 +161,18 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
                 event.scene.set_focused(PAGE_VIEW);
                 return;
             }
+            if event.target == "settings-theme" {
+                if cmd == "Dark" {
+                    ACTIVE_THEME.insert(Box::new(&DARK_THEME));
+                    event.scene.mark_dirty_all();
+                    info!("now active theme {}", ACTIVE_THEME.is_some());
+                }
+                if cmd == "Light" {
+                    ACTIVE_THEME.insert(Box::new(&LIGHT_THEME));
+                    event.scene.mark_dirty_all();
+                    info!("now active theme {}", ACTIVE_THEME.is_some());
+                }
+            }
         }
         Some(Action::Generic) => {
             info!("handling generic");
@@ -184,17 +196,6 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
             if event.target == WIFI_BUTTON {
                 event.scene.remove_parent_and_children(WIFI_PANEL);
                 event.scene.set_focused(PAGE_VIEW);
-            }
-            if event.target == "settings-theme" {
-                info!("switching theme");
-                if let Some(state) = event.scene.get_view_state::<SelectOneOfState>(event.target) {
-                    if state.selected == 0 {
-                        ACTIVE_THEME.insert(Box::new(&LIGHT_THEME));
-                    }
-                    if state.selected == 1 {
-                        ACTIVE_THEME.insert(Box::new(&DARK_THEME));
-                    }
-                }
             }
         }
         None => {
