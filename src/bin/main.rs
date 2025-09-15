@@ -27,12 +27,12 @@ use esp_wifi::wifi::{
     WifiState,
 };
 use esp_wifi::{init, EspWifiController};
-use gui2::{Callback, Theme};
+use gui2::{Callback, EventType, Theme};
 use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
 use gui2::geom::Point as GPoint;
-use gui2::scene::{action_at_focused, click_at, draw_scene, layout_scene, scroll_at_focused, type_at_focused};
+use gui2::scene::{click_at, draw_scene, event_at_focused, layout_scene};
 use nostd_browser::browser::{handle_action2, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME, PAGE_VIEW};
 use nostd_browser::common::{NetCommand, NetStatus, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
 use nostd_browser::page::Page;
@@ -324,7 +324,7 @@ async fn update_display(mut wrapper: Wrapper) {
             last_touch_event = point;
         }
         if let Some(key) = wrapper.poll_keyboard() {
-            if let Some((target, action)) = type_at_focused(&mut scene, &vec![], key) {
+            if let Some((target, action)) = event_at_focused(&mut scene, EventType::Keyboard(key)) {
                 handle_action2(&target, &action, &mut scene, &mut app)
             }
             update_view_from_keyboard_input(&mut scene, key);
@@ -332,15 +332,15 @@ async fn update_display(mut wrapper: Wrapper) {
 
         wrapper.poll_trackball();
         if wrapper.click.changed {
-            if let Some((target, action)) = action_at_focused(&mut scene, &handlers) {
+            if let Some((target, action)) = event_at_focused(&mut scene, EventType::Action()) {
                 handle_action2(&target, &action, &mut scene, &mut app)
             }
         }
         if wrapper.up.changed {
-            scroll_at_focused(&mut scene, &handlers, 0, -1);
+            event_at_focused(&mut scene, EventType::Scroll(0,-1));
         }
         if wrapper.down.changed {
-            scroll_at_focused(&mut scene, &handlers, 0, 1);
+            event_at_focused(&mut scene, EventType::Scroll(0,1));
         }
         let mut ctx: EmbeddedDrawingContext = EmbeddedDrawingContext::new(&mut wrapper.display);
         ctx.clip = scene.dirty_rect.clone();
