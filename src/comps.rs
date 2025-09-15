@@ -1,5 +1,5 @@
 use gui2::geom::Bounds;
-use gui2::{HAlign, View};
+use gui2::{HAlign, TextStyle, View};
 use log::info;
 
 pub fn make_overlay_label<C, F>(name: &str, title: &str) -> View<C, F> {
@@ -13,7 +13,8 @@ pub fn make_overlay_label<C, F>(name: &str, title: &str) -> View<C, F> {
         input: None,
         draw: Some(|v, ctx, theme| {
             ctx.fill_rect(&v.bounds, &theme.fg);
-            ctx.fill_text(&v.bounds, &v.title, &theme.bg, &HAlign::Right);
+            let style = TextStyle::new(&theme.font, &theme.bg).with_halign(HAlign::Right);
+            ctx.fill_text(&v.bounds, &v.title, &style);
         }),
         draw2: None,
     }

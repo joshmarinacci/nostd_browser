@@ -9,7 +9,7 @@ use embedded_graphics::geometry::Point;
 use embedded_graphics::mono_font::ascii::FONT_9X15_BOLD;
 use embedded_graphics::mono_font::MonoTextStyle;
 use gui2::geom::Bounds;
-use gui2::{Action, DrawingContext, EventType, GuiEvent, HAlign, Theme, View};
+use gui2::{Action, DrawingContext, EventType, GuiEvent, HAlign, TextStyle, Theme, View};
 use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
 use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
@@ -205,33 +205,21 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
                         RunStyle::Link(href) => {
                             info!("found a link: {:?}", href);
                             link_count += 1;
-                            // let builder = MonoTextStyleBuilder::new()
-                            //     .font(&context.theme.font)
-                            //     .underline();
                             if rpage.page.selection == link_count {
-                                &theme.bg
+                                let mut tx = TextStyle::new(&theme.bold_font,&theme.fg).with_halign(HAlign::Left);
+                                tx.underline = true;
+                                tx
                             } else {
-                                &theme.fg
+                                TextStyle::new(&theme.bold_font,&theme.fg).with_halign(HAlign::Left)
                             }
-                            //     builder
-                            //         .text_color(context.theme.accent_fg)
-                            //         .background_color(context.theme.highlight_fg)
-                            //         .build()
-                            // } else {
-                            //     builder
-                            //         .text_color(context.theme.accent_fg)
-                            //         .background_color(context.theme.base_bg)
-                            //         .build()
-                            // }
                         }
-                        RunStyle::Plain => &theme.fg,
-                        RunStyle::Bold => &theme.fg,
+                        RunStyle::Plain => TextStyle::new(&theme.font,&theme.fg).with_halign(HAlign::Left),
+                        RunStyle::Bold => TextStyle::new(&theme.font,&theme.fg).with_halign(HAlign::Left),
                     };
                     context.fill_text(
                         &Bounds::new(pos.x, pos.y, 100, 10),
                         &run.text,
-                        text_style,
-                        &HAlign::Left,
+                        &text_style,
                     );
                     inset_chars += run.text.len();
                 }

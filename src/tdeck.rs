@@ -1,7 +1,7 @@
 use crate::common::TDeckDisplay;
 use core::cell::RefCell;
 use embedded_graphics::mono_font::ascii::FONT_6X10;
-use embedded_graphics::mono_font::{MonoFont, MonoTextStyle};
+use embedded_graphics::mono_font::{MonoFont, MonoTextStyle, MonoTextStyleBuilder};
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{DrawTargetExt, Point as EGPoint, Primitive, Size as EGSize};
 use embedded_graphics::primitives::{PrimitiveStyle, Rectangle};
@@ -21,7 +21,7 @@ use esp_hal::timer::timg::TimerGroup;
 use esp_hal::Blocking;
 use gt911::{Error as Gt911Error, Gt911Blocking, Point as TouchPoint};
 use gui2::geom::Bounds;
-use gui2::{DrawingContext, HAlign};
+use gui2::{DrawingContext, HAlign, TextStyle};
 use heapless::Vec;
 use log::{error, info};
 use mipidsi::interface::SpiInterface;
@@ -137,17 +137,21 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
             .unwrap();
     }
 
-    fn fill_text(&mut self, bounds: &Bounds, text: &str, color: &Rgb565, halign: &HAlign) {
+    fn fill_text(&mut self, bounds: &Bounds, text: &str, text_style:&TextStyle<Rgb565, MonoFont<'static>>) {
         let mut display = self.display.clipped(&bounds_to_rect(&self.clip));
-
-        let style = MonoTextStyle::new(&FONT_6X10, *color);
+        
+        let mut text_builder = MonoTextStyleBuilder::new().font(text_style.font).text_color(*text_style.color);
+        if text_style.underline {
+            text_builder = text_builder.underline();
+        }
+        let style = text_builder.build();// MonoTextStyle::new(&FONT_6X10,  *text_style.color);
         let mut pt = embedded_graphics::geometry::Point::new(bounds.x, bounds.y);
         pt.y += bounds.h / 2;
         pt.y += (FONT_6X10.baseline as i32) / 2;
 
         let w = (FONT_6X10.character_size.width as i32) * (text.len() as i32);
-
-        match halign {
+        
+        match text_style.halign {
             HAlign::Left => {
                 pt.x += 5;
             }

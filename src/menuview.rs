@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
 use gui2::geom::Bounds;
-use gui2::{Action, EventType, HAlign, Scene, View};
+use gui2::{Action, EventType, HAlign, Scene, TextStyle, View};
 use log::info;
 
 pub struct MenuState {
@@ -39,9 +39,11 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
                     };
                     if state.selected == (i as i32) {
                         ctx.fill_rect(&b, &theme.fg);
-                        ctx.fill_text(&b, item.as_str(), &theme.bg, &HAlign::Left);
+                        let style = TextStyle::new(&theme.font, &theme.bg);
+                        ctx.fill_text(&b, item.as_str(), &style);
                     } else {
-                        ctx.fill_text(&b, item.as_str(), &theme.fg, &HAlign::Left);
+                        let style = TextStyle::new(&theme.font, &theme.fg);
+                        ctx.fill_text(&b, item.as_str(), &style);
                     }
                 }
             }
