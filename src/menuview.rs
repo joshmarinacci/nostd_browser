@@ -2,7 +2,7 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
 use gui2::geom::Bounds;
-use gui2::{Action, EventType, TextStyle};
+use gui2::{Action, DrawEvent, EventType, TextStyle};
 use gui2::scene::Scene;
 use gui2::view::View;
 use log::info;
@@ -27,11 +27,11 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
             h: MH * (data.len() as i32),
         },
         visible: true,
-        draw: Some(|view, ctx, theme| {
-            let bounds = view.bounds.clone();
-            ctx.fill_rect(&view.bounds, &theme.bg);
-            ctx.stroke_rect(&view.bounds, &theme.fg);
-            if let Some(state) = &view.get_state::<MenuState>() {
+        draw: Some(|e: &mut DrawEvent<C, F>| {
+            let bounds = e.view.bounds.clone();
+            e.ctx.fill_rect(&e.view.bounds, &e.theme.bg);
+            e.ctx.stroke_rect(&e.view.bounds, &e.theme.fg);
+            if let Some(state) = &e.view.get_state::<MenuState>() {
                 for (i, item) in (&state.data).iter().enumerate() {
                     let b = Bounds {
                         x: bounds.x,
@@ -40,17 +40,16 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
                         h: MH - 1,
                     };
                     if state.selected == (i as i32) {
-                        ctx.fill_rect(&b, &theme.fg);
-                        let style = TextStyle::new(&theme.font, &theme.bg);
-                        ctx.fill_text(&b, item.as_str(), &style);
+                        e.ctx.fill_rect(&b, &e.theme.fg);
+                        let style = TextStyle::new(&e.theme.font, &e.theme.bg);
+                        e.ctx.fill_text(&b, item.as_str(), &style);
                     } else {
-                        let style = TextStyle::new(&theme.font, &theme.fg);
-                        ctx.fill_text(&b, item.as_str(), &style);
+                        let style = TextStyle::new(&e.theme.font, &e.theme.fg);
+                        e.ctx.fill_text(&b, item.as_str(), &style);
                     }
                 }
             }
         }),
-        draw2: None,
         input: Some(|event| {
             match &event.event_type {
                 EventType::Tap(pt) => {

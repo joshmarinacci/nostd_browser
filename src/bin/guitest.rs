@@ -18,12 +18,11 @@ use esp_hal::clock::CpuClock;
 use gui2::comps::{make_label};
 use gui2::form::{make_form, FormLayoutState};
 use gui2::geom::{Bounds, Point as GPoint};
+use gui2::{Callback, EventType, Theme};
+use gui2::scene::{click_at, draw_scene, event_at_focused, Scene};
 use gui2::toggle_button::make_toggle_button;
 use gui2::toggle_group::make_toggle_group;
-use gui2::{
-    click_at, draw_scene, type_at_focused,
-    Callback, DrawingContext, EventType, GuiEvent, HAlign, Scene, Theme, View,
-};
+
 use log::{error, info};
 
 use nostd_browser::tdeck::{EmbeddedDrawingContext, Wrapper};
@@ -83,7 +82,7 @@ async fn main(_spawner: Spawner) {
     scene.mark_dirty_all();
     loop {
         if let Some(key) = wrapper.poll_keyboard() {
-            type_at_focused(&mut scene, &handlers, key);
+            event_at_focused(&mut scene, EventType::Keyboard(key));
         }
         if let Ok(point) = wrapper.touch.get_touch(&mut wrapper.i2c) {
             // stack allocated Vec containing 0-5 points

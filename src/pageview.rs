@@ -8,7 +8,7 @@ use core::cmp::max;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::mono_font::ascii::FONT_9X15_BOLD;
 use gui2::geom::Bounds;
-use gui2::{Action, DrawingContext, EventType, GuiEvent, HAlign, TextStyle, Theme};
+use gui2::{Action, DrawEvent, DrawingContext, EventType, GuiEvent, HAlign, TextStyle, Theme};
 use gui2::view::View;
 use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
@@ -76,7 +76,6 @@ impl PageView {
             input: Some(handle_input),
             layout: None,
             draw: Some(draw),
-            draw2: None,
         }
     }
     pub fn load_page(&mut self, page: Page) {
@@ -158,8 +157,8 @@ impl PageView {
 //     self.columns = display.size().width/theme.font.character_size.width
 // }
 //
-fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, theme: &Theme<C, F>) {
-    if !view.visible {
+fn draw<C, F>(e: &mut DrawEvent<C,F>) {
+    if !e.view.visible {
         return;
     }
     // let font = context.theme.font;
@@ -169,10 +168,10 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
     let viewport_height: i32 = 240 / line_height as i32;
     let char_width = font.character_size.width as i32;
 
-    context.fill_rect(&view.bounds, &theme.bg);
+    e.ctx.fill_rect(&e.view.bounds, &e.theme.bg);
 
     // select the lines in the current viewport
-    if let Some(state) = &view.state {
+    if let Some(state) = &e.view.state {
         if let Some(state) = state.downcast_ref::<PageView>() {
             let rpage = state.get_imutable_page();
             let mut end: usize = (rpage.scroll_index + viewport_height) as usize;
@@ -197,11 +196,11 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
                 // };
                 // draw a bullet
                 if line.block_type == BlockType::ListItem {
-                    context.fill_rect(&Bounds::new(2, y, 4, 3), &theme.fg);
+                    e.ctx.fill_rect(&Bounds::new(2, y, 4, 3), &e.theme.fg);
                 }
                 for run in &line.runs {
                     let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
-                    let plain_style = TextStyle::new(&theme.font, &theme.fg).with_halign(HAlign::Left);
+                    let plain_style = TextStyle::new(&e.theme.font, &e.theme.fg).with_halign(HAlign::Left);
                     let text_style = match &run.style {
                         RunStyle::Link(href) => {
                             // info!("found a link: {:?}", href);
@@ -215,7 +214,7 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
                         RunStyle::Plain => plain_style,
                         RunStyle::Bold => plain_style,
                     };
-                    context.fill_text(
+                    e.ctx.fill_text(
                         &Bounds::new(pos.x, pos.y, 100, 10),
                         &run.text,
                         &text_style,
