@@ -20,3 +20,4 @@ next to test
 [x] font button creates and opens a new menu view which then hides when the item is selected.
 [ ] changing the theme and font really repaints the screen with new colors and font
 [ ] be able to scroll and tab through links
+[ ] draw text needs to support bold and underline and bg and fg color

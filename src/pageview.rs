@@ -7,6 +7,7 @@ use alloc::{format, vec};
 use core::cmp::max;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::mono_font::ascii::FONT_9X15_BOLD;
+use embedded_graphics::mono_font::MonoTextStyle;
 use gui2::geom::Bounds;
 use gui2::{Action, DrawingContext, EventType, GuiEvent, HAlign, Theme, View};
 use log::{info, warn};
@@ -169,7 +170,6 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
     let char_width = font.character_size.width as i32;
 
     context.fill_rect(&view.bounds, &theme.bg);
-    // context.display.rect(&self.bounds,PrimitiveStyle::with_fill(context.theme.base_bg));
 
     // select the lines in the current viewport
     if let Some(state) = &view.state {
@@ -185,7 +185,7 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
             let x_inset = 8;
             let y_inset = 5;
 
-            // let link_count = -1;
+            let mut link_count = -1;
             // draw the lines
             for (j, line) in viewport_lines.iter().enumerate() {
                 let mut inset_chars: usize = 0;
@@ -198,40 +198,41 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
                 // draw a bullet
                 if line.block_type == BlockType::ListItem {
                     context.fill_rect(&Bounds::new(2, y, 4, 3), &theme.fg);
-                    // context.display.rect(&Rectangle::new(Point::new(2, y), Size::new(4, 3)),
-                    //     PrimitiveStyle::with_fill(context.theme.base_fg));
                 }
                 for run in &line.runs {
                     let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
-                    // let text_style = match &run.style {
-                    //     RunStyle::Link(_) => {
-                    //         // info!("found a link: {:?}", href);
-                    //         link_count += 1;
-                    //         // let builder = MonoTextStyleBuilder::new()
-                    //         //     .font(&context.theme.font)
-                    //         //     .underline();
-                    //         // if rpage.page.selection == link_count {
-                    //         //     builder
-                    //         //         .text_color(context.theme.accent_fg)
-                    //         //         .background_color(context.theme.highlight_fg)
-                    //         //         .build()
-                    //         // } else {
-                    //         //     builder
-                    //         //         .text_color(context.theme.accent_fg)
-                    //         //         .background_color(context.theme.base_bg)
-                    //         //         .build()
-                    //         // }
-                    //     }
-                    //     // RunStyle::Plain => style,
-                    //     // RunStyle::Bold => style,
-                    // };
+                    let text_style = match &run.style {
+                        RunStyle::Link(href) => {
+                            info!("found a link: {:?}", href);
+                            link_count += 1;
+                            // let builder = MonoTextStyleBuilder::new()
+                            //     .font(&context.theme.font)
+                            //     .underline();
+                            if rpage.page.selection == link_count {
+                                &theme.bg
+                            } else {
+                                &theme.fg
+                            }
+                            //     builder
+                            //         .text_color(context.theme.accent_fg)
+                            //         .background_color(context.theme.highlight_fg)
+                            //         .build()
+                            // } else {
+                            //     builder
+                            //         .text_color(context.theme.accent_fg)
+                            //         .background_color(context.theme.base_bg)
+                            //         .build()
+                            // }
+                        }
+                        RunStyle::Plain => &theme.fg,
+                        RunStyle::Bold => &theme.fg,
+                    };
                     context.fill_text(
                         &Bounds::new(pos.x, pos.y, 100, 10),
                         &run.text,
-                        &theme.fg,
+                        text_style,
                         &HAlign::Left,
                     );
-                    // context.display.text(&run.text, &pos, text_style);
                     inset_chars += run.text.len();
                 }
             }
