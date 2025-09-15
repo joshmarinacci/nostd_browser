@@ -5,7 +5,8 @@ use crate::pageview::PageView;
 use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::{format, vec};
-use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
+use embedded_graphics::mono_font::ascii::{FONT_6X10, FONT_9X15, FONT_9X15_BOLD};
+use embedded_graphics::mono_font::iso_8859_10::FONT_7X13;
 use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{RgbColor, WebColors};
@@ -69,123 +70,127 @@ pub const DARK_THEME: AppTheme = AppTheme {
 pub const ACTIVE_THEME: Option<Box<&AppTheme>> = None;
 
 pub struct AppState {
-    pub theme: AppTheme,
+    pub theme: &'static AppTheme,
+    pub font: &'static MonoFont<'static>,
 }
-pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
+pub fn handle_action2<C, F>(target: &str, action: &Action, scene: &mut Scene<C,F>, app:&mut AppState) {
     info!(
         "handling action2 {:?} from {:?}",
-        event.action, event.target
+        action, target
     );
-    let act = event.action.clone();
-    match act {
-        Some(Action::Command(cmd)) => {
-            if event.target == MAIN_MENU {
+    match action {
+        Action::Command(cmd) => {
+            if target == MAIN_MENU {
                 match cmd.as_str() {
-                    "Browser" => show_and_focus(event, BROWSER_MENU),
-                    "Network" => show_wifi_panel(event),
+                    "Browser" => {
+                        scene.show_view(BROWSER_MENU);
+                        scene.set_focused(BROWSER_MENU);
+                    },
+                    "Network" => show_wifi_panel(scene),
                     "Settings" => {
-                        event.scene.hide_view(MAIN_MENU);
-                        show_settings_panel(event);
+                        scene.hide_view(MAIN_MENU);
+                        show_settings_panel(scene);
                     }
-                    "Info" => show_info_panel(event),
+                    "Info" => show_info_panel(scene),
                     "close" => {
-                        event.scene.hide_view(MAIN_MENU);
-                        event.scene.set_focused(PAGE_VIEW);
+                        scene.hide_view(MAIN_MENU);
+                        scene.set_focused(PAGE_VIEW);
                     }
                     _ => {
                         info!("unknown menu item");
                     }
                 }
             }
-            if event.target == BROWSER_MENU {
+            if target == BROWSER_MENU {
                 match cmd.as_str() {
                     "Open URL" => {
-                        show_url_panel(event);
+                        show_url_panel(scene);
                     }
                     "Bookmarks" => {
                         // show the bookmarks
                         NET_COMMANDS.send(NetCommand::Load("bookmarks.html".to_string()));
-                        event.scene.hide_view(MAIN_MENU);
-                        event.scene.hide_view(BROWSER_MENU);
-                        event.scene.set_focused(PAGE_VIEW);
+                        scene.hide_view(MAIN_MENU);
+                        scene.hide_view(BROWSER_MENU);
+                        scene.set_focused(PAGE_VIEW);
                     }
                     "Back" => {
-                        event.scene.hide_view(MAIN_MENU);
-                        event.scene.hide_view(BROWSER_MENU);
-                        if let Some(state) = event.scene.get_view_state::<PageView>(PAGE_VIEW) {
+                        scene.hide_view(MAIN_MENU);
+                        scene.hide_view(BROWSER_MENU);
+                        if let Some(state) = scene.get_view_state::<PageView>(PAGE_VIEW) {
                             state.prev_page();
                         }
-                        event.scene.set_focused(PAGE_VIEW);
+                        scene.set_focused(PAGE_VIEW);
                     }
                     "Forward" => {
-                        event.scene.hide_view(MAIN_MENU);
-                        event.scene.hide_view(BROWSER_MENU);
-                        if let Some(page_view) = event.scene.get_view_state::<PageView>(PAGE_VIEW) {
+                        scene.hide_view(MAIN_MENU);
+                        scene.hide_view(BROWSER_MENU);
+                        if let Some(page_view) = scene.get_view_state::<PageView>(PAGE_VIEW) {
                             page_view.next_page();
                         }
-                        event.scene.set_focused(PAGE_VIEW);
+                        scene.set_focused(PAGE_VIEW);
                     }
                     "close" => {
-                        event.scene.hide_view(BROWSER_MENU);
-                        event.scene.set_focused(MAIN_MENU);
+                        scene.hide_view(BROWSER_MENU);
+                        scene.set_focused(MAIN_MENU);
                     }
                     _ => {
                         info!("unknown menu item");
                     }
                 }
             }
-            if event.target == WIFI_MENU {
+            if target == WIFI_MENU {
                 match cmd.as_str() {
                     "status" => info!("status"),
                     "scan" => info!("scan"),
                     "close" => {
-                        event.scene.hide_view("wifi");
-                        event.scene.set_focused(MAIN_MENU);
+                        scene.hide_view("wifi");
+                        scene.set_focused(MAIN_MENU);
                     }
                     _ => {
                         info!("unknown menu item");
                     }
                 }
             }
-            if event.target == "url-input" {
+            if target == "url-input" {
                 info!("url input {}", cmd);
-                if let Some(view) = event.scene.get_view_mut("url-input") {
+                if let Some(view) = scene.get_view_mut("url-input") {
                     info!("got the text {:?}", view.title);
                     // NET_COMMANDS
                     //     .send(NetCommand::Load(view.title.to_string()))
                     // .await;
                 }
-                event.scene.remove_parent_and_children(URL_PANEL);
-                event.scene.hide_view(MAIN_MENU);
-                event.scene.hide_view(BROWSER_MENU);
-                event.scene.set_focused(PAGE_VIEW);
+                scene.remove_parent_and_children(URL_PANEL);
+                scene.hide_view(MAIN_MENU);
+                scene.hide_view(BROWSER_MENU);
+                scene.set_focused(PAGE_VIEW);
                 return;
             }
-            if event.target == "settings-theme" {
+            if target == "settings-theme" {
                 if cmd == "Dark" {
-                    ACTIVE_THEME.insert(Box::new(&DARK_THEME));
-                    event.scene.mark_dirty_all();
-                    info!("now active theme {}", ACTIVE_THEME.is_some());
+                    app.theme = &DARK_THEME;
+                    scene.mark_dirty_all();
                 }
                 if cmd == "Light" {
-                    ACTIVE_THEME.insert(Box::new(&LIGHT_THEME));
-                    event.scene.mark_dirty_all();
-                    info!("now active theme {}", ACTIVE_THEME.is_some());
+                    app.theme = &LIGHT_THEME;
+                    scene.mark_dirty_all();
                 }
             }
-            if event.target == "font-menu" {
+            if target == "font-menu" {
                 match cmd.as_str() {
                     "Small" => {
-                        info!("set font to small");
-                        event.scene.hide_view("font-menu");
+                        app.font = &FONT_6X10;
+                        scene.mark_dirty_all();
+                        scene.hide_view("font-menu");
                     },
                     "Medium" => {
-                        info!("set font to medium");
-                        event.scene.hide_view("font-menu");
+                        app.font = &FONT_7X13;
+                        scene.mark_dirty_all();
+                        scene.hide_view("font-menu");
                     },
                     "Large" => {
-                        info!("set font to large");
-                        event.scene.hide_view("font-menu");
+                        app.font = &FONT_9X15;
+                        scene.mark_dirty_all();
+                        scene.hide_view("font-menu");
                     },
                     _ => {
                         info!("unknown menu item");
@@ -193,63 +198,60 @@ pub fn handle_action2<C, F>(event: &mut GuiEvent<C, F>) {
                 }
             }
         }
-        Some(Action::Generic) => {
+        Action::Generic => {
             info!("handling generic");
-            if event.target == INFO_BUTTON {
-                event.scene.remove_parent_and_children(INFO_PANEL);
-                event.scene.set_focused(PAGE_VIEW);
+            if target == INFO_BUTTON {
+                scene.remove_parent_and_children(INFO_PANEL);
+                scene.set_focused(PAGE_VIEW);
                 return;
             }
-            if event.target == "settings-close-button" {
-                event.scene.remove_parent_and_children(SETTINGS_PANEL);
-                event.scene.set_focused(PAGE_VIEW);
+            if target == "settings-close-button" {
+               scene.remove_parent_and_children(SETTINGS_PANEL);
+               scene.set_focused(PAGE_VIEW);
             }
-            if event.target == "url-cancel-button" {
-                event.scene.remove_parent_and_children(URL_PANEL);
-                event.scene.set_focused(PAGE_VIEW);
+            if target == "url-cancel-button" {
+               scene.remove_parent_and_children(URL_PANEL);
+               scene.set_focused(PAGE_VIEW);
             }
-            if event.target == "url-load-button" {
-                event.scene.remove_parent_and_children(URL_PANEL);
-                event.scene.set_focused(PAGE_VIEW);
+            if target == "url-load-button" {
+               scene.remove_parent_and_children(URL_PANEL);
+               scene.set_focused(PAGE_VIEW);
             }
-            if event.target == "settings-font-button" {
+            if target == "settings-font-button" {
                 let font_menu = make_menuview("font-menu",vec!["Small","Medium","Large"])
                     .position_at(150,70);
-                event.scene.add_view_to_root(font_menu);
+               scene.add_view_to_root(font_menu);
             }
-            if event.target == WIFI_BUTTON {
-                event.scene.remove_parent_and_children(WIFI_PANEL);
-                event.scene.set_focused(PAGE_VIEW);
+            if target == WIFI_BUTTON {
+               scene.remove_parent_and_children(WIFI_PANEL);
+               scene.set_focused(PAGE_VIEW);
             }
-        }
-        None => {
-            info!("no action")
         }
     }
 }
-fn show_url_panel<C, F>(event: &mut GuiEvent<C, F>) {
+fn show_url_panel<C, F>(scene: &mut Scene<C, F>) {
     let panel = make_panel(URL_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
-    event.scene.add_view_to_parent(
+    scene.add_view_to_parent(
         make_label("url-label", "URL").position_at(40, 40),
         &panel.name,
     );
     let mut input = make_text_input("url-input", "https://apps.josh.earth").position_at(40, 70);
     input.bounds.w = 200;
-    event.scene.add_view_to_parent(input, &panel.name);
-    event.scene.add_view_to_parent(
+    scene.add_view_to_parent(input, &panel.name);
+    scene.add_view_to_parent(
         make_button("url-cancel-button", "cancel").position_at(60, 160),
         &panel.name,
     );
-    event.scene.add_view_to_parent(
+    scene.add_view_to_parent(
         make_button("url-load-button", "load").position_at(160, 160),
         &panel.name,
     );
-    event.scene.add_view_to_root(panel);
-    event.scene.hide_view(MAIN_MENU);
-    event.scene.hide_view(BROWSER_MENU);
-    event.scene.set_focused("url-input");
+    scene.add_view_to_root(panel);
+    scene.hide_view(MAIN_MENU);
+    scene.hide_view(BROWSER_MENU);
+    scene.set_focused("url-input");
 }
-fn show_info_panel<C, F>(event: &mut GuiEvent<C, F>) {
+fn show_info_panel<C, F>(scene: &mut Scene<C, F>) {
     info!("showing the info panel");
     let panel_bounds = Bounds::new(20, 20, 320 - 40, 240 - 40);
     let panel = make_panel(INFO_PANEL, panel_bounds.clone());
@@ -258,43 +260,43 @@ fn show_info_panel<C, F>(event: &mut GuiEvent<C, F>) {
     let used = esp_alloc::HEAP.used();
 
     let label1a = make_label("info-label1", "Heap").position_at(120, 50);
-    event.scene.add_child(&panel.name, &label1a.name);
-    event.scene.add_view(label1a);
+    scene.add_child(&panel.name, &label1a.name);
+    scene.add_view(label1a);
 
     let label2a = make_label("info-label2a", "Free memory").position_at(60, 80);
-    event.scene.add_child(&panel.name, &label2a.name);
-    event.scene.add_view(label2a);
+    scene.add_child(&panel.name, &label2a.name);
+    scene.add_view(label2a);
 
     let label2b = make_label("info-label2b", &format!("{:?}", free)).position_at(200, 80);
-    event.scene.add_child(&panel.name, &label2b.name);
-    event.scene.add_view(label2b);
+    scene.add_child(&panel.name, &label2b.name);
+    scene.add_view(label2b);
 
     let label3a = make_label("info-label3a", "Used memory").position_at(60, 100);
-    event.scene.add_child(&panel.name, &label3a.name);
-    event.scene.add_view(label3a);
+    scene.add_child(&panel.name, &label3a.name);
+    scene.add_view(label3a);
 
     let label3b = make_label("info-label3b", &format!("{:?}", used)).position_at(200, 100);
-    event.scene.add_child(&panel.name, &label3b.name);
-    event.scene.add_view(label3b);
+    scene.add_child(&panel.name, &label3b.name);
+    scene.add_view(label3b);
 
     let label4a = make_label("info-label4a", "Total memory").position_at(60, 120);
-    event.scene.add_child(&panel.name, &label4a.name);
-    event.scene.add_view(label4a);
+    scene.add_child(&panel.name, &label4a.name);
+    scene.add_view(label4a);
 
     let label4b = make_label("info-label4b", &format!("{:?}", free + used)).position_at(200, 120);
-    event.scene.add_child(&panel.name, &label4b.name);
-    event.scene.add_view(label4b);
+    scene.add_child(&panel.name, &label4b.name);
+    scene.add_view(label4b);
 
     let button = make_button(INFO_BUTTON, "done").position_at(160 - 20, 200 - 20);
-    event.scene.add_child(&panel.name, &button.name);
-    event.scene.add_view(button);
+    scene.add_child(&panel.name, &button.name);
+    scene.add_view(button);
 
-    event.scene.add_view_to_root(panel);
+    scene.add_view_to_root(panel);
 
-    event.scene.hide_view(MAIN_MENU);
-    event.scene.set_focused(INFO_BUTTON);
+    scene.hide_view(MAIN_MENU);
+    scene.set_focused(INFO_BUTTON);
 }
-fn show_wifi_panel<C, F>(event: &mut GuiEvent<C, F>) {
+fn show_wifi_panel<C, F>(scene: &mut Scene<C, F>) {
     let panel = make_panel(WIFI_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
     let label1a = make_label("wifi-label1a", "SSID").position_at(60, 80);
     // let label1b = Label::new(SSID.unwrap_or("----"), Point::new(150, 80));
@@ -302,40 +304,40 @@ fn show_wifi_panel<C, F>(event: &mut GuiEvent<C, F>) {
     // let label2b = Label::new(PASSWORD.unwrap_or("----"), Point::new(150, 100));
     let button = make_button(WIFI_BUTTON, "done").position_at(160 - 20, 200 - 20);
 
-    event.scene.add_view_to_root(panel);
-    event.scene.add_view_to_parent(label1a,WIFI_PANEL);
-    event.scene.add_view_to_parent(label2a,WIFI_PANEL);
-    event.scene.add_view_to_parent(button,WIFI_PANEL);
+    scene.add_view_to_root(panel);
+    scene.add_view_to_parent(label1a,WIFI_PANEL);
+    scene.add_view_to_parent(label2a,WIFI_PANEL);
+    scene.add_view_to_parent(button,WIFI_PANEL);
     // scene.add("wifi-label1b", label1b);
     // scene.add("wifi-label2b", label2b);
-    event.scene.hide_view(MAIN_MENU);
-    event.scene.set_focused(WIFI_BUTTON);
+    scene.hide_view(MAIN_MENU);
+    scene.set_focused(WIFI_BUTTON);
 }
-fn show_settings_panel<C, F>(event: &mut GuiEvent<C, F>) {
+fn show_settings_panel<C, F>(scene: &mut Scene<C, F>) {
     info!("showing settings panel");
     let panel = make_panel(SETTINGS_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
-    event.scene.add_view_to_parent(
+    scene.add_view_to_parent(
         make_label("settings-theme-label", "Theme").position_at(60, 40),
         &panel.name,
     );
-    event.scene.add_view_to_parent(
+    scene.add_view_to_parent(
         make_toggle_group("settings-theme", vec!["Light", "Dark"], 0).position_at(100, 40),
         &panel.name,
     );
-    event.scene.add_view_to_parent(
+    scene.add_view_to_parent(
         make_label("settings-font-label", "Font").position_at(60, 80),
         &panel.name,
     );
-    event.scene.add_view_to_parent(
+    scene.add_view_to_parent(
         make_button("settings-font-button", "Small").position_at(100, 80),
         &panel.name,
     );
 
-    event.scene.add_view_to_parent(
+    scene.add_view_to_parent(
         make_button("settings-close-button", "Close").position_at(130, 140),
         &panel.name,
     );
-    event.scene.add_view_to_root(panel);
+    scene.add_view_to_root(panel);
 }
 
 pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
@@ -425,11 +427,20 @@ pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     scene
 }
 
-pub fn update_view_from_input<C, F>(event: &mut GuiEvent<C, F>) {
+pub fn update_view_from_keyboard_input<C,F>(scene: &mut Scene<C,F>, key:u8) {
+    if key == b' ' {
+        if is_visible(scene, MAIN_MENU) == false && scene.is_focused(PAGE_VIEW) {
+            scene.show_view(MAIN_MENU);
+            scene.set_focused(MAIN_MENU);
+            return;
+        }
+    }
+}
+pub fn update_view_from_input<C, F>(event: &mut GuiEvent<C, F>, app: &mut AppState) {
     match &event.event_type {
         EventType::Keyboard(key) => {
             if *key == b' ' {
-                if is_visible(event, MAIN_MENU) == false && event.scene.is_focused(PAGE_VIEW) {
+                if is_visible(event.scene, MAIN_MENU) == false && event.scene.is_focused(PAGE_VIEW) {
                     event.scene.show_view(MAIN_MENU);
                     event.scene.set_focused(MAIN_MENU);
                     return;
@@ -444,17 +455,10 @@ pub fn update_view_from_input<C, F>(event: &mut GuiEvent<C, F>) {
         }
         _ => {}
     }
-    if let Some(_action) = &event.action {
-        handle_action2(event);
-    }
 }
 
-fn show_and_focus<C, F>(event: &mut GuiEvent<C, F>, name: &str) {
-    event.scene.show_view(name);
-    event.scene.set_focused(name);
-}
-fn is_visible<C, F>(event: &GuiEvent<C, F>, name: &str) -> bool {
-    if let Some(menu) = event.scene.get_view(name) {
+fn is_visible<C, F>(scene: &Scene<C, F>, name: &str) -> bool {
+    if let Some(menu) = scene.get_view(name) {
         menu.visible
     } else {
         false

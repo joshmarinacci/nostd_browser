@@ -6,7 +6,7 @@
     holding buffers for the duration of a data transfer."
 )]
 extern crate alloc;
-use alloc::string::ToString;
+use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
 use alloc::boxed::Box;
@@ -15,7 +15,7 @@ use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_net::{Runner, Stack, StackResources};
 use embassy_time::{Duration, Timer};
-use embedded_graphics::mono_font::ascii::{FONT_9X15, FONT_9X15_BOLD};
+use embedded_graphics::mono_font::ascii::{FONT_7X13, FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
@@ -28,14 +28,12 @@ use esp_wifi::wifi::{
     WifiState,
 };
 use esp_wifi::{init, EspWifiController};
-use gui2::{
-    action_at_focused, click_at, draw_scene, scroll_at_focused, type_at_focused, Callback, Theme,
-};
+use gui2::{action_at_focused, click_at, draw_scene, pick_at, scroll_at_focused, type_at_focused, Action, Callback, EventType, GuiEvent, Scene, Theme};
 use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
 use gui2::geom::Point as GPoint;
-use nostd_browser::browser::{make_gui_scene, update_view_from_input, ACTIVE_THEME, DARK_THEME, PAGE_VIEW};
+use nostd_browser::browser::{handle_action2, make_gui_scene, update_view_from_input, update_view_from_keyboard_input, AppState, ACTIVE_THEME, DARK_THEME, LIGHT_THEME, PAGE_VIEW};
 use nostd_browser::common::{NetCommand, NetStatus, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
 use nostd_browser::page::Page;
 use nostd_browser::pageview::PageView;
@@ -277,33 +275,25 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
 #[embassy_executor::task]
 async fn update_display(mut wrapper: Wrapper) {
     let mut scene = make_gui_scene();
+    let mut app:AppState = AppState {
+        theme: &LIGHT_THEME,
+        font: &FONT_7X13,
+    };
 
     let mut handlers: Vec<Callback<Rgb565, MonoFont>> = vec![];
     handlers.push(|event| {
-        // info!("event happened {} {:?}", event.target, event.event_type);
-        update_view_from_input(event);
+        // update_view_from_input(event, &mut app);
     });
 
-    let default_theme = Theme {
-        panel_bg: Rgb565::WHITE,
-        fg: Rgb565::BLACK,
-        bg: Rgb565::WHITE,
-        font: FONT_9X15,
-        bold_font: FONT_9X15_BOLD,
-    };
     let mut last_touch_event: Option<gt911::Point> = None;
     scene.set_focused(PAGE_VIEW);
     loop {
-        let theme: &Theme<Rgb565, MonoFont> = if let Some(active_theme) = ACTIVE_THEME {
-            &Theme {
-                bg: active_theme.base_bg,
-                fg: active_theme.base_fg,
-                panel_bg: active_theme.base_bg,
-                font: active_theme.font,
-                bold_font: active_theme.bold,
-            }
-        } else {
-            &default_theme
+        let theme:Theme<Rgb565, MonoFont> = Theme {
+            bg: app.theme.base_bg,
+            fg: app.theme.base_fg,
+            panel_bg: app.theme.base_bg,
+            font: app.font.clone(),
+            bold_font: app.theme.bold,
         };
 
         if let Ok(page) = PAGE_CHANNEL.try_receive() {
@@ -334,18 +324,26 @@ async fn update_display(mut wrapper: Wrapper) {
                     //     overlay.bounds = overlay.bounds.center_at(pt.x, pt.y);
                     //     scene.mark_dirty_view("touch-overlay");
                     // }
-                    click_at(&mut scene, &mut handlers, pt);
+                    let res = click_at2(&mut scene, pt);
+                    if let Some((target, action)) = res {
+                        handle_action2(&target, &action, &mut scene, &mut app)
+                    }
                 }
             }
             last_touch_event = point;
         }
         if let Some(key) = wrapper.poll_keyboard() {
-            type_at_focused(&mut scene, &handlers, key)
+            if let Some((target, action)) = type_at_focused2(&mut scene, key) {
+                handle_action2(&target, &action, &mut scene, &mut app)
+            }
+            update_view_from_keyboard_input(&mut scene, key);
         }
 
         wrapper.poll_trackball();
         if wrapper.click.changed {
-            action_at_focused(&mut scene, &handlers);
+            if let Some((target, action)) = action_at_focused(&mut scene, &handlers) {
+                handle_action2(&target, &action, &mut scene, &mut app)
+            }
         }
         if wrapper.up.changed {
             scroll_at_focused(&mut scene, &handlers, 0, -1);
@@ -359,6 +357,46 @@ async fn update_display(mut wrapper: Wrapper) {
         Timer::after(Duration::from_millis(20)).await;
     }
 }
+pub fn click_at2<'a, C, F>(scene: &'a mut Scene<C, F>, pt: gui2::geom::Point) -> Option<(String, Action)> {
+    let targets = pick_at(scene, &pt);
+    if let Some(target) = targets.last() {
+        let mut event: GuiEvent<C, F> = GuiEvent {
+            scene,
+            target,
+            event_type: EventType::Tap(pt),
+            action: None,
+        };
+        if let Some(view) = event.scene.get_view(target) {
+            if let Some(input) = view.input {
+                if let Some(action) = input(&mut event) {
+                    return Some((target.into(), action));
+                }
+            }
+        }
+    }
+    None
+}
+pub fn type_at_focused2<C, F>(scene: &mut Scene<C, F>, key: u8) -> Option<(String, Action)> {
+    if scene.get_focused().is_some() {
+        let focused = scene.get_focused().as_ref().unwrap().clone();
+        let mut event: GuiEvent<C, F> = GuiEvent {
+            scene,
+            target: &focused,
+            event_type: EventType::Keyboard(key),
+            action: None,
+        };
+        if let Some(view) = event.scene.get_view(&focused) {
+            if let Some(input) = view.input {
+                if let Some(action) = input(&mut event) {
+                    return Some((focused,action));
+                }
+            }
+        }
+    }
+    None
+}
+
+
 
 async fn load_file_url(href: &str) -> &[u8] {
     PAGE_BYTES

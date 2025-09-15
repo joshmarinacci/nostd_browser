@@ -89,7 +89,7 @@ impl PageView {
                     // info!("Run: {:?}", run);
                     match &run.style {
                         RunStyle::Link(href) => {
-                            info!("found a link: {:?}", href);
+                            // info!("found a link: {:?}", href);
                             link_count += 1;
                         }
                         _ => {}
@@ -204,7 +204,7 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
                     let plain_style = TextStyle::new(&theme.font, &theme.fg).with_halign(HAlign::Left);
                     let text_style = match &run.style {
                         RunStyle::Link(href) => {
-                            info!("found a link: {:?}", href);
+                            // info!("found a link: {:?}", href);
                             link_count += 1;
                             if rpage.page.selection == link_count {
                                 plain_style.with_underline(true)

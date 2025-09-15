@@ -139,7 +139,7 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
 
     fn fill_text(&mut self, bounds: &Bounds, text: &str, text_style:&TextStyle<Rgb565, MonoFont<'static>>) {
         let mut display = self.display.clipped(&bounds_to_rect(&self.clip));
-        
+
         let mut text_builder = MonoTextStyleBuilder::new().font(text_style.font).text_color(*text_style.color);
         if text_style.underline {
             text_builder = text_builder.underline();
@@ -150,7 +150,7 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
         pt.y += (FONT_6X10.baseline as i32) / 2;
 
         let w = (FONT_6X10.character_size.width as i32) * (text.len() as i32);
-        
+
         match text_style.halign {
             HAlign::Left => {
                 pt.x += 5;
