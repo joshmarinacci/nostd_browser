@@ -1,5 +1,6 @@
 use gui2::geom::Bounds;
-use gui2::{HAlign, TextStyle, View};
+use gui2::{HAlign, TextStyle};
+use gui2::view::View;
 use log::info;
 
 pub fn make_overlay_label<C, F>(name: &str, title: &str) -> View<C, F> {

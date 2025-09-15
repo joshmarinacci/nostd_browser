@@ -5,7 +5,7 @@ use crate::pageview::PageView;
 use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::{format, vec};
-use embedded_graphics::mono_font::ascii::{FONT_6X10, FONT_9X15, FONT_9X15_BOLD};
+use embedded_graphics::mono_font::ascii::{FONT_6X13, FONT_6X13_BOLD, FONT_7X13_BOLD, FONT_9X15, FONT_9X15_BOLD};
 use embedded_graphics::mono_font::iso_8859_10::FONT_7X13;
 use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
@@ -13,7 +13,8 @@ use embedded_graphics::prelude::{RgbColor, WebColors};
 use gui2::comps::{make_button, make_label, make_panel, make_text_input};
 use gui2::geom::Bounds;
 use gui2::toggle_group::{make_toggle_group};
-use gui2::{Action, EventType, GuiEvent, Scene};
+use gui2::{Action, EventType, GuiEvent};
+use gui2::scene::Scene;
 use log::info;
 use nostd_html_parser::blocks::{Block, BlockType};
 use crate::common::{NetCommand, NET_COMMANDS};
@@ -70,6 +71,7 @@ pub const ACTIVE_THEME: Option<Box<&AppTheme>> = None;
 pub struct AppState {
     pub theme: &'static AppTheme,
     pub font: &'static MonoFont<'static>,
+    pub bold_font: &'static MonoFont<'static>
 }
 pub fn handle_action2<C, F>(target: &str, action: &Action, scene: &mut Scene<C,F>, app:&mut AppState) {
     info!(
@@ -176,17 +178,20 @@ pub fn handle_action2<C, F>(target: &str, action: &Action, scene: &mut Scene<C,F
             if target == "font-menu" {
                 match cmd.as_str() {
                     "Small" => {
-                        app.font = &FONT_6X10;
+                        app.font = &FONT_6X13;
+                        app.font = &FONT_6X13_BOLD;
                         scene.mark_dirty_all();
                         scene.hide_view("font-menu");
                     },
                     "Medium" => {
                         app.font = &FONT_7X13;
+                        app.bold_font = &FONT_7X13_BOLD;
                         scene.mark_dirty_all();
                         scene.hide_view("font-menu");
                     },
                     "Large" => {
                         app.font = &FONT_9X15;
+                        app.bold_font = &FONT_9X15_BOLD;
                         scene.mark_dirty_all();
                         scene.hide_view("font-menu");
                     },
@@ -297,17 +302,13 @@ fn show_info_panel<C, F>(scene: &mut Scene<C, F>) {
 fn show_wifi_panel<C, F>(scene: &mut Scene<C, F>) {
     let panel = make_panel(WIFI_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
     let label1a = make_label("wifi-label1a", "SSID").position_at(60, 80);
-    // let label1b = Label::new(SSID.unwrap_or("----"), Point::new(150, 80));
     let label2a = make_label("wifi-label2a", "PASSWORD").position_at(60, 100);
-    // let label2b = Label::new(PASSWORD.unwrap_or("----"), Point::new(150, 100));
     let button = make_button(WIFI_BUTTON, "done").position_at(160 - 20, 200 - 20);
 
     scene.add_view_to_root(panel);
     scene.add_view_to_parent(label1a,WIFI_PANEL);
     scene.add_view_to_parent(label2a,WIFI_PANEL);
     scene.add_view_to_parent(button,WIFI_PANEL);
-    // scene.add("wifi-label1b", label1b);
-    // scene.add("wifi-label2b", label2b);
     scene.hide_view(MAIN_MENU);
     scene.set_focused(WIFI_BUTTON);
 }

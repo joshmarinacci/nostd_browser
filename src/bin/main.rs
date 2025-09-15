@@ -15,10 +15,9 @@ use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_net::{Runner, Stack, StackResources};
 use embassy_time::{Duration, Timer};
-use embedded_graphics::mono_font::ascii::{FONT_7X13, FONT_9X15, FONT_9X15_BOLD};
+use embedded_graphics::mono_font::ascii::{FONT_7X13, FONT_7X13_BOLD};
 use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
-use embedded_graphics::prelude::*;
 use esp_hal::clock::CpuClock;
 use esp_hal::rng::Rng;
 use esp_hal::timer::timg::TimerGroup;
@@ -28,12 +27,12 @@ use esp_wifi::wifi::{
     WifiState,
 };
 use esp_wifi::{init, EspWifiController};
-use gui2::{action_at_focused, click_at, draw_scene, pick_at, scroll_at_focused, type_at_focused, Action, Callback, EventType, GuiEvent, Scene, Theme};
+use gui2::{action_at_focused, click_at, draw_scene, layout_scene, scroll_at_focused, type_at_focused, Callback, Theme};
 use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
 use gui2::geom::Point as GPoint;
-use nostd_browser::browser::{handle_action2, make_gui_scene, update_view_from_input, update_view_from_keyboard_input, AppState, ACTIVE_THEME, DARK_THEME, LIGHT_THEME, PAGE_VIEW};
+use nostd_browser::browser::{handle_action2, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME, PAGE_VIEW};
 use nostd_browser::common::{NetCommand, NetStatus, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
 use nostd_browser::page::Page;
 use nostd_browser::pageview::PageView;
@@ -278,12 +277,10 @@ async fn update_display(mut wrapper: Wrapper) {
     let mut app:AppState = AppState {
         theme: &LIGHT_THEME,
         font: &FONT_7X13,
+        bold_font: &FONT_7X13_BOLD,
     };
 
-    let mut handlers: Vec<Callback<Rgb565, MonoFont>> = vec![];
-    handlers.push(|event| {
-        // update_view_from_input(event, &mut app);
-    });
+    let handlers: Vec<Callback<Rgb565, MonoFont>> = vec![];
 
     let mut last_touch_event: Option<gt911::Point> = None;
     scene.set_focused(PAGE_VIEW);
@@ -351,8 +348,9 @@ async fn update_display(mut wrapper: Wrapper) {
             fg: app.theme.base_fg,
             panel_bg: app.theme.base_bg,
             font: app.font.clone(),
-            bold_font: app.theme.bold,
+            bold_font: app.bold_font.clone(),
         };
+        layout_scene(&mut scene);
         draw_scene(&mut scene, &mut ctx, &theme);
         Timer::after(Duration::from_millis(20)).await;
     }

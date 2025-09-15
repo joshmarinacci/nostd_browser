@@ -2,7 +2,9 @@ use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
 use gui2::geom::Bounds;
-use gui2::{Action, EventType, HAlign, Scene, TextStyle, View};
+use gui2::{Action, EventType, TextStyle};
+use gui2::scene::Scene;
+use gui2::view::View;
 use log::info;
 
 pub struct MenuState {
@@ -22,7 +24,7 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
             x: 0,
             y: 0,
             w: 100,
-            h: (MH * (data.len() as i32)),
+            h: MH * (data.len() as i32),
         },
         visible: true,
         draw: Some(|view, ctx, theme| {
