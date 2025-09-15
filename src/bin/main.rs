@@ -324,7 +324,7 @@ async fn update_display(mut wrapper: Wrapper) {
                     //     overlay.bounds = overlay.bounds.center_at(pt.x, pt.y);
                     //     scene.mark_dirty_view("touch-overlay");
                     // }
-                    let res = click_at2(&mut scene, pt);
+                    let res = click_at(&mut scene, &vec![], pt);
                     if let Some((target, action)) = res {
                         handle_action2(&target, &action, &mut scene, &mut app)
                     }
@@ -333,7 +333,7 @@ async fn update_display(mut wrapper: Wrapper) {
             last_touch_event = point;
         }
         if let Some(key) = wrapper.poll_keyboard() {
-            if let Some((target, action)) = type_at_focused2(&mut scene, key) {
+            if let Some((target, action)) = type_at_focused(&mut scene, &vec![], key) {
                 handle_action2(&target, &action, &mut scene, &mut app)
             }
             update_view_from_keyboard_input(&mut scene, key);
@@ -357,45 +357,6 @@ async fn update_display(mut wrapper: Wrapper) {
         Timer::after(Duration::from_millis(20)).await;
     }
 }
-pub fn click_at2<'a, C, F>(scene: &'a mut Scene<C, F>, pt: gui2::geom::Point) -> Option<(String, Action)> {
-    let targets = pick_at(scene, &pt);
-    if let Some(target) = targets.last() {
-        let mut event: GuiEvent<C, F> = GuiEvent {
-            scene,
-            target,
-            event_type: EventType::Tap(pt),
-            action: None,
-        };
-        if let Some(view) = event.scene.get_view(target) {
-            if let Some(input) = view.input {
-                if let Some(action) = input(&mut event) {
-                    return Some((target.into(), action));
-                }
-            }
-        }
-    }
-    None
-}
-pub fn type_at_focused2<C, F>(scene: &mut Scene<C, F>, key: u8) -> Option<(String, Action)> {
-    if scene.get_focused().is_some() {
-        let focused = scene.get_focused().as_ref().unwrap().clone();
-        let mut event: GuiEvent<C, F> = GuiEvent {
-            scene,
-            target: &focused,
-            event_type: EventType::Keyboard(key),
-            action: None,
-        };
-        if let Some(view) = event.scene.get_view(&focused) {
-            if let Some(input) = view.input {
-                if let Some(action) = input(&mut event) {
-                    return Some((focused,action));
-                }
-            }
-        }
-    }
-    None
-}
-
 
 
 async fn load_file_url(href: &str) -> &[u8] {

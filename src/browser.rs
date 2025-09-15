@@ -1,4 +1,4 @@
-use crate::comps::{make_overlay_label, make_rect_view};
+use crate::comps::{make_overlay_label};
 use crate::menuview::make_menuview;
 use crate::page::Page;
 use crate::pageview::PageView;
@@ -12,7 +12,7 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{RgbColor, WebColors};
 use gui2::comps::{make_button, make_label, make_panel, make_text_input};
 use gui2::geom::Bounds;
-use gui2::toggle_group::{make_toggle_group, SelectOneOfState};
+use gui2::toggle_group::{make_toggle_group};
 use gui2::{Action, EventType, GuiEvent, Scene};
 use log::info;
 use nostd_html_parser::blocks::{Block, BlockType};
@@ -25,8 +25,6 @@ const SETTINGS_PANEL: &'static str = "settings";
 const WIFI_PANEL: &'static str = "wifi-panel";
 const WIFI_MENU: &'static str = "wifi-menu";
 const WIFI_BUTTON: &'static str = "wifi-button";
-const FONT_MENU: &'static str = "font";
-const THEME_MENU: &'static str = "theme";
 pub const PAGE_VIEW: &'static str = "page";
 
 const INFO_PANEL: &'static str = "info-panel";
@@ -362,19 +360,6 @@ pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     .position_at(0, 0)
     .hide();
     scene.add_view_to_root(main_menu);
-    // scene.set_focused("menu");
-
-    // scene.add_view_to_root(
-    //     make_menuview(THEME_MENU, vec!["Light", "Dark", "close"])
-    //         .position_at(20, 20)
-    //         .hide(),
-    // );
-    //
-    // scene.add_view_to_root(
-    //     make_menuview(FONT_MENU, vec!["Small", "Medium", "Large", "close"])
-    //         .position_at(20, 20)
-    //         .hide(),
-    // );
 
     scene.add_view_to_root(
         make_menuview(WIFI_MENU, vec!["status", "scan", "close"])
@@ -429,7 +414,7 @@ pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
 
 pub fn update_view_from_keyboard_input<C,F>(scene: &mut Scene<C,F>, key:u8) {
     if key == b' ' {
-        if is_visible(scene, MAIN_MENU) == false && scene.is_focused(PAGE_VIEW) {
+        if scene.is_visible(MAIN_MENU) == false && scene.is_focused(PAGE_VIEW) {
             scene.show_view(MAIN_MENU);
             scene.set_focused(MAIN_MENU);
             return;
@@ -440,7 +425,7 @@ pub fn update_view_from_input<C, F>(event: &mut GuiEvent<C, F>, app: &mut AppSta
     match &event.event_type {
         EventType::Keyboard(key) => {
             if *key == b' ' {
-                if is_visible(event.scene, MAIN_MENU) == false && event.scene.is_focused(PAGE_VIEW) {
+                if event.scene.is_visible(MAIN_MENU) == false && event.scene.is_focused(PAGE_VIEW) {
                     event.scene.show_view(MAIN_MENU);
                     event.scene.set_focused(MAIN_MENU);
                     return;
@@ -454,13 +439,5 @@ pub fn update_view_from_input<C, F>(event: &mut GuiEvent<C, F>, app: &mut AppSta
             info!("tapped on point {pt:?}");
         }
         _ => {}
-    }
-}
-
-fn is_visible<C, F>(scene: &Scene<C, F>, name: &str) -> bool {
-    if let Some(menu) = scene.get_view(name) {
-        menu.visible
-    } else {
-        false
     }
 }
