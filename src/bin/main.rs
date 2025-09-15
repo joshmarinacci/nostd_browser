@@ -27,11 +27,12 @@ use esp_wifi::wifi::{
     WifiState,
 };
 use esp_wifi::{init, EspWifiController};
-use gui2::{action_at_focused, click_at, draw_scene, layout_scene, scroll_at_focused, type_at_focused, Callback, Theme};
+use gui2::{Callback, Theme};
 use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
 use gui2::geom::Point as GPoint;
+use gui2::scene::{action_at_focused, click_at, draw_scene, layout_scene, scroll_at_focused, type_at_focused};
 use nostd_browser::browser::{handle_action2, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME, PAGE_VIEW};
 use nostd_browser::common::{NetCommand, NetStatus, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
 use nostd_browser::page::Page;
