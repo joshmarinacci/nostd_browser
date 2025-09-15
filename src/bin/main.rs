@@ -288,13 +288,6 @@ async fn update_display(mut wrapper: Wrapper) {
     let mut last_touch_event: Option<gt911::Point> = None;
     scene.set_focused(PAGE_VIEW);
     loop {
-        let theme:Theme<Rgb565, MonoFont> = Theme {
-            bg: app.theme.base_bg,
-            fg: app.theme.base_fg,
-            panel_bg: app.theme.base_bg,
-            font: app.font.clone(),
-            bold_font: app.theme.bold,
-        };
 
         if let Ok(page) = PAGE_CHANNEL.try_receive() {
             if let Some(state) = scene.get_view_state::<PageView>(PAGE_VIEW) {
@@ -353,6 +346,13 @@ async fn update_display(mut wrapper: Wrapper) {
         }
         let mut ctx: EmbeddedDrawingContext = EmbeddedDrawingContext::new(&mut wrapper.display);
         ctx.clip = scene.dirty_rect.clone();
+        let theme:Theme<Rgb565, MonoFont> = Theme {
+            bg: app.theme.base_bg,
+            fg: app.theme.base_fg,
+            panel_bg: app.theme.base_bg,
+            font: app.font.clone(),
+            bold_font: app.theme.bold,
+        };
         draw_scene(&mut scene, &mut ctx, &theme);
         Timer::after(Duration::from_millis(20)).await;
     }
