@@ -201,20 +201,19 @@ fn draw<C, F>(view: &mut View<C, F>, context: &mut dyn DrawingContext<C, F>, the
                 }
                 for run in &line.runs {
                     let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
+                    let plain_style = TextStyle::new(&theme.font, &theme.fg).with_halign(HAlign::Left);
                     let text_style = match &run.style {
                         RunStyle::Link(href) => {
                             info!("found a link: {:?}", href);
                             link_count += 1;
                             if rpage.page.selection == link_count {
-                                let mut tx = TextStyle::new(&theme.bold_font,&theme.fg).with_halign(HAlign::Left);
-                                tx.underline = true;
-                                tx
+                                plain_style.with_underline(true)
                             } else {
-                                TextStyle::new(&theme.bold_font,&theme.fg).with_halign(HAlign::Left)
+                                plain_style
                             }
                         }
-                        RunStyle::Plain => TextStyle::new(&theme.font,&theme.fg).with_halign(HAlign::Left),
-                        RunStyle::Bold => TextStyle::new(&theme.font,&theme.fg).with_halign(HAlign::Left),
+                        RunStyle::Plain => plain_style,
+                        RunStyle::Bold => plain_style,
                     };
                     context.fill_text(
                         &Bounds::new(pos.x, pos.y, 100, 10),
