@@ -21,3 +21,8 @@ next to test
 [ ] changing the theme and font really repaints the screen with new colors and font
 [ ] be able to scroll and tab through links
 [ ] draw text needs to support bold and underline and bg and fg color
+
+* move the embedded specific code to a new sub crate
+* make a simulator sub crate for testing the GUI
+* The gui code stays in the main repo, but uses abstract types where possible so we can switch between embedded and desktop. 
+* GUI operates on NetCommand channel to interact with the embedded network vs a std network.
