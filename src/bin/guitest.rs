@@ -58,7 +58,7 @@ async fn main(_spawner: Spawner) {
 
     let mut wrapper = Wrapper::init(peripherals);
 
-    let theme: Theme<Rgb565, MonoFont> = Theme {
+    let theme: Theme = Theme {
         bg: Rgb565::WHITE,
         fg: Rgb565::BLACK,
         panel_bg: Rgb565::CSS_LIGHT_GRAY,
@@ -66,7 +66,7 @@ async fn main(_spawner: Spawner) {
         bold_font: FONT_7X13_BOLD,
     };
     let mut scene = make_gui_scene();
-    let mut handlers: Vec<Callback<Rgb565, MonoFont>> = vec![];
+    let mut handlers: Vec<Callback> = vec![];
     handlers.push(|event| {
         info!("event happened {} {:?}", event.target, event.event_type);
         // show menu when tapping the button
@@ -103,7 +103,7 @@ async fn main(_spawner: Spawner) {
     }
 }
 
-fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
+fn make_gui_scene() -> Scene {
     let mut scene = Scene::new_with_bounds(Bounds::new(0, 0, 320, 240));
 
     // let panel = make_panel("panel", Bounds::new(20, 20, 260, 200));

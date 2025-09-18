@@ -53,7 +53,7 @@ pub struct PageView {
 }
 
 impl PageView {
-    pub fn new<C, F>(bounds: Bounds, page: Page) -> View<C, F> {
+    pub fn new(bounds: Bounds, page: Page) -> View {
         let pv = PageView {
             dirty: true,
             visible: true,
@@ -157,7 +157,7 @@ impl PageView {
 //     self.columns = display.size().width/theme.font.character_size.width
 // }
 //
-fn draw<C, F>(e: &mut DrawEvent<C,F>) {
+fn draw(e: &mut DrawEvent) {
     if !e.view.visible {
         return;
     }
@@ -226,7 +226,7 @@ fn draw<C, F>(e: &mut DrawEvent<C,F>) {
     }
 }
 
-fn handle_input<C, F>(event: &mut GuiEvent<C, F>) -> Option<Action> {
+fn handle_input(event: &mut GuiEvent) -> Option<Action> {
     event.scene.mark_dirty_view(event.target);
     if let Some(state) = event.scene.get_view_state::<PageView>(event.target) {
         match event.event_type {

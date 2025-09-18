@@ -116,11 +116,7 @@ impl EmbeddedDrawingContext<'_> {
     }
 }
 
-impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
-    fn clear(&mut self, _color: &Rgb565) {
-        error!("dont use clear");
-    }
-
+impl DrawingContext for EmbeddedDrawingContext<'_> {
     fn fill_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
         let mut display = self.display.clipped(&bounds_to_rect(&self.clip));
         bounds_to_rect(bounds)
@@ -137,7 +133,7 @@ impl DrawingContext<Rgb565, MonoFont<'static>> for EmbeddedDrawingContext<'_> {
             .unwrap();
     }
 
-    fn fill_text(&mut self, bounds: &Bounds, text: &str, text_style:&TextStyle<Rgb565, MonoFont<'static>>) {
+    fn fill_text(&mut self, bounds: &Bounds, text: &str, text_style:&TextStyle) {
         let mut display = self.display.clipped(&bounds_to_rect(&self.clip));
 
         let mut text_builder = MonoTextStyleBuilder::new().font(text_style.font).text_color(*text_style.color);

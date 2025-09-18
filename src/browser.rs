@@ -73,7 +73,7 @@ pub struct AppState {
     pub font: &'static MonoFont<'static>,
     pub bold_font: &'static MonoFont<'static>
 }
-pub fn handle_action2<C, F>(target: &str, action: &Action, scene: &mut Scene<C,F>, app:&mut AppState) {
+pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app:&mut AppState) {
     info!(
         "handling action2 {:?} from {:?}",
         action, target
@@ -232,7 +232,7 @@ pub fn handle_action2<C, F>(target: &str, action: &Action, scene: &mut Scene<C,F
         }
     }
 }
-fn show_url_panel<C, F>(scene: &mut Scene<C, F>) {
+fn show_url_panel(scene: &mut Scene) {
     let panel = make_panel(URL_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
     scene.add_view_to_parent(
         make_label("url-label", "URL").position_at(40, 40),
@@ -254,7 +254,7 @@ fn show_url_panel<C, F>(scene: &mut Scene<C, F>) {
     scene.hide_view(BROWSER_MENU);
     scene.set_focused("url-input");
 }
-fn show_info_panel<C, F>(scene: &mut Scene<C, F>) {
+fn show_info_panel(scene: &mut Scene) {
     info!("showing the info panel");
     let panel_bounds = Bounds::new(20, 20, 320 - 40, 240 - 40);
     let panel = make_panel(INFO_PANEL, panel_bounds.clone());
@@ -299,7 +299,7 @@ fn show_info_panel<C, F>(scene: &mut Scene<C, F>) {
     scene.hide_view(MAIN_MENU);
     scene.set_focused(INFO_BUTTON);
 }
-fn show_wifi_panel<C, F>(scene: &mut Scene<C, F>) {
+fn show_wifi_panel(scene: &mut Scene) {
     let panel = make_panel(WIFI_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
     let label1a = make_label("wifi-label1a", "SSID").position_at(60, 80);
     let label2a = make_label("wifi-label2a", "PASSWORD").position_at(60, 100);
@@ -312,7 +312,7 @@ fn show_wifi_panel<C, F>(scene: &mut Scene<C, F>) {
     scene.hide_view(MAIN_MENU);
     scene.set_focused(WIFI_BUTTON);
 }
-fn show_settings_panel<C, F>(scene: &mut Scene<C, F>) {
+fn show_settings_panel(scene: &mut Scene) {
     info!("showing settings panel");
     let panel = make_panel(SETTINGS_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
     scene.add_view_to_parent(
@@ -339,7 +339,7 @@ fn show_settings_panel<C, F>(scene: &mut Scene<C, F>) {
     scene.add_view_to_root(panel);
 }
 
-pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
+pub fn make_gui_scene() -> Scene {
     let mut scene = Scene::new_with_bounds(Bounds::new(0, 0, 320, 240));
 
     let panel = make_panel("panel", Bounds::new(20, 20, 260, 200));
@@ -413,7 +413,7 @@ pub fn make_gui_scene() -> Scene<Rgb565, MonoFont<'static>> {
     scene
 }
 
-pub fn update_view_from_keyboard_input<C,F>(scene: &mut Scene<C,F>, key:u8) {
+pub fn update_view_from_keyboard_input(scene: &mut Scene, key:u8) {
     if key == b' ' {
         if scene.is_visible(MAIN_MENU) == false && scene.is_focused(PAGE_VIEW) {
             scene.show_view(MAIN_MENU);
@@ -422,7 +422,7 @@ pub fn update_view_from_keyboard_input<C,F>(scene: &mut Scene<C,F>, key:u8) {
         }
     }
 }
-pub fn update_view_from_input<C, F>(event: &mut GuiEvent<C, F>, app: &mut AppState) {
+pub fn update_view_from_input(event: &mut GuiEvent, app: &mut AppState) {
     match &event.event_type {
         EventType::Keyboard(key) => {
             if *key == b' ' {

@@ -3,7 +3,7 @@ use gui2::{DrawEvent, HAlign, TextStyle};
 use gui2::view::View;
 use log::info;
 
-pub fn make_overlay_label<C, F>(name: &str, title: &str) -> View<C, F> {
+pub fn make_overlay_label(name: &str, title: &str) -> View {
     View {
         name: name.into(),
         title: title.into(),
@@ -12,7 +12,7 @@ pub fn make_overlay_label<C, F>(name: &str, title: &str) -> View<C, F> {
         state: None,
         layout: None,
         input: None,
-        draw: Some(|e: &mut DrawEvent<C, F>| {
+        draw: Some(|e: &mut DrawEvent| {
             e.ctx.fill_rect(&e.view.bounds, &e.theme.fg);
             let style = TextStyle::new(&e.theme.font, &e.theme.bg).with_halign(HAlign::Right);
             e.ctx.fill_text(&e.view.bounds, &e.view.title, &style);
@@ -20,7 +20,7 @@ pub fn make_overlay_label<C, F>(name: &str, title: &str) -> View<C, F> {
     }
 }
 
-pub fn make_rect_view<C, F>(name: &str) -> View<C, F> {
+pub fn make_rect_view(name: &str) -> View {
     View {
         name: name.into(),
         title: name.into(),

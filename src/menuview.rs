@@ -12,7 +12,7 @@ pub struct MenuState {
     pub selected: i32,
 }
 const MH: i32 = 20;
-pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
+pub fn make_menuview(name: &str, data: Vec<&str>) -> View {
     let elements = data
         .iter()
         .map(|d| String::from(*d))
@@ -27,7 +27,7 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
             h: MH * (data.len() as i32),
         },
         visible: true,
-        draw: Some(|e: &mut DrawEvent<C, F>| {
+        draw: Some(|e: &mut DrawEvent| {
             let bounds = e.view.bounds.clone();
             e.ctx.fill_rect(&e.view.bounds, &e.theme.bg);
             e.ctx.stroke_rect(&e.view.bounds, &e.theme.fg);
@@ -124,7 +124,7 @@ pub fn make_menuview<C, F>(name: &str, data: Vec<&str>) -> View<C, F> {
     }
 }
 
-fn scroll_by<C, F>(scene: &mut Scene<C, F>, name: &str, amt: i32) {
+fn scroll_by(scene: &mut Scene, name: &str, amt: i32) {
     if let Some(state) = scene.get_view_state::<MenuState>(name) {
         let len = state.data.len() as i32;
         state.selected = (state.selected + amt + len) % len;

@@ -281,7 +281,7 @@ async fn update_display(mut wrapper: Wrapper) {
         bold_font: &FONT_7X13_BOLD,
     };
 
-    let handlers: Vec<Callback<Rgb565, MonoFont>> = vec![];
+    let handlers: Vec<Callback> = vec![];
 
     let mut last_touch_event: Option<gt911::Point> = None;
     scene.set_focused(PAGE_VIEW);
@@ -344,7 +344,7 @@ async fn update_display(mut wrapper: Wrapper) {
         }
         let mut ctx: EmbeddedDrawingContext = EmbeddedDrawingContext::new(&mut wrapper.display);
         ctx.clip = scene.dirty_rect.clone();
-        let theme:Theme<Rgb565, MonoFont> = Theme {
+        let theme:Theme = Theme {
             bg: app.theme.base_bg,
             fg: app.theme.base_fg,
             panel_bg: app.theme.base_bg,
