@@ -19,7 +19,6 @@ use embedded_graphics::prelude::*;
 use esp_hal::clock::CpuClock;
 
 use log::{error, info};
-use nostd_browser::tdeck::Wrapper;
 use rust_embedded_gui::device::EmbeddedDrawingContext;
 use rust_embedded_gui::geom::{Bounds, Point};
 use rust_embedded_gui::grid::{make_grid_panel, GridLayoutState};
@@ -28,6 +27,7 @@ use rust_embedded_gui::scene::{click_at, draw_scene, event_at_focused, layout_sc
 use rust_embedded_gui::toggle_button::make_toggle_button;
 use rust_embedded_gui::toggle_group::make_toggle_group;
 use rust_embedded_gui::{Callback, EventType, Theme};
+use device::tdeck::Wrapper;
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {

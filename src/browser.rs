@@ -1,4 +1,4 @@
-use crate::common::{NetCommand, NET_COMMANDS};
+// use crate::common::{NetCommand, NET_COMMANDS};
 use crate::comps::make_overlay_label;
 use crate::menuview::make_menuview;
 use crate::page::Page;
@@ -110,7 +110,7 @@ pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app: &mu
                     }
                     "Bookmarks" => {
                         // show the bookmarks
-                        NET_COMMANDS.send(NetCommand::Load("bookmarks.html".to_string()));
+                        // NET_COMMANDS.send(NetCommand::Load("bookmarks.html".to_string()));
                         scene.hide_view(MAIN_MENU);
                         scene.hide_view(BROWSER_MENU);
                         scene.set_focused(PAGE_VIEW);
@@ -261,38 +261,40 @@ fn show_info_panel(scene: &mut Scene) {
     let panel_bounds = Bounds::new(20, 20, 320 - 40, 240 - 40);
     let panel = make_panel(INFO_PANEL, panel_bounds.clone());
 
-    let free = esp_alloc::HEAP.free();
-    let used = esp_alloc::HEAP.used();
+    // let free = esp_alloc::HEAP.free();
+    // let used = esp_alloc::HEAP.used();
+    let free = 0;
+    let used = 0;
 
-    let label1a = make_label("info-label1", "Heap").position_at(120, 50);
+    let label1a = make_label("info-label1", "Heap").position_at(100, 30);
     scene.add_child(&panel.name, &label1a.name);
     scene.add_view(label1a);
 
-    let label2a = make_label("info-label2a", "Free memory").position_at(60, 80);
+    let label2a = make_label("info-label2a", "Free memory").position_at(40, 60);
     scene.add_child(&panel.name, &label2a.name);
     scene.add_view(label2a);
 
-    let label2b = make_label("info-label2b", &format!("{:?}", free)).position_at(200, 80);
+    let label2b = make_label("info-label2b", &format!("{:?}", free)).position_at(180, 60);
     scene.add_child(&panel.name, &label2b.name);
     scene.add_view(label2b);
 
-    let label3a = make_label("info-label3a", "Used memory").position_at(60, 100);
+    let label3a = make_label("info-label3a", "Used memory").position_at(40, 80);
     scene.add_child(&panel.name, &label3a.name);
     scene.add_view(label3a);
 
-    let label3b = make_label("info-label3b", &format!("{:?}", used)).position_at(200, 100);
+    let label3b = make_label("info-label3b", &format!("{:?}", used)).position_at(180, 80);
     scene.add_child(&panel.name, &label3b.name);
     scene.add_view(label3b);
 
-    let label4a = make_label("info-label4a", "Total memory").position_at(60, 120);
+    let label4a = make_label("info-label4a", "Total memory").position_at(40, 100);
     scene.add_child(&panel.name, &label4a.name);
     scene.add_view(label4a);
 
-    let label4b = make_label("info-label4b", &format!("{:?}", free + used)).position_at(200, 120);
+    let label4b = make_label("info-label4b", &format!("{:?}", free + used)).position_at(180, 100);
     scene.add_child(&panel.name, &label4b.name);
     scene.add_view(label4b);
 
-    let button = make_button(INFO_BUTTON, "done").position_at(160 - 20, 200 - 20);
+    let button = make_button(INFO_BUTTON, "done").position_at(160 - 20-20, 200 - 20-20);
     scene.add_child(&panel.name, &button.name);
     scene.add_view(button);
 
@@ -303,9 +305,9 @@ fn show_info_panel(scene: &mut Scene) {
 }
 fn show_wifi_panel(scene: &mut Scene) {
     let panel = make_panel(WIFI_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
-    let label1a = make_label("wifi-label1a", "SSID").position_at(60, 80);
-    let label2a = make_label("wifi-label2a", "PASSWORD").position_at(60, 100);
-    let button = make_button(WIFI_BUTTON, "done").position_at(160 - 20, 200 - 20);
+    let label1a = make_label("wifi-label1a", "SSID").position_at(40, 40);
+    let label2a = make_label("wifi-label2a", "PASSWORD").position_at(40, 60);
+    let button = make_button(WIFI_BUTTON, "done").position_at(160 - 20, 120);
 
     scene.add_view_to_root(panel);
     scene.add_view_to_parent(label1a, WIFI_PANEL);
@@ -318,29 +320,28 @@ fn show_settings_panel(scene: &mut Scene) {
     info!("showing settings panel");
     let panel = make_panel(SETTINGS_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
     scene.add_view_to_parent(
-        make_label("settings-theme-label", "Theme").position_at(60, 40),
+        make_label("settings-theme-label", "Theme").position_at(20, 20),
         &panel.name,
     );
     scene.add_view_to_parent(
-        make_toggle_group("settings-theme", vec!["Light", "Dark"], 0).position_at(100, 40),
+        make_toggle_group("settings-theme", vec!["Light", "Dark"], 0).position_at(80, 20),
         &panel.name,
     );
     scene.add_view_to_parent(
-        make_label("settings-font-label", "Font").position_at(60, 80),
+        make_label("settings-font-label", "Font").position_at(40, 60),
         &panel.name,
     );
     scene.add_view_to_parent(
-        make_button("settings-font-button", "Small").position_at(100, 80),
+        make_button("settings-font-button", "Small").position_at(80, 60),
         &panel.name,
     );
 
     scene.add_view_to_parent(
-        make_button("settings-close-button", "Close").position_at(130, 140),
+        make_button("settings-close-button", "Close").position_at(110, 120),
         &panel.name,
     );
     scene.add_view_to_root(panel);
 }
-
 pub fn make_gui_scene() -> Scene {
     let mut scene = Scene::new_with_bounds(Bounds::new(0, 0, 320, 240));
 
@@ -360,8 +361,8 @@ pub fn make_gui_scene() -> Scene {
             "close".into(),
         ],
     )
-    .position_at(0, 0)
-    .hide();
+    .position_at(0, 0);
+
     scene.add_view_to_root(main_menu);
 
     scene.add_view_to_root(

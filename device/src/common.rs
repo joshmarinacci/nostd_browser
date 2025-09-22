@@ -1,4 +1,3 @@
-use crate::page::Page;
 use alloc::string::String;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy_sync::channel::Channel;
@@ -10,6 +9,7 @@ use esp_hal::Blocking;
 use mipidsi::interface::SpiInterface;
 use mipidsi::models::ST7789;
 use mipidsi::{Display, NoResetPin};
+use nostd_browser::page::Page;
 
 pub type TDeckDisplay = Display<
     SpiInterface<

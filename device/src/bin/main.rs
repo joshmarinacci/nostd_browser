@@ -34,14 +34,14 @@ use nostd_browser::browser::{
     handle_action2, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME,
     PAGE_VIEW,
 };
-use nostd_browser::common::{NetCommand, NetStatus, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
 use nostd_browser::page::Page;
 use nostd_browser::pageview::PageView;
-use nostd_browser::tdeck::Wrapper;
 use rust_embedded_gui::device::EmbeddedDrawingContext;
 use rust_embedded_gui::geom::Point as GPoint;
 use rust_embedded_gui::scene::{click_at, draw_scene, event_at_focused, layout_scene};
 use rust_embedded_gui::{Callback, EventType, Theme};
+use device::common::{NetCommand, NetStatus, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
+use device::tdeck::Wrapper;
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {
@@ -286,45 +286,45 @@ async fn update_display(mut wrapper: Wrapper) {
     };
 
     let handlers: Vec<Callback> = vec![];
-
-    let mut last_touch_event: Option<gt911::Point> = None;
+    
+    // let mut last_touch_event: Option<gt911::Point> = None;
     scene.set_focused(PAGE_VIEW);
     loop {
-        if let Ok(page) = PAGE_CHANNEL.try_receive() {
-            if let Some(state) = scene.get_view_state::<PageView>(PAGE_VIEW) {
-                info!("page got a new page: {:?}", page);
-                state.load_page(page);
-            }
-            scene.mark_dirty_view(PAGE_VIEW);
-            info!("heap is {}", esp_alloc::HEAP.stats());
-        }
-        if let Ok(status) = NET_STATUS.try_receive() {
-            info!("got the status {status:?}");
-            let txt = match &status {
-                NetStatus::Info(txt) => txt,
-                _ => &format!("{:?}", status).to_string(),
-            };
-            if let Some(overlay) = scene.get_view_mut("overlay-status") {
-                overlay.title = txt.into();
-            }
-        }
+        // if let Ok(page) = PAGE_CHANNEL.try_receive() {
+        //     if let Some(state) = scene.get_view_state::<PageView>(PAGE_VIEW) {
+        //         info!("page got a new page: {:?}", page);
+        //         state.load_page(page);
+        //     }
+        //     scene.mark_dirty_view(PAGE_VIEW);
+        //     info!("heap is {}", esp_alloc::HEAP.stats());
+        // }
+        // if let Ok(status) = NET_STATUS.try_receive() {
+        //     info!("got the status {status:?}");
+        //     let txt = match &status {
+        //         NetStatus::Info(txt) => txt,
+        //         _ => &format!("{:?}", status).to_string(),
+        //     };
+        //     if let Some(overlay) = scene.get_view_mut("overlay-status") {
+        //         overlay.title = txt.into();
+        //     }
+        // }
 
         if let Ok(point) = wrapper.touch.get_touch(&mut wrapper.i2c) {
             if let None = &point {
-                if let Some(point) = last_touch_event {
-                    let pt = GPoint::new(320 - point.y as i32, 240 - point.x as i32);
-                    // scene.mark_dirty_view("touch-overlay");
-                    // if let Some(overlay) = scene.get_view_mut("touch-overlay") {
-                    //     overlay.bounds = overlay.bounds.center_at(pt.x, pt.y);
-                    //     scene.mark_dirty_view("touch-overlay");
-                    // }
-                    let res = click_at(&mut scene, &vec![], pt);
-                    if let Some((target, action)) = res {
-                        handle_action2(&target, &action, &mut scene, &mut app)
-                    }
-                }
+                // if let Some(point) = last_touch_event {
+                //     let pt = GPoint::new(320 - point.y as i32, 240 - point.x as i32);
+                //     // scene.mark_dirty_view("touch-overlay");
+                //     // if let Some(overlay) = scene.get_view_mut("touch-overlay") {
+                //     //     overlay.bounds = overlay.bounds.center_at(pt.x, pt.y);
+                //     //     scene.mark_dirty_view("touch-overlay");
+                //     // }
+                //     let res = click_at(&mut scene, &vec![], pt);
+                //     if let Some((target, action)) = res {
+                //         handle_action2(&target, &action, &mut scene, &mut app)
+                //     }
+                // }
             }
-            last_touch_event = point;
+            // last_touch_event = point;
         }
         if let Some(key) = wrapper.poll_keyboard() {
             if let Some((target, action)) = event_at_focused(&mut scene, EventType::Keyboard(key)) {

@@ -1,4 +1,4 @@
-use crate::common::{NetCommand, NET_COMMANDS};
+// use crate::common::{NetCommand, NET_COMMANDS};
 use crate::page::Page;
 use alloc::boxed::Box;
 use alloc::string::ToString;
@@ -141,9 +141,9 @@ impl PageView {
                 href = format!("{}{}", rp.page.url, href);
                 info!("final url is {}", href);
             }
-            NET_COMMANDS
-                .try_send(NetCommand::Load(href.to_string()))
-                .unwrap()
+            // NET_COMMANDS
+            //     .try_send(NetCommand::Load(href.to_string()))
+            //     .unwrap()
         }
     }
     fn get_current_rendered_page(&mut self) -> &mut RenderedPage {
