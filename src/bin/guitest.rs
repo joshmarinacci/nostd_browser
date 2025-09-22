@@ -6,6 +6,8 @@
     holding buffers for the duration of a data transfer."
 )]
 extern crate alloc;
+
+use alloc::boxed::Box;
 use alloc::vec;
 use alloc::vec::Vec;
 use embassy_executor::Spawner;
@@ -22,7 +24,7 @@ use rust_embedded_gui::device::EmbeddedDrawingContext;
 use rust_embedded_gui::geom::{Bounds, Point};
 use rust_embedded_gui::grid::{make_grid_panel, GridLayoutState};
 use rust_embedded_gui::label::make_label;
-use rust_embedded_gui::scene::{click_at, draw_scene, event_at_focused, Scene};
+use rust_embedded_gui::scene::{click_at, draw_scene, event_at_focused, layout_scene, Scene};
 use rust_embedded_gui::toggle_button::make_toggle_button;
 use rust_embedded_gui::toggle_group::make_toggle_group;
 use rust_embedded_gui::{Callback, EventType, Theme};
@@ -61,8 +63,8 @@ async fn main(_spawner: Spawner) {
     let theme: Theme = Theme {
         bg: Rgb565::WHITE,
         fg: Rgb565::BLACK,
-        selected_bg: Rgb565::WHITE,
-        selected_fg: Rgb565::BLACK,
+        selected_bg: Rgb565::BLACK,
+        selected_fg: Rgb565::WHITE,
         panel_bg: Rgb565::CSS_LIGHT_GRAY,
         font: FONT_7X13,
         bold_font: FONT_7X13_BOLD,
@@ -99,6 +101,7 @@ async fn main(_spawner: Spawner) {
         {
             let mut ctx = EmbeddedDrawingContext::new(&mut wrapper.display);
             ctx.clip = scene.dirty_rect.clone();
+            layout_scene(&mut scene, &theme);
             draw_scene(&mut scene, &mut ctx, &theme);
         }
         Timer::after(Duration::from_millis(20)).await;
@@ -112,25 +115,13 @@ fn make_gui_scene() -> Scene {
     let mut panel = make_grid_panel("panel");
     panel.bounds.x = 20;
     panel.bounds.y = 20;
-    panel.bounds.w = 300;
+    panel.bounds.w = 320-40;
     panel.bounds.h = 200;
-    scene.add_view_to_parent(
-        make_label("label1", "Label 1").position_at(40, 30),
-        &panel.name,
-    );
-    scene.add_view_to_parent(
-        make_label("label2", "Label 2").position_at(40, 30),
-        &panel.name,
-    );
-    scene.add_view_to_parent(
-        make_label("label3", "Label 3").position_at(40, 30),
-        &panel.name,
-    );
-    scene.add_view_to_parent(
-        make_label("label4", "Label 4").position_at(40, 30),
-        &panel.name,
-    );
-    let mut layout = GridLayoutState::new_row_column(2, 30, 2, 80);
+    scene.add_view_to_parent(make_label("label1", "Label 1"), &panel.name);
+    scene.add_view_to_parent(make_label("label2", "Label 2"), &panel.name);
+    scene.add_view_to_parent(make_label("label3", "Label 3"), &panel.name);
+    scene.add_view_to_parent(make_label("label4", "Label 4"), &panel.name);
+    let mut layout = GridLayoutState::new_row_column(4, 30, 2, 80);
     layout.place_at_row_column("label1", 0, 0);
     layout.place_at_row_column("label2", 0, 1);
     layout.place_at_row_column("label3", 1, 0);
@@ -140,12 +131,15 @@ fn make_gui_scene() -> Scene {
         make_toggle_button("toggle1", "Toggle").position_at(40, 70),
         &panel.name,
     );
+    layout.place_at_row_column("toggle1",2,0);
 
     scene.add_view_to_parent(
         make_toggle_group("toggle2", vec!["Foo", "Bar", "Baz"], 0).position_at(40, 120),
         &panel.name,
     );
+    layout.place_at_row_column("toggle2",3,1);
 
+    panel.state = Some(Box::new(layout));
     scene.add_view_to_root(panel);
 
     // let mut button = make_button("button1", "A Button");
