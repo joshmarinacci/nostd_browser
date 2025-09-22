@@ -1,6 +1,5 @@
 // use crate::common::{NetCommand, NET_COMMANDS};
 use crate::comps::make_overlay_label;
-use crate::menuview::make_menuview;
 use crate::page::Page;
 use crate::pageview::PageView;
 use alloc::boxed::Box;
@@ -22,7 +21,7 @@ use rust_embedded_gui::panel::make_panel;
 use rust_embedded_gui::scene::Scene;
 use rust_embedded_gui::text_input::make_text_input;
 use rust_embedded_gui::toggle_group::make_toggle_group;
-use rust_embedded_gui::{Action, EventType, GuiEvent};
+use rust_embedded_gui::{Action, EventType, GuiEvent, KeyboardAction};
 use rust_embedded_gui::list_view::make_list_view;
 
 const MAIN_MENU: &'static str = "main";
@@ -224,9 +223,10 @@ pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app: &mu
                 scene.set_focused(PAGE_VIEW);
             }
             if target == "settings-font-button" {
-                let font_menu = make_menuview("font-menu", vec!["Small", "Medium", "Large"])
+                let font_menu = make_list_view("font-menu", vec!["Small", "Medium", "Large"],0)
                     .position_at(150, 70);
                 scene.add_view_to_root(font_menu);
+                scene.set_focused("font-menu");
             }
             if target == WIFI_BUTTON {
                 scene.remove_parent_and_children(WIFI_PANEL);
@@ -352,7 +352,7 @@ pub fn make_gui_scene() -> Scene {
     let full_screen_bounds = Bounds::new(0, 0, 320, 240);
     let page_view = PageView::new(full_screen_bounds, Page::new());
     scene.add_view_to_root(page_view);
-    let main_menu = make_menuview(
+    let main_menu = make_list_view(
         MAIN_MENU,
         vec![
             "Browser".into(),
@@ -361,6 +361,7 @@ pub fn make_gui_scene() -> Scene {
             "Info".into(),
             "close".into(),
         ],
+        0,
     )
     .position_at(0, 0);
 
@@ -369,12 +370,12 @@ pub fn make_gui_scene() -> Scene {
     scene.hide_view(MAIN_MENU);
 
     scene.add_view_to_root(
-        make_menuview(WIFI_MENU, vec!["status", "scan", "close"])
+        make_list_view(WIFI_MENU, vec!["status", "scan", "close"],0)
             .position_at(20, 20)
             .hide(),
     );
 
-    let browser_menu = make_menuview(
+    let browser_menu = make_list_view(
         BROWSER_MENU,
         vec![
             "Bookmarks",
@@ -384,6 +385,7 @@ pub fn make_gui_scene() -> Scene {
             "Forward",
             "close",
         ],
+        0,
     )
     .position_at(20, 20)
     .hide();
@@ -419,14 +421,20 @@ pub fn make_gui_scene() -> Scene {
     scene
 }
 
-pub fn update_view_from_keyboard_input(scene: &mut Scene, key: u8) {
-    if key == b' ' {
-        if scene.is_visible(MAIN_MENU) == false && scene.is_focused(PAGE_VIEW) {
-            scene.show_view(MAIN_MENU);
-            scene.set_focused(MAIN_MENU);
-            return;
+pub fn update_view_from_keyboard_input(scene: &mut Scene, evt:&EventType) {
+    match evt {
+        EventType::Keyboard(key) => {
+            if *key == b' ' {
+                if scene.is_visible(MAIN_MENU) == false && scene.is_focused(PAGE_VIEW) {
+                    scene.show_view(MAIN_MENU);
+                    scene.set_focused(MAIN_MENU);
+                }
+            }
         }
-    }
+        _ => {
+
+        }
+    };
 }
 pub fn update_view_from_input(event: &mut GuiEvent, app: &mut AppState) {
     match &event.event_type {
