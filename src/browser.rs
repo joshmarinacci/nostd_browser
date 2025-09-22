@@ -1,23 +1,28 @@
-use crate::comps::{make_overlay_label};
+use crate::common::{NetCommand, NET_COMMANDS};
+use crate::comps::make_overlay_label;
 use crate::menuview::make_menuview;
 use crate::page::Page;
 use crate::pageview::PageView;
 use alloc::boxed::Box;
 use alloc::string::ToString;
 use alloc::{format, vec};
-use embedded_graphics::mono_font::ascii::{FONT_6X13, FONT_6X13_BOLD, FONT_7X13_BOLD, FONT_9X15, FONT_9X15_BOLD};
+use embedded_graphics::mono_font::ascii::{
+    FONT_6X13, FONT_6X13_BOLD, FONT_7X13_BOLD, FONT_9X15, FONT_9X15_BOLD,
+};
 use embedded_graphics::mono_font::iso_8859_10::FONT_7X13;
 use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{RgbColor, WebColors};
-use gui2::comps::{make_button, make_label, make_panel, make_text_input};
-use gui2::geom::Bounds;
-use gui2::toggle_group::{make_toggle_group};
-use gui2::{Action, EventType, GuiEvent};
-use gui2::scene::Scene;
 use log::info;
 use nostd_html_parser::blocks::{Block, BlockType};
-use crate::common::{NetCommand, NET_COMMANDS};
+use rust_embedded_gui::button::make_button;
+use rust_embedded_gui::geom::Bounds;
+use rust_embedded_gui::label::make_label;
+use rust_embedded_gui::panel::make_panel;
+use rust_embedded_gui::scene::Scene;
+use rust_embedded_gui::text_input::make_text_input;
+use rust_embedded_gui::toggle_group::make_toggle_group;
+use rust_embedded_gui::{Action, EventType, GuiEvent};
 
 const MAIN_MENU: &'static str = "main";
 const BROWSER_MENU: &'static str = "browser";
@@ -71,13 +76,10 @@ pub const ACTIVE_THEME: Option<Box<&AppTheme>> = None;
 pub struct AppState {
     pub theme: &'static AppTheme,
     pub font: &'static MonoFont<'static>,
-    pub bold_font: &'static MonoFont<'static>
+    pub bold_font: &'static MonoFont<'static>,
 }
-pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app:&mut AppState) {
-    info!(
-        "handling action2 {:?} from {:?}",
-        action, target
-    );
+pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app: &mut AppState) {
+    info!("handling action2 {:?} from {:?}", action, target);
     match action {
         Action::Command(cmd) => {
             if target == MAIN_MENU {
@@ -85,7 +87,7 @@ pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app:&mut
                     "Browser" => {
                         scene.show_view(BROWSER_MENU);
                         scene.set_focused(BROWSER_MENU);
-                    },
+                    }
                     "Network" => show_wifi_panel(scene),
                     "Settings" => {
                         scene.hide_view(MAIN_MENU);
@@ -182,19 +184,19 @@ pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app:&mut
                         app.font = &FONT_6X13_BOLD;
                         scene.mark_dirty_all();
                         scene.hide_view("font-menu");
-                    },
+                    }
                     "Medium" => {
                         app.font = &FONT_7X13;
                         app.bold_font = &FONT_7X13_BOLD;
                         scene.mark_dirty_all();
                         scene.hide_view("font-menu");
-                    },
+                    }
                     "Large" => {
                         app.font = &FONT_9X15;
                         app.bold_font = &FONT_9X15_BOLD;
                         scene.mark_dirty_all();
                         scene.hide_view("font-menu");
-                    },
+                    }
                     _ => {
                         info!("unknown menu item");
                     }
@@ -209,25 +211,25 @@ pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app:&mut
                 return;
             }
             if target == "settings-close-button" {
-               scene.remove_parent_and_children(SETTINGS_PANEL);
-               scene.set_focused(PAGE_VIEW);
+                scene.remove_parent_and_children(SETTINGS_PANEL);
+                scene.set_focused(PAGE_VIEW);
             }
             if target == "url-cancel-button" {
-               scene.remove_parent_and_children(URL_PANEL);
-               scene.set_focused(PAGE_VIEW);
+                scene.remove_parent_and_children(URL_PANEL);
+                scene.set_focused(PAGE_VIEW);
             }
             if target == "url-load-button" {
-               scene.remove_parent_and_children(URL_PANEL);
-               scene.set_focused(PAGE_VIEW);
+                scene.remove_parent_and_children(URL_PANEL);
+                scene.set_focused(PAGE_VIEW);
             }
             if target == "settings-font-button" {
-                let font_menu = make_menuview("font-menu",vec!["Small","Medium","Large"])
-                    .position_at(150,70);
-               scene.add_view_to_root(font_menu);
+                let font_menu = make_menuview("font-menu", vec!["Small", "Medium", "Large"])
+                    .position_at(150, 70);
+                scene.add_view_to_root(font_menu);
             }
             if target == WIFI_BUTTON {
-               scene.remove_parent_and_children(WIFI_PANEL);
-               scene.set_focused(PAGE_VIEW);
+                scene.remove_parent_and_children(WIFI_PANEL);
+                scene.set_focused(PAGE_VIEW);
             }
         }
     }
@@ -306,9 +308,9 @@ fn show_wifi_panel(scene: &mut Scene) {
     let button = make_button(WIFI_BUTTON, "done").position_at(160 - 20, 200 - 20);
 
     scene.add_view_to_root(panel);
-    scene.add_view_to_parent(label1a,WIFI_PANEL);
-    scene.add_view_to_parent(label2a,WIFI_PANEL);
-    scene.add_view_to_parent(button,WIFI_PANEL);
+    scene.add_view_to_parent(label1a, WIFI_PANEL);
+    scene.add_view_to_parent(label2a, WIFI_PANEL);
+    scene.add_view_to_parent(button, WIFI_PANEL);
     scene.hide_view(MAIN_MENU);
     scene.set_focused(WIFI_BUTTON);
 }
@@ -413,7 +415,7 @@ pub fn make_gui_scene() -> Scene {
     scene
 }
 
-pub fn update_view_from_keyboard_input(scene: &mut Scene, key:u8) {
+pub fn update_view_from_keyboard_input(scene: &mut Scene, key: u8) {
     if key == b' ' {
         if scene.is_visible(MAIN_MENU) == false && scene.is_focused(PAGE_VIEW) {
             scene.show_view(MAIN_MENU);

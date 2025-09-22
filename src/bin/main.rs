@@ -6,10 +6,10 @@
     holding buffers for the duration of a data transfer."
 )]
 extern crate alloc;
+use alloc::boxed::Box;
 use alloc::string::{String, ToString};
 use alloc::vec::Vec;
 use alloc::{format, vec};
-use alloc::boxed::Box;
 use embassy_executor::Spawner;
 use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
@@ -27,17 +27,21 @@ use esp_wifi::wifi::{
     WifiState,
 };
 use esp_wifi::{init, EspWifiController};
-use gui2::{Callback, EventType, Theme};
 use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
-use gui2::geom::Point as GPoint;
-use gui2::scene::{click_at, draw_scene, event_at_focused, layout_scene};
-use nostd_browser::browser::{handle_action2, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME, PAGE_VIEW};
+use nostd_browser::browser::{
+    handle_action2, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME,
+    PAGE_VIEW,
+};
 use nostd_browser::common::{NetCommand, NetStatus, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
 use nostd_browser::page::Page;
 use nostd_browser::pageview::PageView;
-use nostd_browser::tdeck::{EmbeddedDrawingContext, Wrapper};
+use nostd_browser::tdeck::Wrapper;
+use rust_embedded_gui::device::EmbeddedDrawingContext;
+use rust_embedded_gui::geom::Point as GPoint;
+use rust_embedded_gui::scene::{click_at, draw_scene, event_at_focused, layout_scene};
+use rust_embedded_gui::{Callback, EventType, Theme};
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {
@@ -275,7 +279,7 @@ async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
 #[embassy_executor::task]
 async fn update_display(mut wrapper: Wrapper) {
     let mut scene = make_gui_scene();
-    let mut app:AppState = AppState {
+    let mut app: AppState = AppState {
         theme: &LIGHT_THEME,
         font: &FONT_7X13,
         bold_font: &FONT_7X13_BOLD,
@@ -286,7 +290,6 @@ async fn update_display(mut wrapper: Wrapper) {
     let mut last_touch_event: Option<gt911::Point> = None;
     scene.set_focused(PAGE_VIEW);
     loop {
-
         if let Ok(page) = PAGE_CHANNEL.try_receive() {
             if let Some(state) = scene.get_view_state::<PageView>(PAGE_VIEW) {
                 info!("page got a new page: {:?}", page);
@@ -337,26 +340,27 @@ async fn update_display(mut wrapper: Wrapper) {
             }
         }
         if wrapper.up.changed {
-            event_at_focused(&mut scene, EventType::Scroll(0,-1));
+            event_at_focused(&mut scene, EventType::Scroll(0, -1));
         }
         if wrapper.down.changed {
-            event_at_focused(&mut scene, EventType::Scroll(0,1));
+            event_at_focused(&mut scene, EventType::Scroll(0, 1));
         }
-        let mut ctx: EmbeddedDrawingContext = EmbeddedDrawingContext::new(&mut wrapper.display);
+        let mut ctx = EmbeddedDrawingContext::new(&mut wrapper.display);
         ctx.clip = scene.dirty_rect.clone();
-        let theme:Theme = Theme {
+        let theme: Theme = Theme {
             bg: app.theme.base_bg,
             fg: app.theme.base_fg,
+            selected_bg: app.theme.base_bg,
+            selected_fg: app.theme.base_fg,
             panel_bg: app.theme.base_bg,
             font: app.font.clone(),
             bold_font: app.bold_font.clone(),
         };
-        layout_scene(&mut scene);
+        layout_scene(&mut scene, &theme);
         draw_scene(&mut scene, &mut ctx, &theme);
         Timer::after(Duration::from_millis(20)).await;
     }
 }
-
 
 async fn load_file_url(href: &str) -> &[u8] {
     PAGE_BYTES

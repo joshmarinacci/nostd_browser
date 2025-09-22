@@ -1,11 +1,12 @@
 use alloc::boxed::Box;
 use alloc::string::String;
 use alloc::vec::Vec;
-use gui2::geom::Bounds;
-use gui2::{Action, DrawEvent, EventType, TextStyle};
-use gui2::scene::Scene;
-use gui2::view::View;
 use log::info;
+use rust_embedded_gui::geom::Bounds;
+use rust_embedded_gui::gfx::TextStyle;
+use rust_embedded_gui::scene::Scene;
+use rust_embedded_gui::view::View;
+use rust_embedded_gui::{Action, DrawEvent, EventType};
 
 pub struct MenuState {
     pub data: Vec<String>,

@@ -7,12 +7,13 @@ use alloc::{format, vec};
 use core::cmp::max;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::mono_font::ascii::FONT_9X15_BOLD;
-use gui2::geom::Bounds;
-use gui2::{Action, DrawEvent, DrawingContext, EventType, GuiEvent, HAlign, TextStyle, Theme};
-use gui2::view::View;
 use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
 use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
+use rust_embedded_gui::geom::Bounds;
+use rust_embedded_gui::gfx::{HAlign, TextStyle};
+use rust_embedded_gui::view::View;
+use rust_embedded_gui::{Action, DrawEvent, EventType, GuiEvent};
 
 pub struct RenderedPage {
     pub link_count: i32,
@@ -200,7 +201,8 @@ fn draw(e: &mut DrawEvent) {
                 }
                 for run in &line.runs {
                     let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
-                    let plain_style = TextStyle::new(&e.theme.font, &e.theme.fg).with_halign(HAlign::Left);
+                    let plain_style =
+                        TextStyle::new(&e.theme.font, &e.theme.fg).with_halign(HAlign::Left);
                     let text_style = match &run.style {
                         RunStyle::Link(href) => {
                             // info!("found a link: {:?}", href);
@@ -214,11 +216,8 @@ fn draw(e: &mut DrawEvent) {
                         RunStyle::Plain => plain_style,
                         RunStyle::Bold => plain_style,
                     };
-                    e.ctx.fill_text(
-                        &Bounds::new(pos.x, pos.y, 100, 10),
-                        &run.text,
-                        &text_style,
-                    );
+                    e.ctx
+                        .fill_text(&Bounds::new(pos.x, pos.y, 100, 10), &run.text, &text_style);
                     inset_chars += run.text.len();
                 }
             }

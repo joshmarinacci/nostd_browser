@@ -1,7 +1,8 @@
-use gui2::geom::Bounds;
-use gui2::{DrawEvent, HAlign, TextStyle};
-use gui2::view::View;
 use log::info;
+use rust_embedded_gui::geom::Bounds;
+use rust_embedded_gui::gfx::{HAlign, TextStyle};
+use rust_embedded_gui::view::View;
+use rust_embedded_gui::DrawEvent;
 
 pub fn make_overlay_label(name: &str, title: &str) -> View {
     View {

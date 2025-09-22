@@ -20,14 +20,13 @@ use esp_hal::time::Rate;
 use esp_hal::timer::timg::TimerGroup;
 use esp_hal::Blocking;
 use gt911::{Error as Gt911Error, Gt911Blocking, Point as TouchPoint};
-use gui2::geom::Bounds;
-use gui2::{DrawingContext, HAlign, TextStyle};
 use heapless::Vec;
 use log::{error, info};
 use mipidsi::interface::SpiInterface;
 use mipidsi::models::ST7789;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::Builder;
+use rust_embedded_gui::geom::Bounds;
 use static_cell::StaticCell;
 
 const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
@@ -102,75 +101,6 @@ impl Wrapper {
 
 static SPI_BUS: StaticCell<RefCell<Spi<Blocking>>> = StaticCell::new();
 
-pub struct EmbeddedDrawingContext<'a> {
-    pub display: &'a mut TDeckDisplay,
-    pub clip: Bounds,
-}
-
-impl EmbeddedDrawingContext<'_> {
-    pub fn new(display: &mut TDeckDisplay) -> EmbeddedDrawingContext {
-        EmbeddedDrawingContext {
-            display,
-            clip: Bounds::new_empty(),
-        }
-    }
-}
-
-impl DrawingContext for EmbeddedDrawingContext<'_> {
-    fn fill_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
-        let mut display = self.display.clipped(&bounds_to_rect(&self.clip));
-        bounds_to_rect(bounds)
-            .into_styled(PrimitiveStyle::with_fill(*color))
-            .draw(&mut display)
-            .unwrap();
-    }
-
-    fn stroke_rect(&mut self, bounds: &Bounds, color: &Rgb565) {
-        let mut display = self.display.clipped(&bounds_to_rect(&self.clip));
-        bounds_to_rect(bounds)
-            .into_styled(PrimitiveStyle::with_stroke(*color, 1))
-            .draw(&mut display)
-            .unwrap();
-    }
-
-    fn fill_text(&mut self, bounds: &Bounds, text: &str, text_style:&TextStyle) {
-        let mut display = self.display.clipped(&bounds_to_rect(&self.clip));
-
-        let mut text_builder = MonoTextStyleBuilder::new().font(text_style.font).text_color(*text_style.color);
-        if text_style.underline {
-            text_builder = text_builder.underline();
-        }
-        let style = text_builder.build();// MonoTextStyle::new(&FONT_6X10,  *text_style.color);
-        let mut pt = embedded_graphics::geometry::Point::new(bounds.x, bounds.y);
-        pt.y += bounds.h / 2;
-        pt.y += (FONT_6X10.baseline as i32) / 2;
-
-        let w = (FONT_6X10.character_size.width as i32) * (text.len() as i32);
-
-        match text_style.halign {
-            HAlign::Left => {
-                pt.x += 5;
-            }
-            HAlign::Center => {
-                pt.x += (bounds.w - w) / 2;
-            }
-            HAlign::Right => {}
-        }
-
-        Text::new(text, pt, style).draw(&mut display).unwrap();
-    }
-}
-
-fn bounds_to_rect(bounds: &Bounds) -> Rectangle {
-    if bounds.is_empty() {
-        Rectangle::zero()
-    } else {
-        Rectangle::new(
-            EGPoint::new(bounds.x, bounds.y),
-            EGSize::new(bounds.w as u32, bounds.h as u32),
-        )
-    }
-}
 // pub struct DummyTimesource();
 
 // impl TimeSource for DummyTimesource {

@@ -1386,15 +1386,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "gui2"
-version = "0.1.0"
-dependencies = [
- "embedded-graphics",
- "hashbrown 0.16.0",
- "log",
-]
-
-[[package]]
 name = "hash32"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1710,13 +1701,13 @@ dependencies = [
  "esp-println",
  "esp-wifi",
  "gt911",
- "gui2",
  "hashbrown 0.15.5",
  "heapless 0.8.0",
  "log",
  "mipidsi",
  "nostd_html_parser",
  "reqwless",
+ "rust-embedded-gui",
  "smoltcp",
  "static_cell",
 ]
@@ -2046,6 +2037,15 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "rust-embedded-gui"
+version = "0.1.0"
+dependencies = [
+ "embedded-graphics",
+ "hashbrown 0.16.0",
+ "log",
 ]
 
 [[package]]

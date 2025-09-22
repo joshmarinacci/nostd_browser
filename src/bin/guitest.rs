@@ -15,17 +15,17 @@ use embedded_graphics::mono_font::MonoFont;
 use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::*;
 use esp_hal::clock::CpuClock;
-use gui2::comps::{make_label};
-use gui2::form::{make_form, FormLayoutState};
-use gui2::geom::{Bounds, Point as GPoint};
-use gui2::{Callback, EventType, Theme};
-use gui2::scene::{click_at, draw_scene, event_at_focused, Scene};
-use gui2::toggle_button::make_toggle_button;
-use gui2::toggle_group::make_toggle_group;
 
 use log::{error, info};
-
-use nostd_browser::tdeck::{EmbeddedDrawingContext, Wrapper};
+use nostd_browser::tdeck::Wrapper;
+use rust_embedded_gui::device::EmbeddedDrawingContext;
+use rust_embedded_gui::geom::{Bounds, Point};
+use rust_embedded_gui::grid::{make_grid_panel, GridLayoutState};
+use rust_embedded_gui::label::make_label;
+use rust_embedded_gui::scene::{click_at, draw_scene, event_at_focused, Scene};
+use rust_embedded_gui::toggle_button::make_toggle_button;
+use rust_embedded_gui::toggle_group::make_toggle_group;
+use rust_embedded_gui::{Callback, EventType, Theme};
 
 #[panic_handler]
 fn panic(nfo: &core::panic::PanicInfo) -> ! {
@@ -61,6 +61,8 @@ async fn main(_spawner: Spawner) {
     let theme: Theme = Theme {
         bg: Rgb565::WHITE,
         fg: Rgb565::BLACK,
+        selected_bg: Rgb565::WHITE,
+        selected_fg: Rgb565::BLACK,
         panel_bg: Rgb565::CSS_LIGHT_GRAY,
         font: FONT_7X13,
         bold_font: FONT_7X13_BOLD,
@@ -88,14 +90,14 @@ async fn main(_spawner: Spawner) {
             // stack allocated Vec containing 0-5 points
             if let None = &point {
                 if let Some(point) = last_touch_event {
-                    let pt = GPoint::new(320 - point.y as i32, 240 - point.x as i32);
+                    let pt = Point::new(320 - point.y as i32, 240 - point.x as i32);
                     click_at(&mut scene, &mut handlers, pt);
                 }
             }
             last_touch_event = point;
         }
         {
-            let mut ctx: EmbeddedDrawingContext = EmbeddedDrawingContext::new(&mut wrapper.display);
+            let mut ctx = EmbeddedDrawingContext::new(&mut wrapper.display);
             ctx.clip = scene.dirty_rect.clone();
             draw_scene(&mut scene, &mut ctx, &theme);
         }
@@ -107,7 +109,7 @@ fn make_gui_scene() -> Scene {
     let mut scene = Scene::new_with_bounds(Bounds::new(0, 0, 320, 240));
 
     // let panel = make_panel("panel", Bounds::new(20, 20, 260, 200));
-    let mut panel = make_form("panel");
+    let mut panel = make_grid_panel("panel");
     panel.bounds.x = 20;
     panel.bounds.y = 20;
     panel.bounds.w = 300;
@@ -128,7 +130,7 @@ fn make_gui_scene() -> Scene {
         make_label("label4", "Label 4").position_at(40, 30),
         &panel.name,
     );
-    let mut layout = FormLayoutState::new_row_column(2, 30, 2, 80);
+    let mut layout = GridLayoutState::new_row_column(2, 30, 2, 80);
     layout.place_at_row_column("label1", 0, 0);
     layout.place_at_row_column("label2", 0, 1);
     layout.place_at_row_column("label3", 1, 0);
