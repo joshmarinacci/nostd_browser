@@ -36,7 +36,11 @@ use rust_embedded_gui::list_view::make_list_view;
 use rust_embedded_gui::panel::{layout_hbox, layout_vbox, make_panel, PanelState};
 use rust_embedded_gui::text_input::make_text_input;
 use rust_embedded_gui::view::View;
-use nostd_browser::browser::{handle_action2, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME, PAGE_VIEW};
+use nostd_browser::browser::{handle_action2, load_page, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME, PAGE_VIEW};
+use nostd_browser::page::Page;
+use nostd_browser::pageview::PageView;
+
+static PAGE_BYTES: &[u8] = include_bytes!("homepage.html");
 
 fn main() -> Result<(), std::convert::Infallible> {
     env_logger::Builder::new()
@@ -67,6 +71,7 @@ fn main() -> Result<(), std::convert::Infallible> {
         bold_font: &FONT_7X13_BOLD,
     };
 
+    let mut page_loaded = false;
     'running: loop {
         let mut ctx = EmbeddedDrawingContext::new(&mut display);
         ctx.clip = scene.dirty_rect.clone();
@@ -115,12 +120,17 @@ fn main() -> Result<(), std::convert::Infallible> {
                 _ => {}
             }
         }
+        if !page_loaded {
+            let page = Page::from_bytes(PAGE_BYTES,"homepage.html");
+            load_page(&mut scene, page);;
+            page_loaded = true;
+        }
     }
     Ok(())
 }
 
 fn keydown_to_char(keycode: Keycode, keymod: Mod) -> u8 {
-    println!("keycode as number {}", keycode.into_i32());
+    println!("keycode as number {} {} {}", keycode.into_i32(), keycode, keymod);
     let ch = keycode.into_i32();
     if ch <= 0 {
         return 0;
@@ -142,6 +152,10 @@ fn keydown_to_char(keycode: Keycode, keymod: Mod) -> u8 {
     match keycode {
         Keycode::Backspace => 8,
         Keycode::SPACE => b' ',
+        Keycode::LEFT => 0,
+        Keycode::RIGHT => 0,
+        Keycode::UP => 0,
+        Keycode::DOWN => 0,
         _ => {
             println!("not supported: {keycode}");
             0
