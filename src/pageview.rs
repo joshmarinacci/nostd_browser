@@ -13,7 +13,9 @@ use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
 use rust_embedded_gui::geom::Bounds;
 use rust_embedded_gui::gfx::{HAlign, TextStyle};
 use rust_embedded_gui::view::View;
-use rust_embedded_gui::{Action, DrawEvent, EventType, GuiEvent};
+use rust_embedded_gui::{Action, DrawEvent, EventType, GuiEvent, KeyboardAction};
+use uchan::{Sender};
+use crate::browser::PAGE_VIEW;
 
 pub struct RenderedPage {
     pub link_count: i32,
@@ -51,10 +53,11 @@ pub struct PageView {
     pub visible: bool,
     pub bounds: Bounds,
     pub columns: u32,
+    pub sender: Sender<Page>,
 }
 
 impl PageView {
-    pub fn new(bounds: Bounds, page: Page) -> View {
+    pub fn new(bounds: Bounds, page: Page, sender: Sender<Page>) -> View {
         let pv = PageView {
             dirty: true,
             visible: true,
@@ -67,15 +70,23 @@ impl PageView {
             }],
             history_index: 0,
             bounds,
+            sender,
         };
         View {
-            name: "page".into(),
-            title: "page".into(),
+            name: PAGE_VIEW.into(),
+            title: PAGE_VIEW.into(),
             bounds,
             visible: true,
             state: Some(Box::new(pv)),
             input: Some(handle_input),
-            layout: None,
+            layout: Some(|e|{
+                let bounds = e.scene.bounds.clone();
+                let size = &e.theme.font.character_size;
+                if let Some(state) = e.scene.get_view_state::<PageView>(e.target) {
+                    state.bounds = bounds;
+                    state.columns = (bounds.w / (size.width as i32)) as u32;
+                }
+            }),
             draw: Some(draw),
         }
     }
@@ -131,7 +142,7 @@ impl PageView {
             rp.page.selection = 0;
         }
     }
-    pub(crate) fn nav_current_link(&mut self) {
+    pub(crate) fn nav_current_link(&mut self) -> Option<Action> {
         let rp = self.get_current_rendered_page();
         if let Some(href) = rp.find_href_by_index(rp.page.selection) {
             info!("loading the href {}", href);
@@ -141,9 +152,9 @@ impl PageView {
                 href = format!("{}{}", rp.page.url, href);
                 info!("final url is {}", href);
             }
-            // NET_COMMANDS
-            //     .try_send(NetCommand::Load(href.to_string()))
-            //     .unwrap()
+            Some(Action::Command(href))
+        } else {
+            None
         }
     }
     fn get_current_rendered_page(&mut self) -> &mut RenderedPage {
@@ -153,11 +164,7 @@ impl PageView {
         &self.history[self.history_index]
     }
 }
-// fn layout(&mut self, display: &mut dyn ViewTarget, theme: &Theme) {
-//     self.bounds = Rectangle::new(Point::new(0, 0),  Size::new(display.size().width, display.size().height));
-//     self.columns = display.size().width/theme.font.character_size.width
-// }
-//
+
 fn draw(e: &mut DrawEvent) {
     if !e.view.visible {
         return;
@@ -227,8 +234,8 @@ fn draw(e: &mut DrawEvent) {
 
 fn handle_input(event: &mut GuiEvent) -> Option<Action> {
     event.scene.mark_dirty_view(event.target);
-    if let Some(state) = event.scene.get_view_state::<PageView>(event.target) {
-        match event.event_type {
+    if let Some(state) = event.scene.get_view_state::<PageView>(event.target.clone()) {
+        match &event.event_type {
             EventType::Keyboard(key) => {
                 match key {
                     b'j' => {
@@ -241,18 +248,27 @@ fn handle_input(event: &mut GuiEvent) -> Option<Action> {
                     }
                     b'a' => state.prev_link(),
                     b's' => state.next_link(),
-                    13 => state.nav_current_link(),
                     _ => {
                         warn!("Unhandled key {:?}", key);
                     }
                 }
                 state.dirty = true
             }
+            EventType::KeyboardAction(act) => match act {
+                KeyboardAction::Up => state.prev_link(),
+                KeyboardAction::Down => state.next_link(),
+                KeyboardAction::Return => {
+                    return state.nav_current_link();
+                },
+                _ => {
+
+                }
+            },
             EventType::Scroll(dx, dy) => {
-                if (dx < 0) || (dy < 0) {
+                if (*dx < 0) || (*dy < 0) {
                     state.prev_link();
                 };
-                if (dx > 0) || (dy > 0) {
+                if (*dx > 0) || (*dy > 0) {
                     state.next_link();
                 };
             }

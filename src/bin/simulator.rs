@@ -22,8 +22,7 @@ use rust_embedded_gui::toggle_button::make_toggle_button;
 use rust_embedded_gui::toggle_group::{make_toggle_group, SelectOneOfState};
 use rust_embedded_gui::{Action, Callback, EventType, KeyboardAction, Theme};
 use std::ops::Add;
-use std::sync::mpsc;
-use std::sync::mpsc::Sender;
+use uchan::{Sender};
 #[cfg(feature = "std")]
 use embedded_graphics::prelude::*;
 use embedded_graphics_simulator::sdl2::{Keycode, Mod};
@@ -55,8 +54,8 @@ fn main() -> Result<(), std::convert::Infallible> {
 
     let mut display: SimulatorDisplay<Rgb565> = SimulatorDisplay::new(Size::new(320, 240));
 
-    let (tx,rx) = mpsc::channel::<Page>();
-    let mut scene = make_gui_scene();
+    let (page_sender, page_receiver) = uchan::channel::<Page>();
+    let mut scene = make_gui_scene(page_sender.clone());
     let mut theme = Theme {
         bg: Rgb565::WHITE,
         fg: Rgb565::BLACK,
@@ -76,7 +75,7 @@ fn main() -> Result<(), std::convert::Infallible> {
         bold_font: &FONT_7X13_BOLD,
     };
 
-    tx.send(Page::from_bytes(PAGE_BYTES,"homepage.html")).unwrap();
+    page_sender.send(Page::from_bytes(PAGE_BYTES, "homepage.html")).unwrap();
 
     'running: loop {
         let mut ctx = EmbeddedDrawingContext::new(&mut display);
@@ -99,7 +98,7 @@ fn main() -> Result<(), std::convert::Infallible> {
                         println!("got input from {:?}", name);
                         if let Some(resp) = handle_action(&name, &action, &mut scene, &mut app) {
                             info!("gui response {:?}",resp);
-                            handle_gui_response(resp, &mut app, tx.clone());
+                            handle_gui_response(resp, &mut app, page_sender.clone());
                         }
                     }
                     update_view_from_keyboard_input(&mut scene, &evt);
@@ -111,7 +110,7 @@ fn main() -> Result<(), std::convert::Infallible> {
                         println!("got input from {:?}", name);
                         if let Some(resp) = handle_action(&name, &action, &mut scene, &mut app) {
                             info!("gui response {:?}",resp);
-                            handle_gui_response(resp, &mut app, tx.clone());
+                            handle_gui_response(resp, &mut app, page_sender.clone());
                         }
                     }
                 }
@@ -133,7 +132,7 @@ fn main() -> Result<(), std::convert::Infallible> {
                 _ => {}
             }
         }
-        if let Ok(page) = rx.try_recv() {
+        if let Ok(page) = page_receiver.try_recv() {
             load_page(&mut scene, page);
         }
     }

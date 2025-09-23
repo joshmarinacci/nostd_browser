@@ -23,6 +23,7 @@ use rust_embedded_gui::scene::Scene;
 use rust_embedded_gui::text_input::make_text_input;
 use rust_embedded_gui::toggle_group::make_toggle_group;
 use rust_embedded_gui::{Action, EventType, GuiEvent, KeyboardAction};
+use uchan::{Sender};
 
 const MAIN_MENU: &'static str = "main";
 const BROWSER_MENU: &'static str = "browser";
@@ -31,7 +32,7 @@ const SETTINGS_PANEL: &'static str = "settings";
 const WIFI_PANEL: &'static str = "wifi-panel";
 const WIFI_MENU: &'static str = "wifi-menu";
 const WIFI_BUTTON: &'static str = "wifi-button";
-pub const PAGE_VIEW: &'static str = "page";
+pub const PAGE_VIEW: &'static str = "page-view";
 
 const INFO_PANEL: &'static str = "info-panel";
 const INFO_BUTTON: &'static str = "info-button";
@@ -209,6 +210,9 @@ pub fn handle_action(target: &str, action: &Action, scene: &mut Scene, app: &mut
                     }
                 }
             }
+            if target == PAGE_VIEW {
+                return Some(GuiResponse::Net(NetCommand::Load(cmd.to_string())));
+            }
         }
         Action::Generic => {
             info!("handling generic");
@@ -350,14 +354,14 @@ fn show_settings_panel(scene: &mut Scene) {
     );
     scene.add_view_to_root(panel);
 }
-pub fn make_gui_scene() -> Scene {
+pub fn make_gui_scene(tx:Sender<Page>) -> Scene {
     let mut scene = Scene::new_with_bounds(Bounds::new(0, 0, 320, 240));
 
     let panel = make_panel("panel", Bounds::new(20, 20, 260, 200));
     scene.add_view_to_root(panel);
 
     let full_screen_bounds = Bounds::new(0, 0, 320, 240);
-    let page_view = PageView::new(full_screen_bounds, Page::new());
+    let page_view = PageView::new(full_screen_bounds, Page::new(), tx);
     scene.add_view_to_root(page_view);
     let main_menu = make_list_view(
         MAIN_MENU,
