@@ -3,7 +3,7 @@ use crate::comps::make_overlay_label;
 use crate::page::Page;
 use crate::pageview::PageView;
 use alloc::boxed::Box;
-use alloc::string::ToString;
+use alloc::string::{String, ToString};
 use alloc::{format, vec};
 use embedded_graphics::mono_font::ascii::{
     FONT_6X13, FONT_6X13_BOLD, FONT_7X13_BOLD, FONT_9X15, FONT_9X15_BOLD,
@@ -73,12 +73,22 @@ pub const DARK_THEME: AppTheme = AppTheme {
 
 pub const ACTIVE_THEME: Option<Box<&AppTheme>> = None;
 
+#[derive(Debug)]
+pub enum NetCommand {
+    Load(String),
+}
+
+#[derive(Debug)]
+pub enum GuiResponse {
+    Net(NetCommand)
+}
+
 pub struct AppState {
     pub theme: &'static AppTheme,
     pub font: &'static MonoFont<'static>,
     pub bold_font: &'static MonoFont<'static>,
 }
-pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app: &mut AppState) {
+pub fn handle_action(target: &str, action: &Action, scene: &mut Scene, app: &mut AppState) -> Option<GuiResponse> {
     info!("handling action2 {:?} from {:?}", action, target);
     match action {
         Action::Command(cmd) => {
@@ -110,10 +120,10 @@ pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app: &mu
                     }
                     "Bookmarks" => {
                         // show the bookmarks
-                        // NET_COMMANDS.send(NetCommand::Load("bookmarks.html".to_string()));
                         scene.hide_view(MAIN_MENU);
                         scene.hide_view(BROWSER_MENU);
                         scene.set_focused(PAGE_VIEW);
+                        return Some(GuiResponse::Net(NetCommand::Load("https://joshondesign.com/".to_string())));
                     }
                     "Back" => {
                         scene.hide_view(MAIN_MENU);
@@ -155,17 +165,14 @@ pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app: &mu
             }
             if target == "url-input" {
                 info!("url input {}", cmd);
-                if let Some(view) = scene.get_view_mut("url-input") {
-                    info!("got the text {:?}", view.title);
-                    // NET_COMMANDS
-                    //     .send(NetCommand::Load(view.title.to_string()))
-                    // .await;
-                }
                 scene.remove_parent_and_children(URL_PANEL);
                 scene.hide_view(MAIN_MENU);
                 scene.hide_view(BROWSER_MENU);
                 scene.set_focused(PAGE_VIEW);
-                return;
+                if let Some(view) = scene.get_view_mut("url-input") {
+                    info!("got the text {:?}", view.title);
+                    return Some(GuiResponse::Net(NetCommand::Load(view.title.to_string())));
+                }
             }
             if target == "settings-theme" {
                 if cmd == "Dark" {
@@ -208,7 +215,6 @@ pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app: &mu
             if target == INFO_BUTTON {
                 scene.remove_parent_and_children(INFO_PANEL);
                 scene.set_focused(PAGE_VIEW);
-                return;
             }
             if target == "settings-close-button" {
                 scene.remove_parent_and_children(SETTINGS_PANEL);
@@ -234,6 +240,7 @@ pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app: &mu
             }
         }
     }
+    None
 }
 fn show_url_panel(scene: &mut Scene) {
     let panel = make_panel(URL_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));

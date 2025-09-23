@@ -31,7 +31,7 @@ use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
 use nostd_browser::browser::{
-    handle_action2, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME,
+    handle_action, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME,
     PAGE_VIEW,
 };
 use nostd_browser::page::Page;
@@ -328,7 +328,7 @@ async fn update_display(mut wrapper: Wrapper) {
         }
         if let Some(key) = wrapper.poll_keyboard() {
             if let Some((target, action)) = event_at_focused(&mut scene, EventType::Keyboard(key)) {
-                handle_action2(&target, &action, &mut scene, &mut app)
+                handle_action(&target, &action, &mut scene, &mut app)
             }
             update_view_from_keyboard_input(&mut scene, key);
         }
@@ -336,7 +336,7 @@ async fn update_display(mut wrapper: Wrapper) {
         wrapper.poll_trackball();
         if wrapper.click.changed {
             if let Some((target, action)) = event_at_focused(&mut scene, EventType::Action()) {
-                handle_action2(&target, &action, &mut scene, &mut app)
+                handle_action(&target, &action, &mut scene, &mut app)
             }
         }
         if wrapper.up.changed {

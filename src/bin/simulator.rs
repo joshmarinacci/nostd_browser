@@ -22,7 +22,8 @@ use rust_embedded_gui::toggle_button::make_toggle_button;
 use rust_embedded_gui::toggle_group::{make_toggle_group, SelectOneOfState};
 use rust_embedded_gui::{Action, Callback, EventType, KeyboardAction, Theme};
 use std::ops::Add;
-
+use std::sync::mpsc;
+use std::sync::mpsc::Sender;
 #[cfg(feature = "std")]
 use embedded_graphics::prelude::*;
 use embedded_graphics_simulator::sdl2::{Keycode, Mod};
@@ -32,10 +33,7 @@ use embedded_graphics_simulator::{
 use env_logger::fmt::style::Color::Rgb;
 use env_logger::Target;
 use log::{info, LevelFilter};
-use nostd_browser::browser::{
-    handle_action2, load_page, make_gui_scene, update_view_from_keyboard_input, AppState,
-    LIGHT_THEME, PAGE_VIEW,
-};
+use nostd_browser::browser::{handle_action, load_page, make_gui_scene, update_view_from_keyboard_input, AppState, GuiResponse, NetCommand, LIGHT_THEME, PAGE_VIEW};
 use nostd_browser::page::Page;
 use nostd_browser::pageview::PageView;
 use rust_embedded_gui::device::EmbeddedDrawingContext;
@@ -57,6 +55,7 @@ fn main() -> Result<(), std::convert::Infallible> {
 
     let mut display: SimulatorDisplay<Rgb565> = SimulatorDisplay::new(Size::new(320, 240));
 
+    let (tx,rx) = mpsc::channel::<Page>();
     let mut scene = make_gui_scene();
     let mut theme = Theme {
         bg: Rgb565::WHITE,
@@ -77,7 +76,8 @@ fn main() -> Result<(), std::convert::Infallible> {
         bold_font: &FONT_7X13_BOLD,
     };
 
-    let mut page_loaded = false;
+    tx.send(Page::from_bytes(PAGE_BYTES,"homepage.html")).unwrap();
+
     'running: loop {
         let mut ctx = EmbeddedDrawingContext::new(&mut display);
         ctx.clip = scene.dirty_rect.clone();
@@ -95,18 +95,24 @@ fn main() -> Result<(), std::convert::Infallible> {
                     keycode, keymod, ..
                 } => {
                     let evt: EventType = keydown_to_char(keycode, keymod);
-                    if let Some(result) = event_at_focused(&mut scene, &evt) {
-                        println!("got input from {:?}", result);
-                        handle_events(result, &mut scene, &mut theme, &mut app);
+                    if let Some((name, action)) = event_at_focused(&mut scene, &evt) {
+                        println!("got input from {:?}", name);
+                        if let Some(resp) = handle_action(&name, &action, &mut scene, &mut app) {
+                            info!("gui response {:?}",resp);
+                            handle_gui_response(resp, &mut app, tx.clone());
+                        }
                     }
                     update_view_from_keyboard_input(&mut scene, &evt);
                 }
                 SimulatorEvent::MouseButtonUp { point, .. } => {
                     println!("mouse button up {}", point);
-                    if let Some(result) =
-                        click_at(&mut scene, &vec![], GPoint::new(point.x, point.y))
-                    {
-                        handle_events(result, &mut scene, &mut theme, &mut app);
+                    let pt = GPoint::new(point.x, point.y);
+                    if let Some((name, action)) = click_at(&mut scene, &vec![], pt) {
+                        println!("got input from {:?}", name);
+                        if let Some(resp) = handle_action(&name, &action, &mut scene, &mut app) {
+                            info!("gui response {:?}",resp);
+                            handle_gui_response(resp, &mut app, tx.clone());
+                        }
                     }
                 }
                 SimulatorEvent::MouseButtonDown { mouse_btn, point } => {
@@ -127,13 +133,30 @@ fn main() -> Result<(), std::convert::Infallible> {
                 _ => {}
             }
         }
-        if !page_loaded {
-            let page = Page::from_bytes(PAGE_BYTES, "homepage.html");
+        if let Ok(page) = rx.try_recv() {
             load_page(&mut scene, page);
-            page_loaded = true;
         }
     }
     Ok(())
+}
+
+fn handle_gui_response(gui_response: GuiResponse, x: &mut AppState, sender: Sender<Page>) {
+    match gui_response {
+        GuiResponse::Net(net) => {
+            match net {
+                NetCommand::Load(href) => {
+                    let client = reqwest::blocking::ClientBuilder::new()
+                        .use_rustls_tls()
+                        .build().unwrap();
+                    let res = client.get(&href).send().unwrap();
+                    let bytes = res.bytes().unwrap();
+                    let page = Page::from_bytes(&bytes, &href);
+                    info!("got result bytes {:?}",page);
+                    sender.send(page).unwrap();
+                }
+            }
+        },
+    }
 }
 
 fn keydown_to_char(keycode: Keycode, keymod: Mod) -> EventType {
@@ -171,8 +194,3 @@ fn keydown_to_char(keycode: Keycode, keymod: Mod) -> EventType {
     }
 }
 
-fn handle_events(result: EventResult, scene: &mut Scene, theme: &mut Theme, app: &mut AppState) {
-    let (name, action) = result;
-    println!("result of event {:?} from {name}", action);
-    handle_action2(&name, &action, scene, app);
-}
