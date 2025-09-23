@@ -1,14 +1,18 @@
-use embedded_graphics::Drawable;
 use embedded_graphics::geometry::{Point as EPoint, Size};
-use embedded_graphics::mono_font::MonoTextStyleBuilder;
-use embedded_graphics::mono_font::ascii::{FONT_5X7, FONT_6X10, FONT_7X13_BOLD, FONT_9X15, FONT_9X15_BOLD};
+use embedded_graphics::mono_font::ascii::{
+    FONT_5X7, FONT_6X10, FONT_7X13_BOLD, FONT_9X15, FONT_9X15_BOLD,
+};
 use embedded_graphics::mono_font::iso_8859_9::FONT_7X13;
+use embedded_graphics::mono_font::MonoTextStyleBuilder;
 use embedded_graphics::pixelcolor::{Rgb565, Rgb888};
 use embedded_graphics::prelude::Primitive;
 use embedded_graphics::prelude::RgbColor;
 use embedded_graphics::prelude::WebColors;
 use embedded_graphics::primitives::{Line, PrimitiveStyle, Rectangle};
-use embedded_graphics::text::{Alignment, Text, TextStyleBuilder, TextStyle as ETextStyle, Baseline};
+use embedded_graphics::text::{
+    Alignment, Baseline, Text, TextStyle as ETextStyle, TextStyleBuilder,
+};
+use embedded_graphics::Drawable;
 use rust_embedded_gui::button::make_button;
 use rust_embedded_gui::geom::{Bounds, Point as GPoint};
 use rust_embedded_gui::scene::{
@@ -28,6 +32,12 @@ use embedded_graphics_simulator::{
 use env_logger::fmt::style::Color::Rgb;
 use env_logger::Target;
 use log::{info, LevelFilter};
+use nostd_browser::browser::{
+    handle_action2, load_page, make_gui_scene, update_view_from_keyboard_input, AppState,
+    LIGHT_THEME, PAGE_VIEW,
+};
+use nostd_browser::page::Page;
+use nostd_browser::pageview::PageView;
 use rust_embedded_gui::device::EmbeddedDrawingContext;
 use rust_embedded_gui::gfx::{DrawingContext, HAlign, TextStyle, VAlign};
 use rust_embedded_gui::grid::{make_grid_panel, GridLayoutState, LayoutConstraint};
@@ -36,9 +46,6 @@ use rust_embedded_gui::list_view::make_list_view;
 use rust_embedded_gui::panel::{layout_hbox, layout_vbox, make_panel, PanelState};
 use rust_embedded_gui::text_input::make_text_input;
 use rust_embedded_gui::view::View;
-use nostd_browser::browser::{handle_action2, load_page, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME, PAGE_VIEW};
-use nostd_browser::page::Page;
-use nostd_browser::pageview::PageView;
 
 static PAGE_BYTES: &[u8] = include_bytes!("homepage.html");
 
@@ -61,7 +68,6 @@ fn main() -> Result<(), std::convert::Infallible> {
         bold_font: FONT_7X13_BOLD,
     };
     scene.set_focused(PAGE_VIEW);
-
 
     let output_settings = OutputSettingsBuilder::new().scale(2).build();
     let mut window = Window::new("Simulator Test", &output_settings);
@@ -88,8 +94,8 @@ fn main() -> Result<(), std::convert::Infallible> {
                 SimulatorEvent::KeyDown {
                     keycode, keymod, ..
                 } => {
-                    let evt:EventType = keydown_to_char(keycode, keymod);
-                    if let Some(result) = event_at_focused(&mut scene, &evt)        {
+                    let evt: EventType = keydown_to_char(keycode, keymod);
+                    if let Some(result) = event_at_focused(&mut scene, &evt) {
                         println!("got input from {:?}", result);
                         handle_events(result, &mut scene, &mut theme, &mut app);
                     }
@@ -106,9 +112,15 @@ fn main() -> Result<(), std::convert::Infallible> {
                 SimulatorEvent::MouseButtonDown { mouse_btn, point } => {
                     println!("mouse down");
                 }
-                SimulatorEvent::MouseWheel {scroll_delta, direction} => {
+                SimulatorEvent::MouseWheel {
+                    scroll_delta,
+                    direction,
+                } => {
                     info!("mouse wheel {scroll_delta:?} {direction:?}");
-                    if let Some(result) = event_at_focused(&mut scene,&EventType::Scroll(scroll_delta.x,scroll_delta.y)) {
+                    if let Some(result) = event_at_focused(
+                        &mut scene,
+                        &EventType::Scroll(scroll_delta.x, scroll_delta.y),
+                    ) {
                         println!("got input from {:?}", result);
                     }
                 }
@@ -116,8 +128,8 @@ fn main() -> Result<(), std::convert::Infallible> {
             }
         }
         if !page_loaded {
-            let page = Page::from_bytes(PAGE_BYTES,"homepage.html");
-            load_page(&mut scene, page);;
+            let page = Page::from_bytes(PAGE_BYTES, "homepage.html");
+            load_page(&mut scene, page);
             page_loaded = true;
         }
     }

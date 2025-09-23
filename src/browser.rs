@@ -17,12 +17,12 @@ use nostd_html_parser::blocks::{Block, BlockType};
 use rust_embedded_gui::button::make_button;
 use rust_embedded_gui::geom::Bounds;
 use rust_embedded_gui::label::make_label;
+use rust_embedded_gui::list_view::make_list_view;
 use rust_embedded_gui::panel::make_panel;
 use rust_embedded_gui::scene::Scene;
 use rust_embedded_gui::text_input::make_text_input;
 use rust_embedded_gui::toggle_group::make_toggle_group;
 use rust_embedded_gui::{Action, EventType, GuiEvent, KeyboardAction};
-use rust_embedded_gui::list_view::make_list_view;
 
 const MAIN_MENU: &'static str = "main";
 const BROWSER_MENU: &'static str = "browser";
@@ -223,7 +223,7 @@ pub fn handle_action2(target: &str, action: &Action, scene: &mut Scene, app: &mu
                 scene.set_focused(PAGE_VIEW);
             }
             if target == "settings-font-button" {
-                let font_menu = make_list_view("font-menu", vec!["Small", "Medium", "Large"],0)
+                let font_menu = make_list_view("font-menu", vec!["Small", "Medium", "Large"], 0)
                     .position_at(150, 70);
                 scene.add_view_to_root(font_menu);
                 scene.set_focused("font-menu");
@@ -295,7 +295,7 @@ fn show_info_panel(scene: &mut Scene) {
     scene.add_child(&panel.name, &label4b.name);
     scene.add_view(label4b);
 
-    let button = make_button(INFO_BUTTON, "done").position_at(160 - 20-20, 200 - 20-20);
+    let button = make_button(INFO_BUTTON, "done").position_at(160 - 20 - 20, 200 - 20 - 20);
     scene.add_child(&panel.name, &button.name);
     scene.add_view(button);
 
@@ -365,12 +365,11 @@ pub fn make_gui_scene() -> Scene {
     )
     .position_at(0, 0);
 
-
     scene.add_view_to_root(main_menu);
     scene.hide_view(MAIN_MENU);
 
     scene.add_view_to_root(
-        make_list_view(WIFI_MENU, vec!["status", "scan", "close"],0)
+        make_list_view(WIFI_MENU, vec!["status", "scan", "close"], 0)
             .position_at(20, 20)
             .hide(),
     );
@@ -421,7 +420,7 @@ pub fn make_gui_scene() -> Scene {
     scene
 }
 
-pub fn update_view_from_keyboard_input(scene: &mut Scene, evt:&EventType) {
+pub fn update_view_from_keyboard_input(scene: &mut Scene, evt: &EventType) {
     match evt {
         EventType::Keyboard(key) => {
             if *key == b' ' {
@@ -431,9 +430,7 @@ pub fn update_view_from_keyboard_input(scene: &mut Scene, evt:&EventType) {
                 }
             }
         }
-        _ => {
-
-        }
+        _ => {}
     };
 }
 pub fn update_view_from_input(event: &mut GuiEvent, app: &mut AppState) {
@@ -457,7 +454,7 @@ pub fn update_view_from_input(event: &mut GuiEvent, app: &mut AppState) {
     }
 }
 
-pub fn load_page(scene:&mut Scene, page: Page) {
+pub fn load_page(scene: &mut Scene, page: Page) {
     if let Some(state) = scene.get_view_state::<PageView>(PAGE_VIEW) {
         info!("page got a new page: {:?}", page);
         state.load_page(page);
