@@ -87,7 +87,7 @@ async fn main(spawner:Spawner) {
                         println!("got input from {:?}", name);
                         if let Some(resp) = handle_action(&name, &action, &mut scene, &mut app) {
                             info!("gui response {:?}", resp);
-                            handle_gui_response(resp, &mut app);
+                            handle_gui_response(resp, &mut app).await;
                         }
                     }
                     update_view_from_keyboard_input(&mut scene, &evt);
@@ -99,7 +99,7 @@ async fn main(spawner:Spawner) {
                         println!("got input from {:?}", name);
                         if let Some(resp) = handle_action(&name, &action, &mut scene, &mut app) {
                             info!("gui response {:?}", resp);
-                            handle_gui_response(resp, &mut app);
+                            handle_gui_response(resp, &mut app).await;
                         }
                     }
                 }

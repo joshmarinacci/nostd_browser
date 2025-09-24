@@ -30,7 +30,7 @@ use esp_wifi::{init, EspWifiController};
 use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
-use nostd_browser::browser::{handle_action, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME, PAGE_VIEW};
+use nostd_browser::browser::{handle_action, make_gui_scene, update_view_from_keyboard_input, AppState, GuiResponse, LIGHT_THEME, PAGE_VIEW};
 use nostd_browser::page::Page;
 use nostd_browser::pageview::PageView;
 use rust_embedded_gui::device::EmbeddedDrawingContext;
@@ -330,6 +330,7 @@ async fn update_display(mut wrapper: Wrapper) {
             if let Some((target, action)) = event_at_focused(&mut scene, &event) {
                 if let Some(resp) = handle_action(&target, &action, &mut scene, &mut app) {
                     info!("gui response {:?}",resp);
+                    handle_gui_response(resp, &mut app);
                 }
             }
             update_view_from_keyboard_input(&mut scene, &event);
@@ -340,6 +341,7 @@ async fn update_display(mut wrapper: Wrapper) {
             if let Some((target, action)) = event_at_focused(&mut scene, &EventType::Action()) {
                 if let Some(resp) = handle_action(&target, &action, &mut scene, &mut app) {
                     info!("gui response {:?}",resp);
+                    handle_gui_response(resp, &mut app);
                 }
             }
         }
@@ -387,6 +389,16 @@ async fn handle_bookmarks(href: &str) {
         .send(Page::from_bytes(PAGE_BYTES, &href))
         .await;
 }
+async fn handle_gui_response(gui_response: GuiResponse, _app: &mut AppState) {
+    match gui_response {
+        GuiResponse::Net(net) => match net {
+            nostd_browser::browser::NetCommand::Load(href) => {
+                NET_COMMANDS.send(NetCommand::Load(href)).await;
+            }
+        },
+    }
+}
+
 
 async fn handle_http_url(href: &str, network_stack: Stack<'static>, tls_seed: u64) {
     NET_STATUS.send(NetStatus::LoadingPage()).await;
