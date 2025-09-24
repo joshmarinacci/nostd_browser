@@ -1,6 +1,6 @@
 [package]
 edition = "2021"
-name    = "nostd_browser"
+name = "nostd_browser"
 version = "0.1.0"
 
 [dependencies]
@@ -10,8 +10,12 @@ rust-embedded-gui = {path="../rust-embedded-gui"}
 env_logger = {  version =  "0.11.8", optional = true }
 embedded-graphics-simulator = { version = "0.7.0" , optional = true}
 embedded-graphics = "0.8.1"
-reqwest = { version = "0.12.23", optional =  true, features = ["blocking","rustls-tls"]}
-uchan = { version = "0.1.4", features = [] }
-
+reqwest = { version = "0.12.23", optional = true, features = ["blocking", "rustls-tls"] }
+embassy-executor = { version = "0.9.1", optional = true, features = [] }
+embassy-sync = { version = "0.7.2", optional = true, features = [] }
 [features]
-std = ["env_logger","embedded-graphics-simulator","reqwest"]
+std = ["env_logger",
+    "embedded-graphics-simulator","reqwest",
+    "embassy-executor/arch-std", "embassy-executor/executor-thread",
+    "embassy-sync/std"
+]

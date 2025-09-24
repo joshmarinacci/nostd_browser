@@ -1,52 +1,39 @@
-use embedded_graphics::geometry::{Point as EPoint, Size};
+use embassy_executor::Spawner;
+use embassy_sync::channel::Channel;
+use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
+use embedded_graphics::geometry::{Size};
 use embedded_graphics::mono_font::ascii::{
-    FONT_5X7, FONT_6X10, FONT_7X13_BOLD, FONT_9X15, FONT_9X15_BOLD,
+    FONT_7X13_BOLD,
 };
 use embedded_graphics::mono_font::iso_8859_9::FONT_7X13;
-use embedded_graphics::mono_font::MonoTextStyleBuilder;
-use embedded_graphics::pixelcolor::{Rgb565, Rgb888};
-use embedded_graphics::prelude::Primitive;
+use embedded_graphics::pixelcolor::{Rgb565};
 use embedded_graphics::prelude::RgbColor;
 use embedded_graphics::prelude::WebColors;
-use embedded_graphics::primitives::{Line, PrimitiveStyle, Rectangle};
-use embedded_graphics::text::{
-    Alignment, Baseline, Text, TextStyle as ETextStyle, TextStyleBuilder,
-};
-use embedded_graphics::Drawable;
-use rust_embedded_gui::button::make_button;
-use rust_embedded_gui::geom::{Bounds, Point as GPoint};
-use rust_embedded_gui::scene::{
-    click_at, draw_scene, event_at_focused, layout_scene, EventResult, Scene,
-};
-use rust_embedded_gui::toggle_button::make_toggle_button;
-use rust_embedded_gui::toggle_group::{make_toggle_group, SelectOneOfState};
-use rust_embedded_gui::{Action, Callback, EventType, KeyboardAction, Theme};
-use std::ops::Add;
-use uchan::{Sender};
-#[cfg(feature = "std")]
-use embedded_graphics::prelude::*;
 use embedded_graphics_simulator::sdl2::{Keycode, Mod};
 use embedded_graphics_simulator::{
     OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
-use env_logger::fmt::style::Color::Rgb;
 use env_logger::Target;
 use log::{info, LevelFilter};
-use nostd_browser::browser::{handle_action, load_page, make_gui_scene, update_view_from_keyboard_input, AppState, GuiResponse, NetCommand, LIGHT_THEME, PAGE_VIEW};
+use nostd_browser::browser::{
+    handle_action, load_page, make_gui_scene, update_view_from_keyboard_input, AppState,
+    GuiResponse, NetCommand, LIGHT_THEME, PAGE_VIEW,
+};
 use nostd_browser::page::Page;
-use nostd_browser::pageview::PageView;
 use rust_embedded_gui::device::EmbeddedDrawingContext;
-use rust_embedded_gui::gfx::{DrawingContext, HAlign, TextStyle, VAlign};
-use rust_embedded_gui::grid::{make_grid_panel, GridLayoutState, LayoutConstraint};
-use rust_embedded_gui::label::make_label;
-use rust_embedded_gui::list_view::make_list_view;
-use rust_embedded_gui::panel::{layout_hbox, layout_vbox, make_panel, PanelState};
-use rust_embedded_gui::text_input::make_text_input;
-use rust_embedded_gui::view::View;
+use rust_embedded_gui::geom::{Point as GPoint};
+use rust_embedded_gui::scene::{
+    click_at, draw_scene, event_at_focused, layout_scene,
+};
+use rust_embedded_gui::{EventType, KeyboardAction, Theme};
+use reqwest::blocking::ClientBuilder;
 
 static PAGE_BYTES: &[u8] = include_bytes!("homepage.html");
 
-fn main() -> Result<(), std::convert::Infallible> {
+static PAGE_CHANNEL: Channel<ThreadModeRawMutex, Page, 1> = Channel::new();
+
+#[embassy_executor::main]
+async fn main(spawner:Spawner) {
     env_logger::Builder::new()
         .target(Target::Stdout) // <-- redirects to stdout
         .filter(None, LevelFilter::Info)
@@ -54,8 +41,8 @@ fn main() -> Result<(), std::convert::Infallible> {
 
     let mut display: SimulatorDisplay<Rgb565> = SimulatorDisplay::new(Size::new(320, 240));
 
-    let (page_sender, page_receiver) = uchan::channel::<Page>();
-    let mut scene = make_gui_scene(page_sender.clone());
+
+    let mut scene = make_gui_scene();
     let mut theme = Theme {
         bg: Rgb565::WHITE,
         fg: Rgb565::BLACK,
@@ -75,7 +62,7 @@ fn main() -> Result<(), std::convert::Infallible> {
         bold_font: &FONT_7X13_BOLD,
     };
 
-    page_sender.send(Page::from_bytes(PAGE_BYTES, "homepage.html")).unwrap();
+    PAGE_CHANNEL.send(Page::from_bytes(PAGE_BYTES, "homepage.html"));
 
     'running: loop {
         let mut ctx = EmbeddedDrawingContext::new(&mut display);
@@ -89,7 +76,9 @@ fn main() -> Result<(), std::convert::Infallible> {
         window.update(&display);
         for event in window.events() {
             match event {
-                SimulatorEvent::Quit => break 'running,
+                SimulatorEvent::Quit => {
+                    std::process::exit(0);
+                },
                 SimulatorEvent::KeyDown {
                     keycode, keymod, ..
                 } => {
@@ -97,8 +86,8 @@ fn main() -> Result<(), std::convert::Infallible> {
                     if let Some((name, action)) = event_at_focused(&mut scene, &evt) {
                         println!("got input from {:?}", name);
                         if let Some(resp) = handle_action(&name, &action, &mut scene, &mut app) {
-                            info!("gui response {:?}",resp);
-                            handle_gui_response(resp, &mut app, page_sender.clone());
+                            info!("gui response {:?}", resp);
+                            handle_gui_response(resp, &mut app);
                         }
                     }
                     update_view_from_keyboard_input(&mut scene, &evt);
@@ -109,12 +98,12 @@ fn main() -> Result<(), std::convert::Infallible> {
                     if let Some((name, action)) = click_at(&mut scene, &vec![], pt) {
                         println!("got input from {:?}", name);
                         if let Some(resp) = handle_action(&name, &action, &mut scene, &mut app) {
-                            info!("gui response {:?}",resp);
-                            handle_gui_response(resp, &mut app, page_sender.clone());
+                            info!("gui response {:?}", resp);
+                            handle_gui_response(resp, &mut app);
                         }
                     }
                 }
-                SimulatorEvent::MouseButtonDown { mouse_btn, point } => {
+                SimulatorEvent::MouseButtonDown { mouse_btn: _mouse_btn, point: _point } => {
                     println!("mouse down");
                 }
                 SimulatorEvent::MouseWheel {
@@ -132,29 +121,29 @@ fn main() -> Result<(), std::convert::Infallible> {
                 _ => {}
             }
         }
-        if let Ok(page) = page_receiver.try_recv() {
+        if let Ok(page) = PAGE_CHANNEL.try_receive() {
             load_page(&mut scene, page);
         }
     }
-    Ok(())
 }
 
-fn handle_gui_response(gui_response: GuiResponse, x: &mut AppState, sender: Sender<Page>) {
+async fn handle_gui_response(gui_response: GuiResponse, _app: &mut AppState) {
     match gui_response {
         GuiResponse::Net(net) => {
             match net {
                 NetCommand::Load(href) => {
-                    let client = reqwest::blocking::ClientBuilder::new()
+                    let client = ClientBuilder::new()
                         .use_rustls_tls()
-                        .build().unwrap();
+                        .build()
+                        .unwrap();
                     let res = client.get(&href).send().unwrap();
                     let bytes = res.bytes().unwrap();
                     let page = Page::from_bytes(&bytes, &href);
-                    info!("got result bytes {:?}",page);
-                    sender.send(page).unwrap();
+                    info!("got result bytes {:?}", page);
+                    PAGE_CHANNEL.send(page).await;
                 }
             }
-        },
+        }
     }
 }
 
@@ -192,4 +181,3 @@ fn keydown_to_char(keycode: Keycode, keymod: Mod) -> EventType {
         }
     }
 }
-

@@ -86,7 +86,7 @@ async fn main(_spawner: Spawner) {
     scene.mark_dirty_all();
     loop {
         if let Some(key) = wrapper.poll_keyboard() {
-            event_at_focused(&mut scene, EventType::Keyboard(key));
+            event_at_focused(&mut scene, &EventType::Keyboard(key));
         }
         if let Ok(point) = wrapper.touch.get_touch(&mut wrapper.i2c) {
             // stack allocated Vec containing 0-5 points

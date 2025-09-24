@@ -9,7 +9,6 @@ use esp_hal::Blocking;
 use mipidsi::interface::SpiInterface;
 use mipidsi::models::ST7789;
 use mipidsi::{Display, NoResetPin};
-use nostd_browser::page::Page;
 
 pub type TDeckDisplay = Display<
     SpiInterface<
@@ -21,7 +20,6 @@ pub type TDeckDisplay = Display<
     NoResetPin,
 >;
 
-pub static PAGE_CHANNEL: Channel<CriticalSectionRawMutex, Page, 2> = Channel::new();
 
 #[derive(Debug)]
 pub enum NetCommand {

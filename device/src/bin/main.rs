@@ -14,10 +14,10 @@ use embassy_executor::Spawner;
 use embassy_net::dns::DnsSocket;
 use embassy_net::tcp::client::{TcpClient, TcpClientState};
 use embassy_net::{Runner, Stack, StackResources};
+use embassy_sync::blocking_mutex::raw::{CriticalSectionRawMutex};
+use embassy_sync::channel::Channel;
 use embassy_time::{Duration, Timer};
 use embedded_graphics::mono_font::ascii::{FONT_7X13, FONT_7X13_BOLD};
-use embedded_graphics::mono_font::MonoFont;
-use embedded_graphics::pixelcolor::Rgb565;
 use esp_hal::clock::CpuClock;
 use esp_hal::rng::Rng;
 use esp_hal::timer::timg::TimerGroup;
@@ -30,17 +30,14 @@ use esp_wifi::{init, EspWifiController};
 use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
-use nostd_browser::browser::{
-    handle_action, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME,
-    PAGE_VIEW,
-};
+use nostd_browser::browser::{handle_action, make_gui_scene, update_view_from_keyboard_input, AppState, LIGHT_THEME, PAGE_VIEW};
 use nostd_browser::page::Page;
 use nostd_browser::pageview::PageView;
 use rust_embedded_gui::device::EmbeddedDrawingContext;
 use rust_embedded_gui::geom::Point as GPoint;
 use rust_embedded_gui::scene::{click_at, draw_scene, event_at_focused, layout_scene};
 use rust_embedded_gui::{Callback, EventType, Theme};
-use device::common::{NetCommand, NetStatus, NET_COMMANDS, NET_STATUS, PAGE_CHANNEL};
+use device::common::{NetCommand, NetStatus, NET_COMMANDS, NET_STATUS};
 use device::tdeck::Wrapper;
 
 #[panic_handler]
@@ -69,6 +66,8 @@ const PASSWORD: Option<&str> = option_env!("PASSWORD");
 const AUTO_CONNECT: Option<&str> = option_env!("AUTO_CONNECT");
 
 static PAGE_BYTES: &[u8] = include_bytes!("homepage.html");
+
+static PAGE_CHANNEL: Channel<CriticalSectionRawMutex, Page, 1> = Channel::new();
 
 #[esp_hal_embassy::main]
 async fn main(spawner: Spawner) {
@@ -327,23 +326,28 @@ async fn update_display(mut wrapper: Wrapper) {
             // last_touch_event = point;
         }
         if let Some(key) = wrapper.poll_keyboard() {
-            if let Some((target, action)) = event_at_focused(&mut scene, EventType::Keyboard(key)) {
-                handle_action(&target, &action, &mut scene, &mut app)
+            let event = EventType::Keyboard(key);
+            if let Some((target, action)) = event_at_focused(&mut scene, &event) {
+                if let Some(resp) = handle_action(&target, &action, &mut scene, &mut app) {
+                    info!("gui response {:?}",resp);
+                }
             }
-            update_view_from_keyboard_input(&mut scene, key);
+            update_view_from_keyboard_input(&mut scene, &event);
         }
 
         wrapper.poll_trackball();
         if wrapper.click.changed {
-            if let Some((target, action)) = event_at_focused(&mut scene, EventType::Action()) {
-                handle_action(&target, &action, &mut scene, &mut app)
+            if let Some((target, action)) = event_at_focused(&mut scene, &EventType::Action()) {
+                if let Some(resp) = handle_action(&target, &action, &mut scene, &mut app) {
+                    info!("gui response {:?}",resp);
+                }
             }
         }
         if wrapper.up.changed {
-            event_at_focused(&mut scene, EventType::Scroll(0, -1));
+            event_at_focused(&mut scene, &EventType::Scroll(0, -1));
         }
         if wrapper.down.changed {
-            event_at_focused(&mut scene, EventType::Scroll(0, 1));
+            event_at_focused(&mut scene, &EventType::Scroll(0, 1));
         }
         let mut ctx = EmbeddedDrawingContext::new(&mut wrapper.display);
         ctx.clip = scene.dirty_rect.clone();

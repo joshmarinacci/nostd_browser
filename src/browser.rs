@@ -22,8 +22,7 @@ use rust_embedded_gui::panel::make_panel;
 use rust_embedded_gui::scene::Scene;
 use rust_embedded_gui::text_input::make_text_input;
 use rust_embedded_gui::toggle_group::make_toggle_group;
-use rust_embedded_gui::{Action, EventType, GuiEvent, KeyboardAction};
-use uchan::{Sender};
+use rust_embedded_gui::{Action, EventType, GuiEvent};
 
 const MAIN_MENU: &'static str = "main";
 const BROWSER_MENU: &'static str = "browser";
@@ -81,7 +80,7 @@ pub enum NetCommand {
 
 #[derive(Debug)]
 pub enum GuiResponse {
-    Net(NetCommand)
+    Net(NetCommand),
 }
 
 pub struct AppState {
@@ -89,7 +88,12 @@ pub struct AppState {
     pub font: &'static MonoFont<'static>,
     pub bold_font: &'static MonoFont<'static>,
 }
-pub fn handle_action(target: &str, action: &Action, scene: &mut Scene, app: &mut AppState) -> Option<GuiResponse> {
+pub fn handle_action(
+    target: &str,
+    action: &Action,
+    scene: &mut Scene,
+    app: &mut AppState,
+) -> Option<GuiResponse> {
     info!("handling action2 {:?} from {:?}", action, target);
     match action {
         Action::Command(cmd) => {
@@ -124,7 +128,9 @@ pub fn handle_action(target: &str, action: &Action, scene: &mut Scene, app: &mut
                         scene.hide_view(MAIN_MENU);
                         scene.hide_view(BROWSER_MENU);
                         scene.set_focused(PAGE_VIEW);
-                        return Some(GuiResponse::Net(NetCommand::Load("https://joshondesign.com/".to_string())));
+                        return Some(GuiResponse::Net(NetCommand::Load(
+                            "https://joshondesign.com/".to_string(),
+                        )));
                     }
                     "Back" => {
                         scene.hide_view(MAIN_MENU);
@@ -354,14 +360,14 @@ fn show_settings_panel(scene: &mut Scene) {
     );
     scene.add_view_to_root(panel);
 }
-pub fn make_gui_scene(tx:Sender<Page>) -> Scene {
+pub fn make_gui_scene() -> Scene {
     let mut scene = Scene::new_with_bounds(Bounds::new(0, 0, 320, 240));
 
     let panel = make_panel("panel", Bounds::new(20, 20, 260, 200));
     scene.add_view_to_root(panel);
 
     let full_screen_bounds = Bounds::new(0, 0, 320, 240);
-    let page_view = PageView::new(full_screen_bounds, Page::new(), tx);
+    let page_view = PageView::new(full_screen_bounds, Page::new());
     scene.add_view_to_root(page_view);
     let main_menu = make_list_view(
         MAIN_MENU,
@@ -444,7 +450,7 @@ pub fn update_view_from_keyboard_input(scene: &mut Scene, evt: &EventType) {
         _ => {}
     };
 }
-pub fn update_view_from_input(event: &mut GuiEvent, app: &mut AppState) {
+pub fn update_view_from_input(event: &mut GuiEvent, _app: &mut AppState) {
     match &event.event_type {
         EventType::Keyboard(key) => {
             if *key == b' ' {

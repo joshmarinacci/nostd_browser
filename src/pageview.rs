@@ -1,4 +1,4 @@
-// use crate::common::{NetCommand, NET_COMMANDS};
+use crate::browser::PAGE_VIEW;
 use crate::page::Page;
 use alloc::boxed::Box;
 use alloc::string::ToString;
@@ -14,8 +14,6 @@ use rust_embedded_gui::geom::Bounds;
 use rust_embedded_gui::gfx::{HAlign, TextStyle};
 use rust_embedded_gui::view::View;
 use rust_embedded_gui::{Action, DrawEvent, EventType, GuiEvent, KeyboardAction};
-use uchan::{Sender};
-use crate::browser::PAGE_VIEW;
 
 pub struct RenderedPage {
     pub link_count: i32,
@@ -53,11 +51,10 @@ pub struct PageView {
     pub visible: bool,
     pub bounds: Bounds,
     pub columns: u32,
-    pub sender: Sender<Page>,
 }
 
 impl PageView {
-    pub fn new(bounds: Bounds, page: Page, sender: Sender<Page>) -> View {
+    pub fn new(bounds: Bounds, page: Page) -> View {
         let pv = PageView {
             dirty: true,
             visible: true,
@@ -70,7 +67,6 @@ impl PageView {
             }],
             history_index: 0,
             bounds,
-            sender,
         };
         View {
             name: PAGE_VIEW.into(),
@@ -79,7 +75,7 @@ impl PageView {
             visible: true,
             state: Some(Box::new(pv)),
             input: Some(handle_input),
-            layout: Some(|e|{
+            layout: Some(|e| {
                 let bounds = e.scene.bounds.clone();
                 let size = &e.theme.font.character_size;
                 if let Some(state) = e.scene.get_view_state::<PageView>(e.target) {
@@ -100,7 +96,7 @@ impl PageView {
                     // info!("Run: {:?}", run);
                     match &run.style {
                         RunStyle::Link(href) => {
-                            // info!("found a link: {:?}", href);
+                            info!("found a link: {:?}", href);
                             link_count += 1;
                         }
                         _ => {}
@@ -212,7 +208,7 @@ fn draw(e: &mut DrawEvent) {
                         TextStyle::new(&e.theme.font, &e.theme.fg).with_halign(HAlign::Left);
                     let text_style = match &run.style {
                         RunStyle::Link(href) => {
-                            // info!("found a link: {:?}", href);
+                            info!("found a link: {:?}", href);
                             link_count += 1;
                             if rpage.page.selection == link_count {
                                 plain_style.with_underline(true)
@@ -234,7 +230,7 @@ fn draw(e: &mut DrawEvent) {
 
 fn handle_input(event: &mut GuiEvent) -> Option<Action> {
     event.scene.mark_dirty_view(event.target);
-    if let Some(state) = event.scene.get_view_state::<PageView>(event.target.clone()) {
+    if let Some(state) = event.scene.get_view_state::<PageView>(event.target) {
         match &event.event_type {
             EventType::Keyboard(key) => {
                 match key {
@@ -259,10 +255,8 @@ fn handle_input(event: &mut GuiEvent) -> Option<Action> {
                 KeyboardAction::Down => state.next_link(),
                 KeyboardAction::Return => {
                     return state.nav_current_link();
-                },
-                _ => {
-
                 }
+                _ => {}
             },
             EventType::Scroll(dx, dy) => {
                 if (*dx < 0) || (*dy < 0) {
