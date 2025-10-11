@@ -14,18 +14,18 @@ use embedded_graphics_simulator::{
     OutputSettingsBuilder, SimulatorDisplay, SimulatorEvent, Window,
 };
 use env_logger::Target;
+use iris_ui::geom::Point;
+use iris_ui::input::{InputEvent, TextAction};
+use iris_ui::scene::{click_at, draw_scene, event_at_focused, layout_scene};
 use log::{info, LevelFilter};
 use nostd_browser::browser::{
     handle_action, load_page, make_gui_scene, update_view_from_keyboard_input, AppState,
     GuiResponse, NetCommand, LIGHT_THEME, PAGE_VIEW,
 };
 use nostd_browser::page::Page;
-use rust_embedded_gui::device::EmbeddedDrawingContext;
-use rust_embedded_gui::geom::{Point as GPoint};
-use rust_embedded_gui::scene::{
-    click_at, draw_scene, event_at_focused, layout_scene,
-};
-use rust_embedded_gui::{EventType, KeyboardAction, Theme};
+use iris_ui::device::EmbeddedDrawingContext;
+use iris_ui::geom::{Point as GPoint};
+use iris_ui::{Theme, ViewStyle};
 use reqwest::blocking::ClientBuilder;
 
 static PAGE_BYTES: &[u8] = include_bytes!("homepage.html");
@@ -44,11 +44,22 @@ async fn main(spawner:Spawner) {
 
     let mut scene = make_gui_scene();
     let mut theme = Theme {
-        bg: Rgb565::WHITE,
-        fg: Rgb565::BLACK,
-        selected_bg: Rgb565::BLUE,
-        selected_fg: Rgb565::WHITE,
-        panel_bg: Rgb565::CSS_LIGHT_GRAY,
+        standard: ViewStyle {
+            fill: Rgb565::WHITE,
+            text: Rgb565::BLACK,
+        },
+        panel: ViewStyle {
+            fill: Rgb565::CSS_LIGHT_GRAY,
+            text: Rgb565::BLACK,
+        },
+        selected: ViewStyle {
+            fill: Rgb565::BLUE,
+            text: Rgb565::WHITE,
+        },
+        accented: ViewStyle {
+            fill: Rgb565::BLUE,
+            text: Rgb565::WHITE,
+        },
         font: FONT_7X13,
         bold_font: FONT_7X13_BOLD,
     };
@@ -67,8 +78,8 @@ async fn main(spawner:Spawner) {
     'running: loop {
         let mut ctx = EmbeddedDrawingContext::new(&mut display);
         ctx.clip = scene.dirty_rect.clone();
-        theme.bg = app.theme.base_bg;
-        theme.fg = app.theme.base_fg;
+        theme.standard.fill = app.theme.base_bg;
+        theme.standard.text = app.theme.base_fg;
         theme.font = app.font.clone();
         theme.bold_font = app.font.clone();
         layout_scene(&mut scene, &theme);
@@ -82,10 +93,10 @@ async fn main(spawner:Spawner) {
                 SimulatorEvent::KeyDown {
                     keycode, keymod, ..
                 } => {
-                    let evt: EventType = keydown_to_char(keycode, keymod);
-                    if let Some((name, action)) = event_at_focused(&mut scene, &evt) {
-                        println!("got input from {:?}", name);
-                        if let Some(resp) = handle_action(&name, &action, &mut scene, &mut app) {
+                    let evt = keydown_to_char(keycode, keymod);
+                    if let Some(result) = event_at_focused(&mut scene, &InputEvent::Text(evt)) {
+                        println!("got input from {:?}", result.source);
+                        if let Some(resp) = handle_action(&result, &mut scene, &mut app) {
                             info!("gui response {:?}", resp);
                             handle_gui_response(resp, &mut app).await;
                         }
@@ -94,10 +105,10 @@ async fn main(spawner:Spawner) {
                 }
                 SimulatorEvent::MouseButtonUp { point, .. } => {
                     println!("mouse button up {}", point);
-                    let pt = GPoint::new(point.x, point.y);
-                    if let Some((name, action)) = click_at(&mut scene, &vec![], pt) {
-                        println!("got input from {:?}", name);
-                        if let Some(resp) = handle_action(&name, &action, &mut scene, &mut app) {
+                    let pt = Point::new(point.x, point.y);
+                    if let Some(result) = click_at(&mut scene, &vec![], pt) {
+                        println!("got input from {:?}", result.source);
+                        if let Some(resp) = handle_action(&result, &mut scene, &mut app) {
                             info!("gui response {:?}", resp);
                             handle_gui_response(resp, &mut app).await;
                         }
@@ -113,7 +124,7 @@ async fn main(spawner:Spawner) {
                     info!("mouse wheel {scroll_delta:?} {direction:?}");
                     if let Some(result) = event_at_focused(
                         &mut scene,
-                        &EventType::Scroll(scroll_delta.x, scroll_delta.y),
+                        &InputEvent::Scroll(Point::new(scroll_delta.x, scroll_delta.y)),
                     ) {
                         println!("got input from {:?}", result);
                     }
@@ -147,37 +158,37 @@ async fn handle_gui_response(gui_response: GuiResponse, _app: &mut AppState) {
     }
 }
 
-fn keydown_to_char(keycode: Keycode, keymod: Mod) -> EventType {
+fn keydown_to_char(keycode: Keycode, keymod: Mod) -> TextAction {
     println!("keycode as number {}", keycode.into_i32());
     let ch = keycode.into_i32();
     if ch <= 0 {
-        return EventType::Unknown;
+        return TextAction::Unknown;
     }
     let shifted = keymod.contains(Mod::LSHIFTMOD) || keymod.contains(Mod::RSHIFTMOD);
 
     if let Some(ch) = char::from_u32(ch as u32) {
         if ch.is_alphabetic() {
             return if shifted {
-                EventType::Keyboard(ch.to_ascii_uppercase() as u8)
+                TextAction::TypedAscii(ch.to_ascii_uppercase() as u8)
             } else {
-                EventType::Keyboard(ch.to_ascii_lowercase() as u8)
+                TextAction::TypedAscii(ch.to_ascii_lowercase() as u8)
             };
         }
         if ch.is_ascii_graphic() {
-            return EventType::Keyboard(ch as u8);
+            return TextAction::TypedAscii(ch as u8);
         }
     }
     match keycode {
-        Keycode::Backspace => EventType::KeyboardAction(KeyboardAction::Backspace),
-        Keycode::Return => EventType::KeyboardAction(KeyboardAction::Return),
-        Keycode::LEFT => EventType::KeyboardAction(KeyboardAction::Left),
-        Keycode::RIGHT => EventType::KeyboardAction(KeyboardAction::Right),
-        Keycode::UP => EventType::KeyboardAction(KeyboardAction::Up),
-        Keycode::DOWN => EventType::KeyboardAction(KeyboardAction::Down),
-        Keycode::SPACE => EventType::Keyboard(b' '),
+        Keycode::Backspace => TextAction::BackDelete,
+        Keycode::Return => TextAction::Enter,
+        Keycode::LEFT => TextAction::Left,
+        Keycode::RIGHT => TextAction::Right,
+        Keycode::UP =>  TextAction::Up,
+        Keycode::DOWN => TextAction::Down,
+        Keycode::SPACE => TextAction::TypedAscii(b' '),
         _ => {
             println!("not supported: {keycode}");
-            return EventType::Unknown;
+            return TextAction::Unknown;
         }
     }
 }

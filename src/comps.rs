@@ -1,39 +1,34 @@
 use log::info;
-use rust_embedded_gui::geom::Bounds;
-use rust_embedded_gui::gfx::{HAlign, TextStyle};
-use rust_embedded_gui::view::View;
-use rust_embedded_gui::DrawEvent;
+use iris_ui::geom::Bounds;
+use iris_ui::view::{Align, View, ViewId};
+use iris_ui::DrawEvent;
+use iris_ui::gfx::TextStyle;
 
-pub fn make_overlay_label(name: &str, title: &str) -> View {
+pub fn make_overlay_label(name: &'static str, title: &str) -> View {
     View {
-        name: name.into(),
+        name: ViewId::new(name),
         title: title.into(),
         bounds: Bounds::new(0, 0, 100, 20),
-        visible: true,
-        state: None,
-        layout: None,
-        input: None,
         draw: Some(|e: &mut DrawEvent| {
-            e.ctx.fill_rect(&e.view.bounds, &e.theme.fg);
-            let style = TextStyle::new(&e.theme.font, &e.theme.bg).with_halign(HAlign::Right);
+            e.ctx.fill_rect(&e.view.bounds, &e.theme.standard.text);
+            let style = TextStyle::new(&e.theme.font, &e.theme.standard.fill).with_halign(Align::End);
             e.ctx.fill_text(&e.view.bounds, &e.view.title, &style);
         }),
+        .. Default::default()
     }
 }
 
-pub fn make_rect_view(name: &str) -> View {
+pub fn make_rect_view(name: &'static str) -> View {
     View {
-        name: name.into(),
+        name: ViewId::new(name),
         title: name.into(),
         bounds: Bounds::new(0, 0, 20, 20),
         visible: true,
         draw: Some(|e| {
             info!("bounds: {:?}", e.view.bounds);
-            e.ctx.fill_rect(&e.view.bounds, &e.theme.fg);
+            e.ctx.fill_rect(&e.view.bounds, &e.theme.standard.fill);
         }),
-        layout: None,
-        state: None,
-        input: None,
+        .. Default::default()
     }
 }
 

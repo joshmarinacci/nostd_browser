@@ -7,13 +7,14 @@ use alloc::{format, vec};
 use core::cmp::max;
 use embedded_graphics::geometry::Point;
 use embedded_graphics::mono_font::ascii::FONT_9X15_BOLD;
+use iris_ui::{DrawEvent, GuiEvent};
 use log::{info, warn};
 use nostd_html_parser::blocks::BlockType;
 use nostd_html_parser::lines::{break_lines, RunStyle, TextLine};
-use rust_embedded_gui::geom::Bounds;
-use rust_embedded_gui::gfx::{HAlign, TextStyle};
-use rust_embedded_gui::view::View;
-use rust_embedded_gui::{Action, DrawEvent, EventType, GuiEvent, KeyboardAction};
+use iris_ui::geom::Bounds;
+use iris_ui::gfx::TextStyle;
+use iris_ui::input::{InputEvent, OutputAction, TextAction};
+use iris_ui::view::{Align, View};
 
 pub struct RenderedPage {
     pub link_count: i32,
@@ -69,8 +70,8 @@ impl PageView {
             bounds,
         };
         View {
-            name: PAGE_VIEW.into(),
-            title: PAGE_VIEW.into(),
+            name: PAGE_VIEW.clone(),
+            title: PAGE_VIEW.as_str().into(),
             bounds,
             visible: true,
             state: Some(Box::new(pv)),
@@ -80,10 +81,11 @@ impl PageView {
                 let size = &e.theme.font.character_size;
                 if let Some(state) = e.scene.get_view_state::<PageView>(e.target) {
                     state.bounds = bounds;
-                    state.columns = (bounds.w / (size.width as i32)) as u32;
+                    state.columns = (bounds.size.w / (size.width as i32)) as u32;
                 }
             }),
             draw: Some(draw),
+            .. Default::default()
         }
     }
     pub fn load_page(&mut self, page: Page) {
@@ -138,7 +140,7 @@ impl PageView {
             rp.page.selection = 0;
         }
     }
-    pub(crate) fn nav_current_link(&mut self) -> Option<Action> {
+    pub(crate) fn nav_current_link(&mut self) -> Option<OutputAction> {
         let rp = self.get_current_rendered_page();
         if let Some(href) = rp.find_href_by_index(rp.page.selection) {
             info!("loading the href {}", href);
@@ -148,7 +150,7 @@ impl PageView {
                 href = format!("{}{}", rp.page.url, href);
                 info!("final url is {}", href);
             }
-            Some(Action::Command(href))
+            Some(OutputAction::Command(href))
         } else {
             None
         }
@@ -172,7 +174,7 @@ fn draw(e: &mut DrawEvent) {
     let viewport_height: i32 = 240 / line_height as i32;
     let char_width = font.character_size.width as i32;
 
-    e.ctx.fill_rect(&e.view.bounds, &e.theme.bg);
+    e.ctx.fill_rect(&e.view.bounds, &e.theme.standard.fill);
 
     // select the lines in the current viewport
     if let Some(state) = &e.view.state {
@@ -200,12 +202,12 @@ fn draw(e: &mut DrawEvent) {
                 // };
                 // draw a bullet
                 if line.block_type == BlockType::ListItem {
-                    e.ctx.fill_rect(&Bounds::new(2, y, 4, 3), &e.theme.fg);
+                    e.ctx.fill_rect(&Bounds::new(2, y, 4, 3), &e.theme.standard.text);
                 }
                 for run in &line.runs {
                     let pos = Point::new(inset_chars as i32 * char_width + x_inset, y + y_inset);
                     let plain_style =
-                        TextStyle::new(&e.theme.font, &e.theme.fg).with_halign(HAlign::Left);
+                        TextStyle::new(&e.theme.font, &e.theme.standard.text).with_halign(Align::Start);
                     let text_style = match &run.style {
                         RunStyle::Link(href) => {
                             info!("found a link: {:?}", href);
@@ -228,11 +230,11 @@ fn draw(e: &mut DrawEvent) {
     }
 }
 
-fn handle_input(event: &mut GuiEvent) -> Option<Action> {
+fn handle_input(event: &mut GuiEvent) -> Option<OutputAction> {
     event.scene.mark_dirty_view(event.target);
     if let Some(state) = event.scene.get_view_state::<PageView>(event.target) {
         match &event.event_type {
-            EventType::Keyboard(key) => {
+            InputEvent::Text(TextAction::TypedAscii(key)) => {
                 match key {
                     b'j' => {
                         let page = state.get_current_rendered_page();
@@ -250,19 +252,14 @@ fn handle_input(event: &mut GuiEvent) -> Option<Action> {
                 }
                 state.dirty = true
             }
-            EventType::KeyboardAction(act) => match act {
-                KeyboardAction::Up => state.prev_link(),
-                KeyboardAction::Down => state.next_link(),
-                KeyboardAction::Return => {
-                    return state.nav_current_link();
-                }
-                _ => {}
-            },
-            EventType::Scroll(dx, dy) => {
-                if (*dx < 0) || (*dy < 0) {
+            InputEvent::Text(TextAction::Up) => state.prev_link(),
+            InputEvent::Text(TextAction::Down) => state.next_link(),
+            InputEvent::Text(TextAction::Enter) => return state.nav_current_link(),
+            InputEvent::Scroll(delta) => {
+                if (delta.x < 0) || (delta.y < 0) {
                     state.prev_link();
                 };
-                if (*dx > 0) || (*dy > 0) {
+                if (delta.x > 0) || (delta.y > 0) {
                     state.next_link();
                 };
             }

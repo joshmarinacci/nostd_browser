@@ -14,29 +14,31 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{RgbColor, WebColors};
 use log::info;
 use nostd_html_parser::blocks::{Block, BlockType};
-use rust_embedded_gui::button::make_button;
-use rust_embedded_gui::geom::Bounds;
-use rust_embedded_gui::label::make_label;
-use rust_embedded_gui::list_view::make_list_view;
-use rust_embedded_gui::panel::make_panel;
-use rust_embedded_gui::scene::Scene;
-use rust_embedded_gui::text_input::make_text_input;
-use rust_embedded_gui::toggle_group::make_toggle_group;
-use rust_embedded_gui::{Action, EventType, GuiEvent};
+use iris_ui::button::make_button;
+use iris_ui::geom::Bounds;
+use iris_ui::GuiEvent;
+use iris_ui::input::{InputEvent, InputResult, OutputAction, TextAction};
+use iris_ui::label::make_label;
+use iris_ui::list_view::make_list_view;
+use iris_ui::panel::make_panel;
+use iris_ui::scene::Scene;
+use iris_ui::text_input::make_text_input;
+use iris_ui::toggle_group::make_toggle_group;
+use iris_ui::view::ViewId;
 
-const MAIN_MENU: &'static str = "main";
-const BROWSER_MENU: &'static str = "browser";
+const MAIN_MENU: &'static ViewId = &ViewId::new("main");
+const BROWSER_MENU: &'static ViewId = &ViewId::new("browser");
 
-const SETTINGS_PANEL: &'static str = "settings";
-const WIFI_PANEL: &'static str = "wifi-panel";
-const WIFI_MENU: &'static str = "wifi-menu";
-const WIFI_BUTTON: &'static str = "wifi-button";
-pub const PAGE_VIEW: &'static str = "page-view";
+const SETTINGS_PANEL: &'static ViewId = &ViewId::new("settings");
+const WIFI_PANEL: &'static ViewId = &ViewId::new("wifi-panel");
+const WIFI_MENU: &'static ViewId = &ViewId::new("wifi-menu");
+const WIFI_BUTTON: &'static ViewId = &ViewId::new("wifi-button");
+pub const PAGE_VIEW: &'static ViewId = &ViewId::new("page-view");
 
-const INFO_PANEL: &'static str = "info-panel";
-const INFO_BUTTON: &'static str = "info-button";
+const INFO_PANEL: &'static ViewId = &ViewId::new("info-panel");
+const INFO_BUTTON: &'static ViewId = &ViewId::new("info-button");
 
-const URL_PANEL: &'static str = "url-panel";
+const URL_PANEL: &'static ViewId = &ViewId::new("url-panel");
 
 pub const BASE_FONT: MonoFont = FONT_9X15;
 pub const BOLD_FONT: MonoFont = FONT_9X15_BOLD;
@@ -89,15 +91,14 @@ pub struct AppState {
     pub bold_font: &'static MonoFont<'static>,
 }
 pub fn handle_action(
-    target: &str,
-    action: &Action,
+    result:&InputResult,
     scene: &mut Scene,
     app: &mut AppState,
 ) -> Option<GuiResponse> {
-    info!("handling action2 {:?} from {:?}", action, target);
-    match action {
-        Action::Command(cmd) => {
-            if target == MAIN_MENU {
+    info!("handling action2 {:?} from {:?}", result.action, result.source);
+    match &result.action {
+        Some(OutputAction::Command(cmd)) => {
+            if result.source == *MAIN_MENU {
                 match cmd.as_str() {
                     "Browser" => {
                         scene.show_view(BROWSER_MENU);
@@ -118,7 +119,7 @@ pub fn handle_action(
                     }
                 }
             }
-            if target == BROWSER_MENU {
+            if result.source == *BROWSER_MENU {
                 match cmd.as_str() {
                     "Open URL" => {
                         show_url_panel(scene);
@@ -157,12 +158,12 @@ pub fn handle_action(
                     }
                 }
             }
-            if target == WIFI_MENU {
+            if result.source == *WIFI_MENU {
                 match cmd.as_str() {
                     "status" => info!("status"),
                     "scan" => info!("scan"),
                     "close" => {
-                        scene.hide_view("wifi");
+                        scene.hide_view(&ViewId::new("wifi"));
                         scene.set_focused(MAIN_MENU);
                     }
                     _ => {
@@ -170,18 +171,19 @@ pub fn handle_action(
                     }
                 }
             }
-            if target == "url-input" {
+            let url_input = ViewId::new("url-input");
+            if result.source == url_input {
                 info!("url input {}", cmd);
                 scene.remove_parent_and_children(URL_PANEL);
                 scene.hide_view(MAIN_MENU);
                 scene.hide_view(BROWSER_MENU);
                 scene.set_focused(PAGE_VIEW);
-                if let Some(view) = scene.get_view_mut("url-input") {
+                if let Some(view) = scene.get_view_mut(&url_input) {
                     info!("got the text {:?}", view.title);
                     return Some(GuiResponse::Net(NetCommand::Load(view.title.to_string())));
                 }
             }
-            if target == "settings-theme" {
+            if result.source == ViewId::new("settings-theme") {
                 if cmd == "Dark" {
                     app.theme = &DARK_THEME;
                     scene.mark_dirty_all();
@@ -191,93 +193,97 @@ pub fn handle_action(
                     scene.mark_dirty_all();
                 }
             }
-            if target == "font-menu" {
+            let font_menu = ViewId::new("font-menu");
+            if result.source == ViewId::new("font-menu") {
                 match cmd.as_str() {
                     "Small" => {
                         app.font = &FONT_6X13;
                         app.font = &FONT_6X13_BOLD;
                         scene.mark_dirty_all();
-                        scene.hide_view("font-menu");
+                        scene.hide_view(&font_menu);
                     }
                     "Medium" => {
                         app.font = &FONT_7X13;
                         app.bold_font = &FONT_7X13_BOLD;
                         scene.mark_dirty_all();
-                        scene.hide_view("font-menu");
+                        scene.hide_view(&font_menu);
                     }
                     "Large" => {
                         app.font = &FONT_9X15;
                         app.bold_font = &FONT_9X15_BOLD;
                         scene.mark_dirty_all();
-                        scene.hide_view("font-menu");
+                        scene.hide_view(&font_menu);
                     }
                     _ => {
                         info!("unknown menu item");
                     }
                 }
             }
-            if target == PAGE_VIEW {
+            if result.source == *PAGE_VIEW {
                 return Some(GuiResponse::Net(NetCommand::Load(cmd.to_string())));
             }
         }
-        Action::Generic => {
-            info!("handling generic");
-            if target == INFO_BUTTON {
-                scene.remove_parent_and_children(INFO_PANEL);
-                scene.set_focused(PAGE_VIEW);
-            }
-            if target == "settings-close-button" {
-                scene.remove_parent_and_children(SETTINGS_PANEL);
-                scene.set_focused(PAGE_VIEW);
-            }
-            if target == "url-cancel-button" {
-                scene.remove_parent_and_children(URL_PANEL);
-                scene.set_focused(PAGE_VIEW);
-            }
-            if target == "url-load-button" {
-                scene.remove_parent_and_children(URL_PANEL);
-                scene.set_focused(PAGE_VIEW);
-            }
-            if target == "settings-font-button" {
-                let font_menu = make_list_view("font-menu", vec!["Small", "Medium", "Large"], 0)
-                    .position_at(150, 70);
-                scene.add_view_to_root(font_menu);
-                scene.set_focused("font-menu");
-            }
-            if target == WIFI_BUTTON {
-                scene.remove_parent_and_children(WIFI_PANEL);
-                scene.set_focused(PAGE_VIEW);
-            }
+        _ => {
+
         }
     }
+    info!("handling generic");
+    if result.source == *INFO_BUTTON {
+        scene.remove_parent_and_children(INFO_PANEL);
+        scene.set_focused(PAGE_VIEW);
+    }
+    if result.source == ViewId::new("settings-close-button") {
+        scene.remove_parent_and_children(SETTINGS_PANEL);
+        scene.set_focused(PAGE_VIEW);
+    }
+    if result.source == ViewId::new("url-cancel-button") {
+        scene.remove_parent_and_children(URL_PANEL);
+        scene.set_focused(PAGE_VIEW);
+    }
+    if result.source == ViewId::new("url-load-button") {
+        scene.remove_parent_and_children(URL_PANEL);
+        scene.set_focused(PAGE_VIEW);
+    }
+    if result.source == ViewId::new("settings-font-button") {
+        let font_menu_id = ViewId::new("font-menu");
+        let font_menu = make_list_view(&font_menu_id, vec!["Small", "Medium", "Large"], 0)
+            .position_at(150, 70);
+        scene.add_view_to_root(font_menu);
+        scene.set_focused(&font_menu_id);
+    }
+    if result.source == *WIFI_BUTTON {
+        scene.remove_parent_and_children(WIFI_PANEL);
+        scene.set_focused(PAGE_VIEW);
+    }
+
     None
 }
 fn show_url_panel(scene: &mut Scene) {
-    let panel = make_panel(URL_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
+    let panel = make_panel(URL_PANEL).with_bounds(Bounds::new(20, 20, 320 - 40, 240 - 40));
     scene.add_view_to_parent(
         make_label("url-label", "URL").position_at(40, 40),
         &panel.name,
     );
     let mut input = make_text_input("url-input", "https://apps.josh.earth").position_at(40, 70);
-    input.bounds.w = 200;
+    input.bounds.size.w = 200;
     scene.add_view_to_parent(input, &panel.name);
     scene.add_view_to_parent(
-        make_button("url-cancel-button", "cancel").position_at(60, 160),
+        make_button(&ViewId::new("url-cancel-button"), "cancel").position_at(60, 160),
         &panel.name,
     );
     scene.add_view_to_parent(
-        make_button("url-load-button", "load").position_at(160, 160),
+        make_button(&ViewId::new("url-load-button"), "load").position_at(160, 160),
         &panel.name,
     );
     scene.add_view_to_root(panel);
     scene.hide_view(MAIN_MENU);
     scene.hide_view(BROWSER_MENU);
-    scene.set_focused("url-input");
+    scene.set_focused(&ViewId::new("url-input"));
 }
 fn show_info_panel(scene: &mut Scene) {
     info!("showing the info panel");
     let panel_bounds = Bounds::new(20, 20, 320 - 40, 240 - 40);
-    let panel = make_panel(INFO_PANEL, panel_bounds.clone());
+    let panel = make_panel(INFO_PANEL).with_bounds(panel_bounds.clone());
 
     // let free = esp_alloc::HEAP.free();
     // let used = esp_alloc::HEAP.used();
@@ -285,36 +291,28 @@ fn show_info_panel(scene: &mut Scene) {
     let used = 0;
 
     let label1a = make_label("info-label1", "Heap").position_at(100, 30);
-    scene.add_child(&panel.name, &label1a.name);
-    scene.add_view(label1a);
+    scene.add_view_to_parent(label1a,&panel.name);
 
     let label2a = make_label("info-label2a", "Free memory").position_at(40, 60);
-    scene.add_child(&panel.name, &label2a.name);
-    scene.add_view(label2a);
+    scene.add_view_to_parent(label2a,&panel.name);
 
     let label2b = make_label("info-label2b", &format!("{:?}", free)).position_at(180, 60);
-    scene.add_child(&panel.name, &label2b.name);
-    scene.add_view(label2b);
+    scene.add_view_to_parent(label2b, &panel.name);
 
     let label3a = make_label("info-label3a", "Used memory").position_at(40, 80);
-    scene.add_child(&panel.name, &label3a.name);
-    scene.add_view(label3a);
+    scene.add_view_to_parent(label3a, &panel.name);
 
     let label3b = make_label("info-label3b", &format!("{:?}", used)).position_at(180, 80);
-    scene.add_child(&panel.name, &label3b.name);
-    scene.add_view(label3b);
+    scene.add_view_to_parent(label3b,&panel.name);
 
     let label4a = make_label("info-label4a", "Total memory").position_at(40, 100);
-    scene.add_child(&panel.name, &label4a.name);
-    scene.add_view(label4a);
+    scene.add_view_to_parent(label4a,&panel.name);
 
     let label4b = make_label("info-label4b", &format!("{:?}", free + used)).position_at(180, 100);
-    scene.add_child(&panel.name, &label4b.name);
-    scene.add_view(label4b);
+    scene.add_view_to_parent(label4b,&panel.name);
 
     let button = make_button(INFO_BUTTON, "done").position_at(160 - 20 - 20, 200 - 20 - 20);
-    scene.add_child(&panel.name, &button.name);
-    scene.add_view(button);
+    scene.add_view_to_parent(button,&panel.name);
 
     scene.add_view_to_root(panel);
 
@@ -322,7 +320,7 @@ fn show_info_panel(scene: &mut Scene) {
     scene.set_focused(INFO_BUTTON);
 }
 fn show_wifi_panel(scene: &mut Scene) {
-    let panel = make_panel(WIFI_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
+    let panel = make_panel(WIFI_PANEL).with_bounds(Bounds::new(20, 20, 320 - 40, 240 - 40));
     let label1a = make_label("wifi-label1a", "SSID").position_at(40, 40);
     let label2a = make_label("wifi-label2a", "PASSWORD").position_at(40, 60);
     let button = make_button(WIFI_BUTTON, "done").position_at(160 - 20, 120);
@@ -336,13 +334,13 @@ fn show_wifi_panel(scene: &mut Scene) {
 }
 fn show_settings_panel(scene: &mut Scene) {
     info!("showing settings panel");
-    let panel = make_panel(SETTINGS_PANEL, Bounds::new(20, 20, 320 - 40, 240 - 40));
+    let panel = make_panel(SETTINGS_PANEL).with_bounds(Bounds::new(20, 20, 320 - 40, 240 - 40));
     scene.add_view_to_parent(
         make_label("settings-theme-label", "Theme").position_at(20, 20),
         &panel.name,
     );
     scene.add_view_to_parent(
-        make_toggle_group("settings-theme", vec!["Light", "Dark"], 0).position_at(80, 20),
+        make_toggle_group(&ViewId::new("settings-theme"), vec!["Light", "Dark"], 0).position_at(80, 20),
         &panel.name,
     );
     scene.add_view_to_parent(
@@ -350,12 +348,12 @@ fn show_settings_panel(scene: &mut Scene) {
         &panel.name,
     );
     scene.add_view_to_parent(
-        make_button("settings-font-button", "Small").position_at(80, 60),
+        make_button(&ViewId::new("settings-font-button"), "Small").position_at(80, 60),
         &panel.name,
     );
 
     scene.add_view_to_parent(
-        make_button("settings-close-button", "Close").position_at(110, 120),
+        make_button(&ViewId::new("settings-close-button"), "Close").position_at(110, 120),
         &panel.name,
     );
     scene.add_view_to_root(panel);
@@ -363,7 +361,7 @@ fn show_settings_panel(scene: &mut Scene) {
 pub fn make_gui_scene() -> Scene {
     let mut scene = Scene::new_with_bounds(Bounds::new(0, 0, 320, 240));
 
-    let panel = make_panel("panel", Bounds::new(20, 20, 260, 200));
+    let panel = make_panel(&ViewId::new("panel")).with_bounds(Bounds::new(20, 20, 260, 200));
     scene.add_view_to_root(panel);
 
     let full_screen_bounds = Bounds::new(0, 0, 320, 240);
@@ -388,7 +386,7 @@ pub fn make_gui_scene() -> Scene {
     scene.add_view_to_root(
         make_list_view(WIFI_MENU, vec!["status", "scan", "close"], 0)
             .position_at(20, 20)
-            .hide(),
+            .with_visible(false)
     );
 
     let browser_menu = make_list_view(
@@ -404,7 +402,8 @@ pub fn make_gui_scene() -> Scene {
         0,
     )
     .position_at(20, 20)
-    .hide();
+        .with_visible(false);
+
     scene.add_view_to_root(browser_menu);
 
     // set up a fake page
@@ -437,9 +436,9 @@ pub fn make_gui_scene() -> Scene {
     scene
 }
 
-pub fn update_view_from_keyboard_input(scene: &mut Scene, evt: &EventType) {
+pub fn update_view_from_keyboard_input(scene: &mut Scene, evt: &TextAction) {
     match evt {
-        EventType::Keyboard(key) => {
+        TextAction::TypedAscii(key ) => {
             if *key == b' ' {
                 if scene.is_visible(MAIN_MENU) == false && scene.is_focused(PAGE_VIEW) {
                     scene.show_view(MAIN_MENU);
@@ -452,7 +451,7 @@ pub fn update_view_from_keyboard_input(scene: &mut Scene, evt: &EventType) {
 }
 pub fn update_view_from_input(event: &mut GuiEvent, _app: &mut AppState) {
     match &event.event_type {
-        EventType::Keyboard(key) => {
+        InputEvent::Text(TextAction::TypedAscii(key)) => {
             if *key == b' ' {
                 if event.scene.is_visible(MAIN_MENU) == false && event.scene.is_focused(PAGE_VIEW) {
                     event.scene.show_view(MAIN_MENU);
@@ -464,7 +463,7 @@ pub fn update_view_from_input(event: &mut GuiEvent, _app: &mut AppState) {
                 }
             }
         }
-        EventType::Tap(pt) => {
+        InputEvent::Tap(pt) => {
             info!("tapped on point {pt:?}");
         }
         _ => {}
