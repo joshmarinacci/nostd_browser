@@ -69,7 +69,7 @@ smoltcp = { version = "0.12.0", default-features = false, features = [
 
 static_cell = { version = "2.1.1", features = ["nightly"] }
 gt911 = "0.3.0"
-rust-embedded-gui = {path="../../rust-embedded-gui"}
+iris-ui = { path="../../iris-ui" }
 heapless = "0.8.0"
 
 

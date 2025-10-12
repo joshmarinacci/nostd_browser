@@ -26,7 +26,7 @@ use mipidsi::interface::SpiInterface;
 use mipidsi::models::ST7789;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
 use mipidsi::Builder;
-use rust_embedded_gui::geom::Bounds;
+use iris_ui::geom::Bounds;
 use static_cell::StaticCell;
 
 const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;

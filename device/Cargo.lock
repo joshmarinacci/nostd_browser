@@ -394,12 +394,12 @@ dependencies = [
  "gt911",
  "hashbrown 0.15.5",
  "heapless 0.8.0",
+ "iris-ui",
  "log",
  "mipidsi",
  "nostd_browser",
  "nostd_html_parser",
  "reqwless",
- "rust-embedded-gui",
  "smoltcp",
  "static_cell",
 ]
@@ -1498,6 +1498,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "iris-ui"
+version = "0.1.0"
+dependencies = [
+ "embedded-graphics",
+ "hashbrown 0.16.0",
+ "log",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1600,9 +1609,9 @@ name = "nostd_browser"
 version = "0.1.0"
 dependencies = [
  "embedded-graphics",
+ "iris-ui",
  "log",
  "nostd_html_parser",
- "rust-embedded-gui",
 ]
 
 [[package]]
@@ -1886,15 +1895,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "rust-embedded-gui"
-version = "0.1.0"
-dependencies = [
- "embedded-graphics",
- "hashbrown 0.16.0",
- "log",
 ]
 
 [[package]]

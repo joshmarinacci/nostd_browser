@@ -27,16 +27,18 @@ use esp_wifi::wifi::{
     WifiState,
 };
 use esp_wifi::{init, EspWifiController};
+use iris_ui::{Callback, Theme, ViewStyle};
+use iris_ui::device::EmbeddedDrawingContext;
+use iris_ui::geom::Point;
+use iris_ui::input::{InputEvent, TextAction};
+use iris_ui::input::InputAction::FocusSelect;
+use iris_ui::scene::{draw_scene, event_at_focused, layout_scene};
 use log::{error, info, warn};
 use reqwless::client::{HttpClient, TlsConfig};
 
 use nostd_browser::browser::{handle_action, make_gui_scene, update_view_from_keyboard_input, AppState, GuiResponse, LIGHT_THEME, PAGE_VIEW};
 use nostd_browser::page::Page;
 use nostd_browser::pageview::PageView;
-use rust_embedded_gui::device::EmbeddedDrawingContext;
-use rust_embedded_gui::geom::Point as GPoint;
-use rust_embedded_gui::scene::{click_at, draw_scene, event_at_focused, layout_scene};
-use rust_embedded_gui::{Callback, EventType, Theme};
 use device::common::{NetCommand, NetStatus, NET_COMMANDS, NET_STATUS};
 use device::tdeck::Wrapper;
 
@@ -118,19 +120,19 @@ async fn main(spawner: Spawner) {
         // spawner.spawn(page_downloader(network_stack, tls_seed)).ok();
         // info!("we are connected. on to the HTTP request");
     } else {
-        // PAGE_CHANNEL
-        //     .sender()
-        //     .send(Page::from_bytes(PAGE_BYTES, "homepage.html"))
-        //     .await;
+        PAGE_CHANNEL
+            .sender()
+            .send(Page::from_bytes(PAGE_BYTES, "homepage.html"))
+            .await;
     }
 
     spawner.spawn(update_display(wrapper)).ok();
 
     Timer::after(Duration::from_millis(1000)).await;
-    PAGE_CHANNEL
-        .sender()
-        .send(Page::from_bytes(PAGE_BYTES, "homepage.html"))
-        .await;
+    // PAGE_CHANNEL
+    //     .sender()
+    //     .send(Page::from_bytes(PAGE_BYTES, "homepage.html"))
+    //     .await;
 }
 async fn wait_for_connection(stack: Stack<'_>) {
     info!("Waiting for link to be up");
@@ -326,9 +328,9 @@ async fn update_display(mut wrapper: Wrapper) {
             // last_touch_event = point;
         }
         if let Some(key) = wrapper.poll_keyboard() {
-            let event = EventType::Keyboard(key);
-            if let Some((target, action)) = event_at_focused(&mut scene, &event) {
-                if let Some(resp) = handle_action(&target, &action, &mut scene, &mut app) {
+            let event = TextAction::TypedAscii(key);
+            if let Some(result) = event_at_focused(&mut scene, &InputEvent::Text(event)) {
+                if let Some(resp) = handle_action(&result, &mut scene, &mut app) {
                     info!("gui response {:?}",resp);
                     handle_gui_response(resp, &mut app);
                 }
@@ -338,27 +340,38 @@ async fn update_display(mut wrapper: Wrapper) {
 
         wrapper.poll_trackball();
         if wrapper.click.changed {
-            if let Some((target, action)) = event_at_focused(&mut scene, &EventType::Action()) {
-                if let Some(resp) = handle_action(&target, &action, &mut scene, &mut app) {
+            if let Some(result) = event_at_focused(&mut scene, &InputEvent::Action(FocusSelect)) {
+                if let Some(resp) = handle_action(&result, &mut scene, &mut app) {
                     info!("gui response {:?}",resp);
                     handle_gui_response(resp, &mut app);
                 }
             }
         }
         if wrapper.up.changed {
-            event_at_focused(&mut scene, &EventType::Scroll(0, -1));
+            event_at_focused(&mut scene, &InputEvent::Scroll(Point::new(0, -1)));
         }
         if wrapper.down.changed {
-            event_at_focused(&mut scene, &EventType::Scroll(0, 1));
+            event_at_focused(&mut scene, &InputEvent::Scroll(Point::new(0, 1)));
         }
         let mut ctx = EmbeddedDrawingContext::new(&mut wrapper.display);
         ctx.clip = scene.dirty_rect.clone();
         let theme: Theme = Theme {
-            bg: app.theme.base_bg,
-            fg: app.theme.base_fg,
-            selected_bg: app.theme.base_bg,
-            selected_fg: app.theme.base_fg,
-            panel_bg: app.theme.base_bg,
+            standard: ViewStyle {
+                fill: app.theme.base_bg,
+                text: app.theme.base_fg,
+            },
+            selected: ViewStyle {
+                fill: app.theme.base_bg,
+                text: app.theme.base_fg,
+            },
+            accented: ViewStyle {
+                fill: app.theme.base_bg,
+                text: app.theme.base_fg,
+            },
+            panel: ViewStyle {
+                fill: app.theme.base_bg,
+                text: app.theme.base_fg,
+            },
             font: app.font.clone(),
             bold_font: app.bold_font.clone(),
         };
