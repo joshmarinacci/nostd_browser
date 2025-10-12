@@ -17,28 +17,3 @@ pub fn make_overlay_label(name: &'static str, title: &str) -> View {
         .. Default::default()
     }
 }
-
-pub fn make_rect_view(name: &'static str) -> View {
-    View {
-        name: ViewId::new(name),
-        title: name.into(),
-        bounds: Bounds::new(0, 0, 20, 20),
-        visible: true,
-        draw: Some(|e| {
-            info!("bounds: {:?}", e.view.bounds);
-            e.ctx.fill_rect(&e.view.bounds, &e.theme.standard.fill);
-        }),
-        .. Default::default()
-    }
-}
-
-//                     30..126 => {
-//                         info!("printable key: {:?}", key);
-//                         self.text.push_str(&String::from_utf8_lossy(&[key]))
-//                     13 => {
-//                         info!("text input return key")
-//                     8 => {
-//                         info!("backspace");
-//                         self.text.pop();
-//                     0_u8..=29_u8 | 126_u8..=u8::MAX => {
-//                         info!("unprintable key: {:?}", key);

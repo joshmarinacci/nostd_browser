@@ -14,17 +14,19 @@ use embedded_graphics::pixelcolor::Rgb565;
 use embedded_graphics::prelude::{RgbColor, WebColors};
 use log::info;
 use nostd_html_parser::blocks::{Block, BlockType};
-use iris_ui::button::make_button;
+use iris_ui::button::{make_button, make_full_button};
 use iris_ui::geom::Bounds;
 use iris_ui::GuiEvent;
 use iris_ui::input::{InputEvent, InputResult, OutputAction, TextAction};
 use iris_ui::label::make_label;
+use iris_ui::layouts::layout_vbox;
 use iris_ui::list_view::make_list_view;
 use iris_ui::panel::make_panel;
 use iris_ui::scene::Scene;
 use iris_ui::text_input::make_text_input;
 use iris_ui::toggle_group::make_toggle_group;
-use iris_ui::view::ViewId;
+use iris_ui::view::Flex::{Intrinsic, Resize};
+use iris_ui::view::{View, ViewId};
 
 const MAIN_MENU: &'static ViewId = &ViewId::new("main");
 const BROWSER_MENU: &'static ViewId = &ViewId::new("browser");
@@ -98,6 +100,22 @@ pub fn handle_action(
     info!("handling action2 {:?} from {:?}", result.action, result.source);
     match &result.action {
         Some(OutputAction::Command(cmd)) => {
+            let url_input = ViewId::new("url-input");
+            if cmd == "cancel-url" {
+                scene.hide_view(URL_PANEL);
+                scene.remove_parent_and_children(URL_PANEL);
+                scene.set_focused(PAGE_VIEW);
+            }
+            if cmd == "load-url" {
+                let result = if let Some(view) = scene.get_view(&url_input) {
+                    Some(GuiResponse::Net(NetCommand::Load(view.title.to_string())))
+                } else {
+                    None
+                };
+                scene.remove_parent_and_children(URL_PANEL);
+                scene.set_focused(PAGE_VIEW);
+                return result;
+            }
             if result.source == *MAIN_MENU {
                 match cmd.as_str() {
                     "Browser" => {
@@ -171,15 +189,12 @@ pub fn handle_action(
                     }
                 }
             }
-            let url_input = ViewId::new("url-input");
             if result.source == url_input {
-                info!("url input {}", cmd);
                 scene.remove_parent_and_children(URL_PANEL);
                 scene.hide_view(MAIN_MENU);
                 scene.hide_view(BROWSER_MENU);
                 scene.set_focused(PAGE_VIEW);
                 if let Some(view) = scene.get_view_mut(&url_input) {
-                    info!("got the text {:?}", view.title);
                     return Some(GuiResponse::Net(NetCommand::Load(view.title.to_string())));
                 }
             }
@@ -236,14 +251,6 @@ pub fn handle_action(
         scene.remove_parent_and_children(SETTINGS_PANEL);
         scene.set_focused(PAGE_VIEW);
     }
-    if result.source == ViewId::new("url-cancel-button") {
-        scene.remove_parent_and_children(URL_PANEL);
-        scene.set_focused(PAGE_VIEW);
-    }
-    if result.source == ViewId::new("url-load-button") {
-        scene.remove_parent_and_children(URL_PANEL);
-        scene.set_focused(PAGE_VIEW);
-    }
     if result.source == ViewId::new("settings-font-button") {
         let font_menu_id = ViewId::new("font-menu");
         let font_menu = make_list_view(&font_menu_id, vec!["Small", "Medium", "Large"], 0)
@@ -258,23 +265,22 @@ pub fn handle_action(
 
     None
 }
+
+fn add_command_button_to(scene: &mut Scene, title:&str, command:&str, parent:&ViewId) {
+    let btn = make_full_button(&scene.next_view_id(), title, command, false);
+    scene.add_view_to_parent(btn,parent);
+}
 fn show_url_panel(scene: &mut Scene) {
-    let panel = make_panel(URL_PANEL).with_bounds(Bounds::new(20, 20, 320 - 40, 240 - 40));
-    scene.add_view_to_parent(
-        make_label("url-label", "URL").position_at(40, 40),
-        &panel.name,
-    );
-    let mut input = make_text_input("url-input", "https://apps.josh.earth").position_at(40, 70);
-    input.bounds.size.w = 200;
+    let panel = make_panel(URL_PANEL)
+        .with_layout(Some(layout_vbox))
+        .with_flex(Intrinsic, Intrinsic)
+        .with_bounds(Bounds::new(20, 20, 320 - 40, 240 - 40));
+    scene.add_view_to_parent(make_label("url-label", "URL"),&panel.name);
+    let mut input = make_text_input("url-input", "https://apps.josh.earth")
+        .with_flex(Resize,Intrinsic);
     scene.add_view_to_parent(input, &panel.name);
-    scene.add_view_to_parent(
-        make_button(&ViewId::new("url-cancel-button"), "cancel").position_at(60, 160),
-        &panel.name,
-    );
-    scene.add_view_to_parent(
-        make_button(&ViewId::new("url-load-button"), "load").position_at(160, 160),
-        &panel.name,
-    );
+    add_command_button_to(scene, "Cancel", "cancel-url", &panel.name);
+    add_command_button_to(scene, "Load", "load-url", &panel.name);
     scene.add_view_to_root(panel);
     scene.hide_view(MAIN_MENU);
     scene.hide_view(BROWSER_MENU);
@@ -283,7 +289,10 @@ fn show_url_panel(scene: &mut Scene) {
 fn show_info_panel(scene: &mut Scene) {
     info!("showing the info panel");
     let panel_bounds = Bounds::new(20, 20, 320 - 40, 240 - 40);
-    let panel = make_panel(INFO_PANEL).with_bounds(panel_bounds.clone());
+    let panel = make_panel(INFO_PANEL)
+        .with_bounds(panel_bounds.clone())
+        .with_flex(Intrinsic, Intrinsic)
+        ;
 
     // let free = esp_alloc::HEAP.free();
     // let used = esp_alloc::HEAP.used();
@@ -334,26 +343,31 @@ fn show_wifi_panel(scene: &mut Scene) {
 }
 fn show_settings_panel(scene: &mut Scene) {
     info!("showing settings panel");
-    let panel = make_panel(SETTINGS_PANEL).with_bounds(Bounds::new(20, 20, 320 - 40, 240 - 40));
+    let mut panel = make_panel(SETTINGS_PANEL)
+        .with_bounds(Bounds::new(20, 20, 320 - 60, 240 - 40-40))
+        .with_layout(Some(layout_vbox));
+    panel.h_flex = Intrinsic;
+    panel.v_flex = Intrinsic;
     scene.add_view_to_parent(
-        make_label("settings-theme-label", "Theme").position_at(20, 20),
+        make_label("settings-theme-label", "Theme"),
         &panel.name,
     );
     scene.add_view_to_parent(
-        make_toggle_group(&ViewId::new("settings-theme"), vec!["Light", "Dark"], 0).position_at(80, 20),
+        make_toggle_group(&ViewId::new("settings-theme"), vec!["Light", "Dark"], 0)
+            .with_flex(Resize, Intrinsic),
         &panel.name,
     );
     scene.add_view_to_parent(
-        make_label("settings-font-label", "Font").position_at(40, 60),
+        make_label("settings-font-label", "Font"),
         &panel.name,
     );
     scene.add_view_to_parent(
-        make_button(&ViewId::new("settings-font-button"), "Small").position_at(80, 60),
+        make_button(&ViewId::new("settings-font-button"), "Small"),
         &panel.name,
     );
 
     scene.add_view_to_parent(
-        make_button(&ViewId::new("settings-close-button"), "Close").position_at(110, 120),
+        make_button(&ViewId::new("settings-close-button"), "Close"),
         &panel.name,
     );
     scene.add_view_to_root(panel);
@@ -432,7 +446,6 @@ pub fn make_gui_scene() -> Scene {
     scene.set_focused(PAGE_VIEW);
 
     scene.add_view_to_root(make_overlay_label("overlay-status", "some info").position_at(200, 200));
-    // scene.add_view_to_root(make_rect_view("touch-overlay"));
     scene
 }
 
