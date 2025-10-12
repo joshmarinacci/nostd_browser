@@ -16,6 +16,7 @@ use log::info;
 use nostd_html_parser::blocks::{Block, BlockType};
 use iris_ui::button::{make_button, make_full_button};
 use iris_ui::geom::Bounds;
+use iris_ui::grid::{make_grid_panel, GridLayoutState};
 use iris_ui::GuiEvent;
 use iris_ui::input::{InputEvent, InputResult, OutputAction, TextAction};
 use iris_ui::label::make_label;
@@ -87,6 +88,9 @@ pub enum GuiResponse {
     Net(NetCommand),
 }
 
+const cancel_url_command:&'static str = "cancel-url";
+const load_url_command:&'static str = "load-url";
+
 pub struct AppState {
     pub theme: &'static AppTheme,
     pub font: &'static MonoFont<'static>,
@@ -101,12 +105,12 @@ pub fn handle_action(
     match &result.action {
         Some(OutputAction::Command(cmd)) => {
             let url_input = ViewId::new("url-input");
-            if cmd == "cancel-url" {
+            if cmd == cancel_url_command {
                 scene.hide_view(URL_PANEL);
                 scene.remove_parent_and_children(URL_PANEL);
                 scene.set_focused(PAGE_VIEW);
             }
-            if cmd == "load-url" {
+            if cmd == load_url_command {
                 let result = if let Some(view) = scene.get_view(&url_input) {
                     Some(GuiResponse::Net(NetCommand::Load(view.title.to_string())))
                 } else {
@@ -279,8 +283,8 @@ fn show_url_panel(scene: &mut Scene) {
     let mut input = make_text_input("url-input", "https://apps.josh.earth")
         .with_flex(Resize,Intrinsic);
     scene.add_view_to_parent(input, &panel.name);
-    add_command_button_to(scene, "Cancel", "cancel-url", &panel.name);
-    add_command_button_to(scene, "Load", "load-url", &panel.name);
+    add_command_button_to(scene, "Cancel", cancel_url_command, &panel.name);
+    add_command_button_to(scene, "Load", load_url_command, &panel.name);
     scene.add_view_to_root(panel);
     scene.hide_view(MAIN_MENU);
     scene.hide_view(BROWSER_MENU);
@@ -289,39 +293,52 @@ fn show_url_panel(scene: &mut Scene) {
 fn show_info_panel(scene: &mut Scene) {
     info!("showing the info panel");
     let panel_bounds = Bounds::new(20, 20, 320 - 40, 240 - 40);
-    let panel = make_panel(INFO_PANEL)
+    let mut panel = make_grid_panel(INFO_PANEL)
         .with_bounds(panel_bounds.clone())
         .with_flex(Intrinsic, Intrinsic)
         ;
+
 
     // let free = esp_alloc::HEAP.free();
     // let used = esp_alloc::HEAP.used();
     let free = 0;
     let used = 0;
 
-    let label1a = make_label("info-label1", "Heap").position_at(100, 30);
+    let mut layout = GridLayoutState::new_row_column(4, 30, 2, 100);
+
+    let label1a = make_label("info-label1", "Heap");
+    layout.place_at_row_column(&label1a.name, 0, 0);
     scene.add_view_to_parent(label1a,&panel.name);
 
     let label2a = make_label("info-label2a", "Free memory").position_at(40, 60);
+    layout.place_at_row_column(&label2a.name, 1, 0);
     scene.add_view_to_parent(label2a,&panel.name);
 
     let label2b = make_label("info-label2b", &format!("{:?}", free)).position_at(180, 60);
+    layout.place_at_row_column(&label2b.name, 1, 1);
     scene.add_view_to_parent(label2b, &panel.name);
 
     let label3a = make_label("info-label3a", "Used memory").position_at(40, 80);
+    layout.place_at_row_column(&label3a.name, 2, 0);
     scene.add_view_to_parent(label3a, &panel.name);
 
     let label3b = make_label("info-label3b", &format!("{:?}", used)).position_at(180, 80);
+    layout.place_at_row_column(&label3b.name, 2, 1);
     scene.add_view_to_parent(label3b,&panel.name);
 
     let label4a = make_label("info-label4a", "Total memory").position_at(40, 100);
+    layout.place_at_row_column(&label4a.name, 3, 0);
     scene.add_view_to_parent(label4a,&panel.name);
 
     let label4b = make_label("info-label4b", &format!("{:?}", free + used)).position_at(180, 100);
+    layout.place_at_row_column(&label4b.name, 3, 1);
     scene.add_view_to_parent(label4b,&panel.name);
 
-    let button = make_button(INFO_BUTTON, "done").position_at(160 - 20 - 20, 200 - 20 - 20);
+    let button = make_button(INFO_BUTTON, "done");
+    layout.place_at_row_column(&button.name, 4, 1);
     scene.add_view_to_parent(button,&panel.name);
+
+    panel.state = Some(Box::new(layout));
 
     scene.add_view_to_root(panel);
 
