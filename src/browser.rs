@@ -35,7 +35,6 @@ const BROWSER_MENU: &'static ViewId = &ViewId::new("browser");
 const SETTINGS_PANEL: &'static ViewId = &ViewId::new("settings");
 const WIFI_PANEL: &'static ViewId = &ViewId::new("wifi-panel");
 const WIFI_MENU: &'static ViewId = &ViewId::new("wifi-menu");
-const WIFI_BUTTON: &'static ViewId = &ViewId::new("wifi-button");
 pub const PAGE_VIEW: &'static ViewId = &ViewId::new("page-view");
 
 const INFO_PANEL: &'static ViewId = &ViewId::new("info-panel");
@@ -88,8 +87,13 @@ pub enum GuiResponse {
     Net(NetCommand),
 }
 
-const cancel_url_command:&'static str = "cancel-url";
-const load_url_command:&'static str = "load-url";
+const CANCEL_URL_COMMAND:&'static str = "cancel-url";
+const LOAD_URL_COMMAND:&'static str = "load-url";
+const CLOSE_SETTINGS_COMMAND:&'static str = "settings-close-button";
+const OPEN_FONT_SETTINGS_COMMAND:&'static str = "settings-font-button";
+
+const CLOSE_WIFI_SETTINGS_COMMAND:&'static str = "close-wifi-settings";
+const CLOSE_INFO_COMMAND:&'static str = "close-info-panel";
 
 pub struct AppState {
     pub theme: &'static AppTheme,
@@ -105,20 +109,43 @@ pub fn handle_action(
     match &result.action {
         Some(OutputAction::Command(cmd)) => {
             let url_input = ViewId::new("url-input");
-            if cmd == cancel_url_command {
-                scene.hide_view(URL_PANEL);
-                scene.remove_parent_and_children(URL_PANEL);
-                scene.set_focused(PAGE_VIEW);
-            }
-            if cmd == load_url_command {
-                let result = if let Some(view) = scene.get_view(&url_input) {
-                    Some(GuiResponse::Net(NetCommand::Load(view.title.to_string())))
-                } else {
-                    None
-                };
-                scene.remove_parent_and_children(URL_PANEL);
-                scene.set_focused(PAGE_VIEW);
-                return result;
+            match cmd.as_str() {
+                CANCEL_URL_COMMAND => {
+                    scene.remove_parent_and_children(URL_PANEL);
+                    scene.set_focused(PAGE_VIEW);
+                },
+                LOAD_URL_COMMAND => {
+                    let result = if let Some(view) = scene.get_view(&url_input) {
+                        Some(GuiResponse::Net(NetCommand::Load(view.title.to_string())))
+                    } else {
+                        None
+                    };
+                    scene.remove_parent_and_children(URL_PANEL);
+                    scene.set_focused(PAGE_VIEW);
+                    return result;
+                },
+                CLOSE_SETTINGS_COMMAND => {
+                    scene.remove_parent_and_children(SETTINGS_PANEL);
+                    scene.set_focused(PAGE_VIEW);
+                },
+                OPEN_FONT_SETTINGS_COMMAND => {
+                    let font_menu_id = ViewId::new("font-menu");
+                    let font_menu = make_list_view(&font_menu_id, vec!["Small", "Medium", "Large"], 0)
+                        .position_at(150, 70);
+                    scene.add_view_to_root(font_menu);
+                    scene.set_focused(&font_menu_id);
+                },
+                CLOSE_WIFI_SETTINGS_COMMAND => {
+                    scene.remove_parent_and_children(WIFI_PANEL);
+                    scene.set_focused(PAGE_VIEW);
+                },
+                CLOSE_INFO_COMMAND => {
+                    scene.remove_parent_and_children(INFO_PANEL);
+                    scene.set_focused(PAGE_VIEW);
+                }
+                &_ => {
+
+                }
             }
             if result.source == *MAIN_MENU {
                 match cmd.as_str() {
@@ -247,26 +274,6 @@ pub fn handle_action(
         }
     }
     info!("handling generic");
-    if result.source == *INFO_BUTTON {
-        scene.remove_parent_and_children(INFO_PANEL);
-        scene.set_focused(PAGE_VIEW);
-    }
-    if result.source == ViewId::new("settings-close-button") {
-        scene.remove_parent_and_children(SETTINGS_PANEL);
-        scene.set_focused(PAGE_VIEW);
-    }
-    if result.source == ViewId::new("settings-font-button") {
-        let font_menu_id = ViewId::new("font-menu");
-        let font_menu = make_list_view(&font_menu_id, vec!["Small", "Medium", "Large"], 0)
-            .position_at(150, 70);
-        scene.add_view_to_root(font_menu);
-        scene.set_focused(&font_menu_id);
-    }
-    if result.source == *WIFI_BUTTON {
-        scene.remove_parent_and_children(WIFI_PANEL);
-        scene.set_focused(PAGE_VIEW);
-    }
-
     None
 }
 
@@ -280,11 +287,11 @@ fn show_url_panel(scene: &mut Scene) {
         .with_flex(Intrinsic, Intrinsic)
         .with_bounds(Bounds::new(20, 20, 320 - 40, 240 - 40));
     scene.add_view_to_parent(make_label("url-label", "URL"),&panel.name);
-    let mut input = make_text_input("url-input", "https://apps.josh.earth")
+    let input = make_text_input("url-input", "https://apps.josh.earth")
         .with_flex(Resize,Intrinsic);
     scene.add_view_to_parent(input, &panel.name);
-    add_command_button_to(scene, "Cancel", cancel_url_command, &panel.name);
-    add_command_button_to(scene, "Load", load_url_command, &panel.name);
+    add_command_button_to(scene, "Cancel", CANCEL_URL_COMMAND, &panel.name);
+    add_command_button_to(scene, "Load", LOAD_URL_COMMAND, &panel.name);
     scene.add_view_to_root(panel);
     scene.hide_view(MAIN_MENU);
     scene.hide_view(BROWSER_MENU);
@@ -334,7 +341,7 @@ fn show_info_panel(scene: &mut Scene) {
     layout.place_at_row_column(&label4b.name, 3, 1);
     scene.add_view_to_parent(label4b,&panel.name);
 
-    let button = make_button(INFO_BUTTON, "done");
+    let button = make_full_button(INFO_BUTTON, "Done",CLOSE_INFO_COMMAND,false);
     layout.place_at_row_column(&button.name, 4, 1);
     scene.add_view_to_parent(button,&panel.name);
 
@@ -346,17 +353,18 @@ fn show_info_panel(scene: &mut Scene) {
     scene.set_focused(INFO_BUTTON);
 }
 fn show_wifi_panel(scene: &mut Scene) {
-    let panel = make_panel(WIFI_PANEL).with_bounds(Bounds::new(20, 20, 320 - 40, 240 - 40));
+    let panel = make_panel(WIFI_PANEL)
+        .with_layout(Some(layout_vbox))
+        .with_bounds(Bounds::new(20, 20, 320 - 40, 240 - 40));
     let label1a = make_label("wifi-label1a", "SSID").position_at(40, 40);
+    scene.add_view_to_parent(label1a,WIFI_PANEL);
     let label2a = make_label("wifi-label2a", "PASSWORD").position_at(40, 60);
-    let button = make_button(WIFI_BUTTON, "done").position_at(160 - 20, 120);
+    scene.add_view_to_parent(label2a,WIFI_PANEL);
+    add_command_button_to(scene,"Done",CLOSE_WIFI_SETTINGS_COMMAND, WIFI_PANEL);
+
 
     scene.add_view_to_root(panel);
-    scene.add_view_to_parent(label1a, WIFI_PANEL);
-    scene.add_view_to_parent(label2a, WIFI_PANEL);
-    scene.add_view_to_parent(button, WIFI_PANEL);
     scene.hide_view(MAIN_MENU);
-    scene.set_focused(WIFI_BUTTON);
 }
 fn show_settings_panel(scene: &mut Scene) {
     info!("showing settings panel");
@@ -378,15 +386,9 @@ fn show_settings_panel(scene: &mut Scene) {
         make_label("settings-font-label", "Font"),
         &panel.name,
     );
-    scene.add_view_to_parent(
-        make_button(&ViewId::new("settings-font-button"), "Small"),
-        &panel.name,
-    );
+    add_command_button_to(scene, "Small", OPEN_FONT_SETTINGS_COMMAND, &panel.name);
+    add_command_button_to(scene, "Closey", CLOSE_SETTINGS_COMMAND, &panel.name);
 
-    scene.add_view_to_parent(
-        make_button(&ViewId::new("settings-close-button"), "Close"),
-        &panel.name,
-    );
     scene.add_view_to_root(panel);
 }
 pub fn make_gui_scene() -> Scene {
