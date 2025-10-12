@@ -1,5 +1,11 @@
-use crate::common::TDeckDisplay;
+use alloc::format;
+use alloc::string::ToString;
+use crate::common::{NetStatus, TDeckDisplay, NET_STATUS};
 use core::cell::RefCell;
+use embassy_executor::Spawner;
+use embassy_net::{Runner, Stack, StackResources};
+use embassy_time::{Duration, Timer};
+use esp_wifi::{init};
 use embedded_graphics::mono_font::ascii::FONT_6X10;
 use embedded_graphics::mono_font::{MonoFont, MonoTextStyle, MonoTextStyleBuilder};
 use embedded_graphics::pixelcolor::Rgb565;
@@ -21,7 +27,7 @@ use esp_hal::timer::timg::TimerGroup;
 use esp_hal::Blocking;
 use gt911::{Error as Gt911Error, Gt911Blocking, Point as TouchPoint};
 use heapless::Vec;
-use log::{error, info};
+use log::{error, info, warn};
 use mipidsi::interface::SpiInterface;
 use mipidsi::models::ST7789;
 use mipidsi::options::{ColorInversion, ColorOrder, Orientation, Rotation};
@@ -29,7 +35,24 @@ use mipidsi::Builder;
 use iris_ui::geom::Bounds;
 use static_cell::StaticCell;
 
+use esp_hal::rng::Rng;
+use esp_wifi::EspWifiController;
+use esp_wifi::wifi::{ClientConfiguration, Configuration, ScanConfig, WifiController, WifiDevice, WifiEvent, WifiState};
+use esp_wifi::wifi::ScanTypeConfig::Active;
+
 const LILYGO_KB_I2C_ADDRESS: u8 = 0x55;
+
+const SSID: Option<&str> = option_env!("SSID");
+const PASSWORD: Option<&str> = option_env!("PASSWORD");
+
+macro_rules! mk_static {
+    ($t:ty,$val:expr) => {{
+        static STATIC_CELL: static_cell::StaticCell<$t> = static_cell::StaticCell::new();
+        #[deny(unused_attributes)]
+        let x = STATIC_CELL.uninit().write(($val));
+        x
+    }};
+}
 
 pub struct Wrapper {
     pub display: TDeckDisplay,
@@ -43,9 +66,9 @@ pub struct Wrapper {
     pub down: TrackballPin,
     pub click: TrackballPin,
     pub touch: Gt911Blocking<I2c<'static, Blocking>>,
-    pub wifi: WIFI<'static>,
-    pub timg0: TIMG0<'static>,
-    pub rng: RNG<'static>,
+    pub wifi: Option<WIFI<'static>>,
+    pub timg0: Option<TIMG0<'static>>,
+    pub rng: Option<RNG<'static>>,
     // pub volume_mgr: VolumeManager<SdCard<RefCellDevice<'static, Spi<'static, Blocking>,Output<'static>, Delay>,Delay>, DummyTimesource>,
 }
 
@@ -207,9 +230,9 @@ impl Wrapper {
             i2c,
             delay,
             touch,
-            wifi: peripherals.WIFI,
-            timg0: peripherals.TIMG0,
-            rng: peripherals.RNG,
+            wifi: Some(peripherals.WIFI),
+            timg0: Some(peripherals.TIMG0),
+            rng: Some(peripherals.RNG),
             adc: Adc::new(peripherals.ADC1, adc_config),
             battery_pin: pin,
             left: TrackballPin {
@@ -252,21 +275,193 @@ impl Wrapper {
                     InputConfig::default().with_pull(Pull::Up),
                 ),
             },
-            // trackball_click_input: Input::new(
-            //     peripherals.GPIO0,
-            //     InputConfig::default().with_pull(Pull::Up),
-            // ),
-            // trackball_click:false,
-            // trackball_up_input: Input::new(
-            //     peripherals.GPIO3,
-            //     InputConfig::default().with_pull(Pull::Up),
-            // ),
-            // trackball_up:false,
-            // trackball_down_input: Input::new(
-            //     peripherals.GPIO15,
-            //     InputConfig::default().with_pull(Pull::Up),
-            // ),
-            // trackball_down:false,
         }
     }
+
+    pub async fn start_wifi(&mut self, spawner: &Spawner) {
+        let Some(rngg) = self.rng.take() else { return ; };
+        let Some(timg0) = self.timg0.take() else { return; };
+        let Some(wifi) = self.wifi.take() else { return; };
+        let mut rng = Rng::new(rngg);
+        let timer_g0 = TimerGroup::new(timg0);
+
+        info!("made timer");
+        let esp_wifi_ctrl = &*mk_static!(
+            EspWifiController<'static>,
+            init(timer_g0.timer0, rng.clone()).unwrap()
+        );
+        info!("making controller");
+        let (wifi_controller, interfaces) =
+            esp_wifi::wifi::new(&esp_wifi_ctrl, wifi).unwrap();
+        let wifi_interface = interfaces.sta;
+
+        let config = embassy_net::Config::dhcpv4(Default::default());
+        let net_seed = (rng.random() as u64) << 32 | rng.random() as u64;
+        info!("made net seed {}", net_seed);
+        let tls_seed = rng.random() as u64 | ((rng.random() as u64) << 32);
+        info!("made tls seed {}", tls_seed);
+
+        info!("init-ing the network stack");
+        // Init network stack
+        let (network_stack, wifi_runner) = embassy_net::new(
+            wifi_interface,
+            config,
+            mk_static!(StackResources<3>, StackResources::<3>::new()),
+            net_seed,
+        );
+
+        info!("spawning connection");
+        spawner.spawn(connection(wifi_controller)).ok();
+        info!("spawning net task");
+        spawner.spawn(net_task(wifi_runner)).ok();
+
+        wait_for_connection(network_stack).await;
+
+        // spawner.spawn(page_downloader(network_stack, tls_seed)).ok();
+        info!("we are connected. on to the HTTP request");
+
+    }
+}
+
+async fn wait_for_connection(stack: Stack<'_>) {
+    info!("Waiting for link to be up");
+    loop {
+        if stack.is_link_up() {
+            break;
+        }
+        Timer::after(Duration::from_millis(500)).await;
+    }
+
+    info!("Waiting to get IP address...");
+    loop {
+        if let Some(config) = stack.config_v4() {
+            info!("Got IP: {}", config.address);
+            break;
+        }
+        Timer::after(Duration::from_millis(500)).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn connection(mut controller: WifiController<'static>) {
+    info!("start connection task");
+    info!("Device capabilities: {:?}", controller.capabilities());
+    loop {
+        match esp_wifi::wifi::wifi_state() {
+            WifiState::StaConnected => {
+                // wait until we're no longer connected
+                info!("waiting to be disconnected");
+                controller.wait_for_event(WifiEvent::StaDisconnected).await;
+                Timer::after(Duration::from_millis(5000)).await
+            }
+            _ => {}
+        }
+        info!("wifi state is {:?}", esp_wifi::wifi::wifi_state());
+        // DISCONNECTED
+        info!(
+            "we are disconnected. is started = {:?}",
+            controller.is_started()
+        );
+        if !matches!(controller.is_started(), Ok(true)) {
+            if SSID.is_none() {
+                warn!("SSID is none. did you forget to set the SSID environment variables");
+                NET_STATUS
+                    .send(NetStatus::Info("SSID is missing".to_string()))
+                    .await;
+            }
+            if PASSWORD.is_none() {
+                warn!("PASSWORD is none. did you forget to set the PASSWORD environment variables");
+                NET_STATUS
+                    .send(NetStatus::Info("PASSWORD is missing".to_string()))
+                    .await;
+            }
+            let client_config = Configuration::Client(ClientConfiguration {
+                ..Default::default()
+            });
+            controller.set_configuration(&client_config).unwrap();
+            info!("Starting wifi");
+            // initializing stack
+            NET_STATUS.send(NetStatus::InitializingStack()).await;
+            controller.start_async().await.unwrap();
+            info!("Wifi started!");
+        }
+        info!("Scan");
+        NET_STATUS.send(NetStatus::Scanning()).await;
+        // scan for longer and show hidden
+        let active = Active {
+            min: core::time::Duration::from_millis(50),
+            max: core::time::Duration::from_millis(100),
+        };
+        // scanning
+        let mut result = controller
+            .scan_with_config_async(ScanConfig {
+                show_hidden: true,
+                scan_type: active,
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        // sort by best signal strength first
+        result.sort_by(|a, b| a.signal_strength.cmp(&b.signal_strength));
+        result.reverse();
+        for ap in result.iter() {
+            info!("found AP: {:?}", ap);
+        }
+        // pick the first that matches the passed in SSID
+        let ap = result
+            .iter()
+            .filter(|ap| ap.ssid.eq_ignore_ascii_case(SSID.unwrap()))
+            .next();
+        if let Some(ap) = ap {
+            info!("using the AP {:?}", ap);
+            // set the config to use for connecting
+            controller
+                .set_configuration(&Configuration::Client(ClientConfiguration {
+                    ssid: ap.ssid.to_string(),
+                    password: PASSWORD.unwrap().into(),
+                    ..Default::default()
+                }))
+                .unwrap();
+
+            info!("About to connect");
+            NET_STATUS.send(NetStatus::Connecting()).await;
+            match controller.connect_async().await {
+                Ok(_) => {
+                    info!("Wifi connected!");
+                    NET_STATUS.send(NetStatus::Connected()).await;
+                    loop {
+                        info!("checking if we are still connected");
+                        if let Ok(conn) = controller.is_connected() {
+                            if conn {
+                                info!("Connected successfully");
+                                info!("sleep until we aren't connected anymore");
+                                Timer::after(Duration::from_millis(5000)).await
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                Err(e) => {
+                    info!("Failed to connect to wifi: {e:?}");
+                    Timer::after(Duration::from_millis(5000)).await
+                }
+            }
+        } else {
+            let ssid = SSID.unwrap();
+            info!("did not find the ap for {ssid}");
+            NET_STATUS
+                .send(NetStatus::Info(format!("{ssid} not found")))
+                .await;
+            info!("looping around");
+        }
+        Timer::after(Duration::from_millis(1000)).await;
+    }
+}
+
+#[embassy_executor::task]
+async fn net_task(mut runner: Runner<'static, WifiDevice<'static>>) {
+    runner.run().await
 }
